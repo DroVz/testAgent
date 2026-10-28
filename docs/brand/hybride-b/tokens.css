@@ -1,0 +1,107 @@
+/*
+ * HYBRIDE B « AMÉTHYSTE » — surcharge des jetons de src/styles.css (proposition, non implémentée).
+ * Structure Repère (Space Grotesk, calme) + violet désaturé + pente de 12° dosée (crans de progression et logo seulement).
+ * Accent OKLCH C = 0,15 (Élan : 0,22), luminance moyenne : c'est la plus « couleur » des trois hybrides.
+ * À charger APRÈS styles.css. Polices : npm i @fontsource/space-grotesk (OFL-1.1), Inter reste le corps.
+ * Logo dans l'app : logo-app.svg, monochrome (currentColor) — la couleur de marque ne vit que dans l'icône.
+ */
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('@fontsource/space-grotesk/files/space-grotesk-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('@fontsource/space-grotesk/files/space-grotesk-latin-700-normal.woff2') format('woff2');
+}
+
+:root {
+  --bg: #f5f5fa;
+  --surface: #ffffff;
+  --text: #13131c;
+  --text-muted: #5e5e71;
+  --border: #dddde6;
+  --accent: #584cad;
+  --success: #137a4b;
+  --danger: #c62828;
+  --accent-contrast: #ffffff;
+  --danger-contrast: #ffffff;
+  --shadow: 0 1px 2px rgba(19, 19, 28, 0.06);
+
+  --font-display: 'Space Grotesk', var(--font-sans);
+  --radius: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0b12;
+    --surface: #161620;
+    --text: #f1f1f6;
+    --text-muted: #a5a5ba;
+    --border: #31313f;
+    --accent: #adaaf8;
+    --success: #34c27c;
+    --danger: #ff6b6b;
+    --accent-contrast: #0b0b12;
+    --danger-contrast: #0b0b12;
+    --shadow: none;
+  }
+}
+
+/* ---------- Typographie : Space Grotesk pour titres et chiffres (échelle 40 / 24 / 16 / 13 inchangée) ---------- */
+.page__title,
+.session-exercise__name,
+.empty-state__title,
+.dialog__title,
+.template-card__name,
+.number-field--hero .number-field__input,
+.stat__value,
+.progress-sentence,
+.pr-list__number,
+.rest-timer__time,
+.chart__last-label,
+.set-row__values {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.tabbar__item { font-family: var(--font-display); font-size: 14px; }
+.template-card__badge {
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.chart__gridline { stroke-dasharray: 1 3; }
+.chart__line { stroke-width: 2.5; }
+
+/* ---------- Nouveau : en-tête de marque (onglets uniquement, logo monochrome logo-app.svg) ---------- */
+.brand-header {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  margin-bottom: var(--space-2);
+  color: var(--text);
+}
+.brand-header svg { height: 24px; width: auto; }
+
+/* ---------- Série en cours : contour violet, pas de voile ---------- */
+.set-current { border: 2px solid var(--accent); }
+
+/* ---------- SIGNATURE : la pente de 12°, dosée (crans de progression + logo, nulle part ailleurs) ---------- */
+.session-progress__track {
+  height: 8px;
+  border-radius: 0;
+  transform: skewX(-12deg);
+  -webkit-mask-image: repeating-linear-gradient(90deg, transparent 0 2px, #000 2px calc(100% / var(--steps, 1) - 2px), transparent calc(100% / var(--steps, 1) - 2px) calc(100% / var(--steps, 1)));
+  mask-image: repeating-linear-gradient(90deg, transparent 0 2px, #000 2px calc(100% / var(--steps, 1) - 2px), transparent calc(100% / var(--steps, 1) - 2px) calc(100% / var(--steps, 1)));
+  /* Piste élargie de 2 px de chaque côté : les écarts de 4 px tombent entre les crans. */
+  width: calc(100% + 4px);
+  margin-inline: -2px;
+}
+.session-progress__bar { border-radius: 0; }

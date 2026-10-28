@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MuscuTrack — hybrides Repère × Élan</title>
+<style>
+@font-face{font-family:'Inter';src:url(fonts/inter-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
+@font-face{font-family:'Barlow Condensed';src:url(fonts/barlow-condensed-latin-700-normal.woff2) format('woff2');font-weight:700}
+@font-face{font-family:'Space Grotesk';src:url(fonts/space-grotesk-latin-700-normal.woff2) format('woff2');font-weight:700}
+@font-face{font-family:'Unbounded';src:url(fonts/unbounded-latin-800-normal.woff2) format('woff2');font-weight:800}
+@font-face{font-family:'Unbounded';src:url(fonts/unbounded-latin-600-normal.woff2) format('woff2');font-weight:600}
+:root{--bg:#f6f6f4;--surface:#fff;--text:#14171b;--muted:#5b636e;--border:#e2e3e0;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#101114;--surface:#191b1f;--text:#f1f2f4;--muted:#a0a6ae;--border:#2c3036;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:32px;line-height:1.15;margin:0 0 8px}
+h2{font-size:40px;line-height:1.05;margin:0 0 8px;font-weight:800}
+h3{font-size:16px;margin:0 0 12px}
+.lead{font-size:18px;max-width:72ch;margin:0 0 8px}
+blockquote{margin:16px 0;padding:12px 16px;border-left:4px solid var(--text);background:var(--surface);border-radius:4px;max-width:72ch}
+.small{font-size:13px}.muted{color:var(--muted)}
+code{font-size:13px}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 32px}
+nav.toc a{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text);text-decoration:none;font-weight:600}
+.reco{background:var(--surface);border:2px solid var(--text);border-radius:12px;padding:16px 20px;margin:0 0 40px}
+.metrics td,.metrics th{white-space:nowrap}
+.reco h2{font-size:24px;font-family:Inter,sans-serif;font-weight:700}
+.dir{margin:0 0 56px;padding-top:24px;border-top:1px solid var(--border)}
+.kicker{margin:0;color:var(--muted);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.intent{font-size:18px;max-width:70ch;margin:0 0 12px}
+.words{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0 0 24px}
+.words li{padding:4px 12px;border:1px solid var(--text);border-radius:999px;font-size:13px;font-weight:600}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px;margin-bottom:16px}
+.block{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;min-width:0}
+.grid2 .block{margin-bottom:0}
+.logos{display:flex;flex-direction:column;gap:12px}
+.logo-tile{padding:16px;border-radius:8px;border:1px solid var(--border)}
+.logo-tile img{max-width:100%;height:36px;width:auto;display:block}
+.logo-tile.light{background:#fff}.logo-tile.dark{background:#0f1114}
+.icons{display:flex;align-items:flex-end;gap:16px}
+.type-sample{font-size:40px;line-height:1.1;margin:0 0 4px;font-weight:700;overflow-wrap:anywhere}
+.type-digits{font-size:24px;margin:0 0 8px;letter-spacing:.02em}
+#elan .type-sample,#elan .type-digits{font-weight:600}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.demo-btn{display:inline-flex;align-items:center;min-height:48px;padding:0 20px;border-radius:999px;font-weight:700}
+.btns .demo-btn:last-child{outline:8px solid #0f1114}
+#fonte .demo-btn{border-radius:8px}#fonte .demo-btn:first-child{box-shadow:inset 0 0 0 2px #16181b}
+#elan .demo-btn{border-radius:14px}
+.scroll{overflow-x:auto}
+table.pal{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
+.pal th,.pal td{text-align:left;padding:8px;border-top:1px solid var(--border);vertical-align:middle;white-space:nowrap}
+.pal thead th{border-top:0;color:var(--muted);font-size:13px}
+.sw{display:inline-block;width:22px;height:22px;border-radius:6px;border:1px solid rgba(127,127,127,.4);vertical-align:middle;margin-right:6px}
+.caveat{border-left:3px solid var(--muted);padding-left:10px}
+.shots-title{margin-top:24px}
+.shots{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(200px,1fr);gap:12px;overflow-x:auto;padding-bottom:8px}
+.shots figure{margin:0}
+.shots img{display:block;width:100%;height:auto;border-radius:12px;border:1px solid var(--border)}
+figcaption{font-size:13px;color:var(--muted);margin-top:4px}
+@media (max-width:640px){h1{font-size:26px}h2{font-size:32px}.shots{grid-auto-columns:72%}.type-sample{font-size:32px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>MuscuTrack — itération 2 : trois hybrides Repère × Élan</h1>
+  <p class="lead">Fonte est écartée. On garde la structure calme de Repère (Space Grotesk, graduations, cartes douces) et on cherche une couleur propre entre le cobalt et le magenta, moins puissante en mode clair. L’UX et toutes les règles de clarté sont inchangées.</p>
+  <blockquote>« Je suis pas trop fan de la 1ère, ça fait trop Fitness Park. Par contre j’aime bien la 2 et la 3. Je suis d’accord sur le fait que la 2 fait trop générique et pour la 3 je trouve que le rose principal (mode blanc) est trop puissant. »</blockquote>
+  <nav class="toc" aria-label="Variantes"><a href="#reco">Recommandation</a><a href="#mesure">Puissance de l’accent</a><a href="#hybride-a">A · Prune</a><a href="#hybride-b">B · Améthyste</a><a href="#hybride-c">C · Mûre</a><a href="#repere">Repère</a><a href="#elan">Élan</a></nav>
+
+  <section class="reco" id="reco">
+    <h2>Recommandation : C · Mûre (A en second choix)</h2>
+    <p>La puissance de l’accent ne se règle pas avec sa surface : le bouton principal pleine largeur de 56 px est imposé par l’UX et occupe toujours 5,5 à 6,8 % de l’écran, quelle que soit la direction. Le levier, c’est la saturation. C répond aux deux critiques à la fois. L’accent est 40 % moins saturé que le magenta d’Élan, ce qui règle le « trop puissant ». L’identité passe par l’encre aubergine, le fond teinté et le logo, ce qui règle le « trop générique ». On reconnaît l’app même là où il n’y a pas d’accent, comme sur l’écran Progrès.</p>
+    <p>A est l’option la plus sûre : c’est Repère tel quel, recoloré. B réintroduit un violet assez courant dans les produits numériques.</p>
+  </section>
+
+  <section class="block" id="mesure">
+    <h3>Puissance de l’accent en mode clair (mesurée sur les vrais écrans)</h3>
+    <p class="small">La surface d’accent visible est identique dans toutes les directions : Séances 5,5 %, mode séance 6,8 %, récap 6,1 %, Progrès 0 % du viewport 390 × 844 (aplats + contours). Elle est fixée par l’UX. Ce qui varie, c’est la saturation (chroma OKLCH, C). La « masse chromatique » vaut surface × C sur l’écran de séance : plus elle est basse, moins l’accent crie. Le contraste avec le fond reste dans tous les cas largement au-dessus de 3:1, donc la prochaine action reste évidente.</p>
+    <div class="scroll"><table class="pal metrics"><thead><tr><th>Direction</th><th>Accent</th><th>Chroma C</th><th>Accent / fond</th><th>Texte sur accent</th><th>Masse chromatique (séance)</th></tr></thead><tbody>
+    <tr><th scope="row">Actuel (orange)</th><td><span class="sw" style="background:#E8481C"></span><code>#E8481C</code></td><td>0,204</td><td>3,6:1</td><td>4,7:1</td><td>1,38</td></tr><tr><th scope="row">Repère (cobalt)</th><td><span class="sw" style="background:#2347E5"></span><code>#2347E5</code></td><td>0,239</td><td>6,2:1</td><td>6,8:1</td><td>1,63</td></tr><tr><th scope="row">Élan (magenta)</th><td><span class="sw" style="background:#A3159A"></span><code>#A3159A</code></td><td>0,216</td><td>6,2:1</td><td>6,7:1</td><td>1,46</td></tr><tr><th scope="row">A · Prune</th><td><span class="sw" style="background:#7E2E59"></span><code>#7E2E59</code></td><td>0,121</td><td>8,0:1</td><td>8,7:1</td><td>0,82</td></tr><tr><th scope="row">B · Améthyste</th><td><span class="sw" style="background:#584CAD"></span><code>#584CAD</code></td><td>0,149</td><td>6,3:1</td><td>6,9:1</td><td>1,01</td></tr><tr><th scope="row">C · Mûre</th><td><span class="sw" style="background:#75387F"></span><code>#75387F</code></td><td>0,129</td><td>7,1:1</td><td>8,0:1</td><td>0,88</td></tr>
+    </tbody></table></div>
+  </section>
+  
+<section class="dir" id="hybride-a">
+  <header class="dir__head">
+    <p class="kicker">Variante A</p>
+    <h2 style="font-family:'Space Grotesk', Inter, sans-serif">Hybride A · Prune</h2>
+    <p class="intent">Repère tel quel (Space Grotesk, règle graduée, voile sur la série en cours) avec un prune profond (#7E2E59) à la place du cobalt. Neutres gris à peine rosés.</p>
+    <ul class="words"><li>précis</li><li>calme</li><li>posé</li></ul>
+  </header>
+  <div class="grid2">
+    <div class="block">
+      <h3>Logo et icône</h3>
+      <div class="logos">
+        <div class="logo-tile light"><img src="hybride-a/logo.svg" alt="Logotype MuscuTrack, direction Hybride A · Prune, fond clair" height="36"></div>
+        <div class="logo-tile dark"><img src="hybride-a/logo-dark.svg" alt="Logotype MuscuTrack, direction Hybride A · Prune, fond sombre" height="36"></div>
+        <div class="icons"><img src="hybride-a/icon.svg" width="96" height="96" alt="Icône d’app Hybride A · Prune, 96 px"><img src="hybride-a/icon.svg" width="48" height="48" alt="Icône d’app Hybride A · Prune, 48 px"><span class="muted small">96 px · 48 px</span></div>
+      </div>
+      <p class="small muted">Dans l’app, le logo est monochrome (<code>logo-app.svg</code>, couleur du texte) : la couleur de marque ne vit que dans l’icône.</p>
+    </div>
+    <div class="block">
+      <h3>Typographie</h3>
+      <p class="type-sample" style="font-family:'Space Grotesk', Inter, sans-serif">Squat · 97,5 kg</p>
+      <p class="type-digits" style="font-family:'Space Grotesk', Inter, sans-serif">0123456789</p>
+      <p class="small">Space Grotesk 700 (OFL) pour les titres et les chiffres ; Inter pour le corps. Chiffres tabulaires (<code>tnum</code>) vérifiés. Échelle inchangée : 40 / 24 / 16 / 13.</p>
+      <div class="btns"><span class="demo-btn hybride-a" style="background:#7E2E59;color:#FFFFFF">Valider la série</span><span class="demo-btn hybride-a" style="background:#E7A3C3;color:#100C0E">Valider la série</span></div>
+    </div>
+  </div>
+  <div class="block">
+    <h3>Palette (format identity.md §6) et contrastes mesurés</h3>
+    <div class="scroll"><table class="pal"><thead><tr><th>Rôle</th><th>Clair</th><th>Contraste clair</th><th>Sombre</th><th>Contraste sombre</th></tr></thead><tbody><tr><th scope="row">Fond</th><td><span class="sw" style="background:#F8F5F6"></span><code>#F8F5F6</code></td><td>texte 16,8:1</td><td><span class="sw" style="background:#100C0E"></span><code>#100C0E</code></td><td>texte 17,3:1</td></tr><tr><th scope="row">Surface (cartes)</th><td><span class="sw" style="background:#FFFFFF"></span><code>#FFFFFF</code></td><td>texte 18,2:1</td><td><span class="sw" style="background:#1B1518"></span><code>#1B1518</code></td><td>texte 16,0:1</td></tr><tr><th scope="row">Texte principal</th><td><span class="sw" style="background:#1A1417"></span><code>#1A1417</code></td><td>18,2:1 / surface</td><td><span class="sw" style="background:#F4F1F2"></span><code>#F4F1F2</code></td><td>16,0:1 / surface</td></tr><tr><th scope="row">Texte secondaire</th><td><span class="sw" style="background:#695C63"></span><code>#695C63</code></td><td>5,9:1 (pire cas)</td><td><span class="sw" style="background:#AEA0A7"></span><code>#AEA0A7</code></td><td>7,2:1 (pire cas)</td></tr><tr><th scope="row">Bordure</th><td><span class="sw" style="background:#E2DCDF"></span><code>#E2DCDF</code></td><td>décor (non textuel)</td><td><span class="sw" style="background:#383034"></span><code>#383034</code></td><td>décor (non textuel)</td></tr><tr><th scope="row">Accent (prochaine action)</th><td><span class="sw" style="background:#7E2E59"></span><code>#7E2E59</code></td><td>texte posé 8,7:1 · sur fond 8,0:1</td><td><span class="sw" style="background:#E7A3C3"></span><code>#E7A3C3</code></td><td>texte posé 9,6:1 · sur fond 9,6:1</td></tr><tr><th scope="row">Succès / record</th><td><span class="sw" style="background:#137A4B"></span><code>#137A4B</code></td><td>5,0:1</td><td><span class="sw" style="background:#34C27C"></span><code>#34C27C</code></td><td>7,8:1</td></tr><tr><th scope="row">Danger</th><td><span class="sw" style="background:#C62828"></span><code>#C62828</code></td><td>5,2:1 · texte posé 5,6:1</td><td><span class="sw" style="background:#FF6B6B"></span><code>#FF6B6B</code></td><td>6,5:1 · texte posé 7,0:1</td></tr><tr><th scope="row">Texte sur l’accent</th><td><span class="sw" style="background:#FFFFFF"></span><code>#FFFFFF</code></td><td>8,7:1</td><td><span class="sw" style="background:#100C0E"></span><code>#100C0E</code></td><td>9,6:1</td></tr></tbody></table></div>
+    <p class="small"><strong>Voile série en cours</strong> : <span class="sw" style="background:#FBF1F5"></span><code>#FBF1F5</code> clair · <span class="sw" style="background:#2E1D25"></span><code>#2E1D25</code> sombre — texte 16,4:1 / 14,2:1</p>
+  </div>
+  <div class="grid2">
+    <div class="block"><h3>Élément signature</h3><p><strong>La règle graduée</strong> de Repère : une graduation par exercice sous la barre de progression, des pointillés dans le graphique, des barres croissantes dans le logo et l’icône. Voile très léger (#FBF1F5) sur la série en cours.</p></div>
+    <div class="block"><h3>Formes</h3><p>Cartes 16 px, boutons en pilule, ombre très légère en clair.</p><p class="small caveat"><strong>Point de vigilance</strong> : Le prune est la teinte la plus sombre (L 0,43) : en clair, le bouton se rapproche un peu des séries faites, remplies d’encre (la coche et « Faite » les distinguent). Le voile reste perçu comme rosé.</p></div>
+  </div>
+  <h3 class="shots-title">Appliquée aux vrais écrans (390 × 844)</h3>
+  <div class="shots"><figure><img loading="lazy" src="hybride-a/light-1-seances.png" alt="Hybride A · Prune — Séances (clair)"><figcaption>Séances</figcaption></figure><figure><img loading="lazy" src="hybride-a/light-2-seance.png" alt="Hybride A · Prune — Mode séance (clair)"><figcaption>Mode séance</figcaption></figure><figure><img loading="lazy" src="hybride-a/light-3-recap.png" alt="Hybride A · Prune — Récap (clair)"><figcaption>Récap de fin</figcaption></figure><figure><img loading="lazy" src="hybride-a/light-4-progres.png" alt="Hybride A · Prune — Progrès (clair)"><figcaption>Progrès</figcaption></figure><figure><img loading="lazy" src="hybride-a/dark-1-seances.png" alt="Hybride A · Prune — Séances (sombre)"><figcaption>Séances · sombre</figcaption></figure><figure><img loading="lazy" src="hybride-a/dark-2-seance.png" alt="Hybride A · Prune — Mode séance (sombre)"><figcaption>Mode séance · sombre</figcaption></figure></div>
+  <p class="small muted">Jetons : <code>docs/brand/hybride-a/tokens.css</code></p>
+</section>
+
+<section class="dir" id="hybride-b">
+  <header class="dir__head">
+    <p class="kicker">Variante B</p>
+    <h2 style="font-family:'Space Grotesk', Inter, sans-serif">Hybride B · Améthyste</h2>
+    <p class="intent">Structure Repère, violet désaturé (#584CAD) et la pente de 12° d’Élan réservée à deux endroits : les crans de progression et le logo. Neutres gris froid.</p>
+    <ul class="words"><li>vif</li><li>net</li><li>moderne</li></ul>
+  </header>
+  <div class="grid2">
+    <div class="block">
+      <h3>Logo et icône</h3>
+      <div class="logos">
+        <div class="logo-tile light"><img src="hybride-b/logo.svg" alt="Logotype MuscuTrack, direction Hybride B · Améthyste, fond clair" height="36"></div>
+        <div class="logo-tile dark"><img src="hybride-b/logo-dark.svg" alt="Logotype MuscuTrack, direction Hybride B · Améthyste, fond sombre" height="36"></div>
+        <div class="icons"><img src="hybride-b/icon.svg" width="96" height="96" alt="Icône d’app Hybride B · Améthyste, 96 px"><img src="hybride-b/icon.svg" width="48" height="48" alt="Icône d’app Hybride B · Améthyste, 48 px"><span class="muted small">96 px · 48 px</span></div>
+      </div>
+      <p class="small muted">Dans l’app, le logo est monochrome (<code>logo-app.svg</code>, couleur du texte) : la couleur de marque ne vit que dans l’icône.</p>
+    </div>
+    <div class="block">
+      <h3>Typographie</h3>
+      <p class="type-sample" style="font-family:'Space Grotesk', Inter, sans-serif">Squat · 97,5 kg</p>
+      <p class="type-digits" style="font-family:'Space Grotesk', Inter, sans-serif">0123456789</p>
+      <p class="small">Space Grotesk 700 (OFL) pour les titres et les chiffres ; Inter pour le corps. Chiffres tabulaires (<code>tnum</code>) vérifiés. Échelle inchangée : 40 / 24 / 16 / 13.</p>
+      <div class="btns"><span class="demo-btn hybride-b" style="background:#584CAD;color:#FFFFFF">Valider la série</span><span class="demo-btn hybride-b" style="background:#ADAAF8;color:#0B0B12">Valider la série</span></div>
+    </div>
+  </div>
+  <div class="block">
+    <h3>Palette (format identity.md §6) et contrastes mesurés</h3>
+    <div class="scroll"><table class="pal"><thead><tr><th>Rôle</th><th>Clair</th><th>Contraste clair</th><th>Sombre</th><th>Contraste sombre</th></tr></thead><tbody><tr><th scope="row">Fond</th><td><span class="sw" style="background:#F5F5FA"></span><code>#F5F5FA</code></td><td>texte 17,0:1</td><td><span class="sw" style="background:#0B0B12"></span><code>#0B0B12</code></td><td>texte 17,4:1</td></tr><tr><th scope="row">Surface (cartes)</th><td><span class="sw" style="background:#FFFFFF"></span><code>#FFFFFF</code></td><td>texte 18,5:1</td><td><span class="sw" style="background:#161620"></span><code>#161620</code></td><td>texte 15,9:1</td></tr><tr><th scope="row">Texte principal</th><td><span class="sw" style="background:#13131C"></span><code>#13131C</code></td><td>18,5:1 / surface</td><td><span class="sw" style="background:#F1F1F6"></span><code>#F1F1F6</code></td><td>15,9:1 / surface</td></tr><tr><th scope="row">Texte secondaire</th><td><span class="sw" style="background:#5E5E71"></span><code>#5E5E71</code></td><td>5,8:1 (pire cas)</td><td><span class="sw" style="background:#A5A5BA"></span><code>#A5A5BA</code></td><td>7,4:1 (pire cas)</td></tr><tr><th scope="row">Bordure</th><td><span class="sw" style="background:#DDDDE6"></span><code>#DDDDE6</code></td><td>décor (non textuel)</td><td><span class="sw" style="background:#31313F"></span><code>#31313F</code></td><td>décor (non textuel)</td></tr><tr><th scope="row">Accent (prochaine action)</th><td><span class="sw" style="background:#584CAD"></span><code>#584CAD</code></td><td>texte posé 6,9:1 · sur fond 6,3:1</td><td><span class="sw" style="background:#ADAAF8"></span><code>#ADAAF8</code></td><td>texte posé 9,2:1 · sur fond 9,2:1</td></tr><tr><th scope="row">Succès / record</th><td><span class="sw" style="background:#137A4B"></span><code>#137A4B</code></td><td>4,9:1</td><td><span class="sw" style="background:#34C27C"></span><code>#34C27C</code></td><td>7,8:1</td></tr><tr><th scope="row">Danger</th><td><span class="sw" style="background:#C62828"></span><code>#C62828</code></td><td>5,2:1 · texte posé 5,6:1</td><td><span class="sw" style="background:#FF6B6B"></span><code>#FF6B6B</code></td><td>6,5:1 · texte posé 7,1:1</td></tr><tr><th scope="row">Texte sur l’accent</th><td><span class="sw" style="background:#FFFFFF"></span><code>#FFFFFF</code></td><td>6,9:1</td><td><span class="sw" style="background:#0B0B12"></span><code>#0B0B12</code></td><td>9,2:1</td></tr></tbody></table></div>
+    
+  </div>
+  <div class="grid2">
+    <div class="block"><h3>Élément signature</h3><p><strong>La pente dosée</strong> : barre de progression en crans biseautés (un par exercice), double barre oblique dans le logo et l’icône. Nulle part ailleurs : pas d’étiquettes en biais.</p></div>
+    <div class="block"><h3>Formes</h3><p>Cartes 14 px, boutons en pilule. Pas de voile sur la série en cours, seulement un contour violet.</p><p class="small caveat"><strong>Point de vigilance</strong> : Le violet-indigo est la couleur de beaucoup de produits numériques (outils SaaS, paiement) : le risque de faire « générique » revient, en moins fort que le cobalt. C’est la variante la plus « couleur » des trois (C = 0,15).</p></div>
+  </div>
+  <h3 class="shots-title">Appliquée aux vrais écrans (390 × 844)</h3>
+  <div class="shots"><figure><img loading="lazy" src="hybride-b/light-1-seances.png" alt="Hybride B · Améthyste — Séances (clair)"><figcaption>Séances</figcaption></figure><figure><img loading="lazy" src="hybride-b/light-2-seance.png" alt="Hybride B · Améthyste — Mode séance (clair)"><figcaption>Mode séance</figcaption></figure><figure><img loading="lazy" src="hybride-b/light-3-recap.png" alt="Hybride B · Améthyste — Récap (clair)"><figcaption>Récap de fin</figcaption></figure><figure><img loading="lazy" src="hybride-b/light-4-progres.png" alt="Hybride B · Améthyste — Progrès (clair)"><figcaption>Progrès</figcaption></figure><figure><img loading="lazy" src="hybride-b/dark-1-seances.png" alt="Hybride B · Améthyste — Séances (sombre)"><figcaption>Séances · sombre</figcaption></figure><figure><img loading="lazy" src="hybride-b/dark-2-seance.png" alt="Hybride B · Améthyste — Mode séance (sombre)"><figcaption>Mode séance · sombre</figcaption></figure></div>
+  <p class="small muted">Jetons : <code>docs/brand/hybride-b/tokens.css</code></p>
+</section>
+
+<section class="dir" id="hybride-c">
+  <header class="dir__head">
+    <p class="kicker">Variante C</p>
+    <h2 style="font-family:'Space Grotesk', Inter, sans-serif">Hybride C · Mûre</h2>
+    <p class="intent">Proposition du designer : la marque vit dans l’encre, pas dans l’accent. Tout l’écran est un camaïeu d’une seule teinte (mûre) : fond lavande pâle, encre aubergine (#24162E) pour le texte, les séries faites, la barre et la courbe. L’accent (#75387F) n’est que l’échelon saturé de cette teinte.</p>
+    <ul class="words"><li>calme</li><li>précis</li><li>chaleureux</li></ul>
+  </header>
+  <div class="grid2">
+    <div class="block">
+      <h3>Logo et icône</h3>
+      <div class="logos">
+        <div class="logo-tile light"><img src="hybride-c/logo.svg" alt="Logotype MuscuTrack, direction Hybride C · Mûre, fond clair" height="36"></div>
+        <div class="logo-tile dark"><img src="hybride-c/logo-dark.svg" alt="Logotype MuscuTrack, direction Hybride C · Mûre, fond sombre" height="36"></div>
+        <div class="icons"><img src="hybride-c/icon.svg" width="96" height="96" alt="Icône d’app Hybride C · Mûre, 96 px"><img src="hybride-c/icon.svg" width="48" height="48" alt="Icône d’app Hybride C · Mûre, 48 px"><span class="muted small">96 px · 48 px</span></div>
+      </div>
+      <p class="small muted">Dans l’app, le logo est monochrome (<code>logo-app.svg</code>, couleur du texte) : la couleur de marque ne vit que dans l’icône.</p>
+    </div>
+    <div class="block">
+      <h3>Typographie</h3>
+      <p class="type-sample" style="font-family:'Space Grotesk', Inter, sans-serif">Squat · 97,5 kg</p>
+      <p class="type-digits" style="font-family:'Space Grotesk', Inter, sans-serif">0123456789</p>
+      <p class="small">Space Grotesk 700 (OFL) pour les titres et les chiffres ; Inter pour le corps. Chiffres tabulaires (<code>tnum</code>) vérifiés. Échelle inchangée : 40 / 24 / 16 / 13.</p>
+      <div class="btns"><span class="demo-btn hybride-c" style="background:#75387F;color:#FFFFFF">Valider la série</span><span class="demo-btn hybride-c" style="background:#D8A6DF;color:#100B14">Valider la série</span></div>
+    </div>
+  </div>
+  <div class="block">
+    <h3>Palette (format identity.md §6) et contrastes mesurés</h3>
+    <div class="scroll"><table class="pal"><thead><tr><th>Rôle</th><th>Clair</th><th>Contraste clair</th><th>Sombre</th><th>Contraste sombre</th></tr></thead><tbody><tr><th scope="row">Fond</th><td><span class="sw" style="background:#F6F0FB"></span><code>#F6F0FB</code></td><td>texte 15,3:1</td><td><span class="sw" style="background:#100B14"></span><code>#100B14</code></td><td>texte 17,3:1</td></tr><tr><th scope="row">Surface (cartes)</th><td><span class="sw" style="background:#FFFFFF"></span><code>#FFFFFF</code></td><td>texte 17,1:1</td><td><span class="sw" style="background:#1C1521"></span><code>#1C1521</code></td><td>texte 15,8:1</td></tr><tr><th scope="row">Texte principal</th><td><span class="sw" style="background:#24162E"></span><code>#24162E</code></td><td>17,1:1 / surface</td><td><span class="sw" style="background:#F4F0F7"></span><code>#F4F0F7</code></td><td>15,8:1 / surface</td></tr><tr><th scope="row">Texte secondaire</th><td><span class="sw" style="background:#655771"></span><code>#655771</code></td><td>6,0:1 (pire cas)</td><td><span class="sw" style="background:#B1A6B9"></span><code>#B1A6B9</code></td><td>7,7:1 (pire cas)</td></tr><tr><th scope="row">Bordure</th><td><span class="sw" style="background:#DFD7E6"></span><code>#DFD7E6</code></td><td>décor (non textuel)</td><td><span class="sw" style="background:#3A3141"></span><code>#3A3141</code></td><td>décor (non textuel)</td></tr><tr><th scope="row">Accent (prochaine action)</th><td><span class="sw" style="background:#75387F"></span><code>#75387F</code></td><td>texte posé 8,0:1 · sur fond 7,1:1</td><td><span class="sw" style="background:#D8A6DF"></span><code>#D8A6DF</code></td><td>texte posé 9,7:1 · sur fond 9,7:1</td></tr><tr><th scope="row">Succès / record</th><td><span class="sw" style="background:#137A4B"></span><code>#137A4B</code></td><td>4,8:1</td><td><span class="sw" style="background:#34C27C"></span><code>#34C27C</code></td><td>7,8:1</td></tr><tr><th scope="row">Danger</th><td><span class="sw" style="background:#C62828"></span><code>#C62828</code></td><td>5,0:1 · texte posé 5,6:1</td><td><span class="sw" style="background:#FF6B6B"></span><code>#FF6B6B</code></td><td>6,4:1 · texte posé 7,0:1</td></tr><tr><th scope="row">Texte sur l’accent</th><td><span class="sw" style="background:#FFFFFF"></span><code>#FFFFFF</code></td><td>8,0:1</td><td><span class="sw" style="background:#100B14"></span><code>#100B14</code></td><td>9,7:1</td></tr></tbody></table></div>
+    <p class="small"><strong>Encre aubergine (texte, séries faites, courbe)</strong> : <span class="sw" style="background:#24162E"></span><code>#24162E</code> clair · <span class="sw" style="background:#F4F0F7"></span><code>#F4F0F7</code> sombre — 15,3:1 sur le fond</p>
+  </div>
+  <div class="grid2">
+    <div class="block"><h3>Élément signature</h3><p><strong>L’encre aubergine et la règle penchée</strong> : un seul motif réunit les deux directions aimées, des graduations croissantes inclinées à 12°, utilisé seulement dans le logo et l’icône. Dans l’app, la progression est en crans droits, en encre.</p></div>
+    <div class="block"><h3>Formes</h3><p>Cartes 16 px, boutons en pilule, ombre très légère. Icône sur fond aubergine : la seule icône sombre, très reconnaissable sur l’écran d’accueil.</p><p class="small caveat"><strong>Point de vigilance</strong> : Le fond (#F6F0FB) est légèrement teinté mais visible : l’app ne sera plus d’un blanc neutre. À valider sur un écran mal calibré ou en plein soleil.</p></div>
+  </div>
+  <h3 class="shots-title">Appliquée aux vrais écrans (390 × 844)</h3>
+  <div class="shots"><figure><img loading="lazy" src="hybride-c/light-1-seances.png" alt="Hybride C · Mûre — Séances (clair)"><figcaption>Séances</figcaption></figure><figure><img loading="lazy" src="hybride-c/light-2-seance.png" alt="Hybride C · Mûre — Mode séance (clair)"><figcaption>Mode séance</figcaption></figure><figure><img loading="lazy" src="hybride-c/light-3-recap.png" alt="Hybride C · Mûre — Récap (clair)"><figcaption>Récap de fin</figcaption></figure><figure><img loading="lazy" src="hybride-c/light-4-progres.png" alt="Hybride C · Mûre — Progrès (clair)"><figcaption>Progrès</figcaption></figure><figure><img loading="lazy" src="hybride-c/dark-1-seances.png" alt="Hybride C · Mûre — Séances (sombre)"><figcaption>Séances · sombre</figcaption></figure><figure><img loading="lazy" src="hybride-c/dark-2-seance.png" alt="Hybride C · Mûre — Mode séance (sombre)"><figcaption>Mode séance · sombre</figcaption></figure></div>
+  <p class="small muted">Jetons : <code>docs/brand/hybride-c/tokens.css</code></p>
+</section>
+  <section class="dir" id="repere"><header class="dir__head"><p class="kicker">Référence (itération 1)</p><h2 style="font-family:'Space Grotesk', Inter, sans-serif">Repère</h2><p class="intent">Itération 1 : la structure appréciée, mais un bleu trop générique.</p></header><div class="shots"><figure><img loading="lazy" src="repere/light-1-seances.png" alt="Repère — Séances (clair)"><figcaption>Séances</figcaption></figure><figure><img loading="lazy" src="repere/light-2-seance.png" alt="Repère — Mode séance (clair)"><figcaption>Mode séance</figcaption></figure><figure><img loading="lazy" src="repere/light-3-recap.png" alt="Repère — Récap (clair)"><figcaption>Récap de fin</figcaption></figure><figure><img loading="lazy" src="repere/light-4-progres.png" alt="Repère — Progrès (clair)"><figcaption>Progrès</figcaption></figure><figure><img loading="lazy" src="repere/dark-1-seances.png" alt="Repère — Séances (sombre)"><figcaption>Séances · sombre</figcaption></figure><figure><img loading="lazy" src="repere/dark-2-seance.png" alt="Repère — Mode séance (sombre)"><figcaption>Mode séance · sombre</figcaption></figure></div></section>
+  <section class="dir" id="elan"><header class="dir__head"><p class="kicker">Référence (itération 1)</p><h2 style="font-family:'Unbounded', Inter, sans-serif">Élan</h2><p class="intent">Itération 1 : l’énergie appréciée, mais un magenta trop puissant en clair et une police trop large.</p></header><div class="shots"><figure><img loading="lazy" src="elan/light-1-seances.png" alt="Élan — Séances (clair)"><figcaption>Séances</figcaption></figure><figure><img loading="lazy" src="elan/light-2-seance.png" alt="Élan — Mode séance (clair)"><figcaption>Mode séance</figcaption></figure><figure><img loading="lazy" src="elan/light-3-recap.png" alt="Élan — Récap (clair)"><figcaption>Récap de fin</figcaption></figure><figure><img loading="lazy" src="elan/light-4-progres.png" alt="Élan — Progrès (clair)"><figcaption>Progrès</figcaption></figure><figure><img loading="lazy" src="elan/dark-1-seances.png" alt="Élan — Séances (sombre)"><figcaption>Séances · sombre</figcaption></figure><figure><img loading="lazy" src="elan/dark-2-seance.png" alt="Élan — Mode séance (sombre)"><figcaption>Mode séance · sombre</figcaption></figure></div></section>
+  <p class="small muted">Captures réalisées sur l’app réelle (localhost, 390 × 844, données réalistes) en injectant <code>tokens.css</code> et le logo, sans modifier le code. La durée « &lt; 1 min » du récap vient de la séance jouée par le robot.</p>
+</main>
+</body>
+</html>

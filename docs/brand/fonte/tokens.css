@@ -1,0 +1,162 @@
+/*
+ * Direction « FONTE » — surcharge des jetons de src/styles.css (proposition, non implémentée).
+ * Intention : la salle de muscu, pas le spa. Graphite + jaune signal, chiffres condensés, formes droites.
+ * À charger APRÈS styles.css. Polices : npm i @fontsource/barlow-condensed (OFL-1.1), embarquées hors ligne.
+ * Logo dans l'app : logo-app.svg, monochrome (currentColor) — la couleur de marque ne vit que dans l'icône.
+ * Nouveau composant : .brand-header (bandeau de marque en haut des 3 onglets, voir en bas du fichier).
+ * Signature : la « barre crantée » (progression découpée en crans, un cran par exercice : --steps).
+ */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('@fontsource/barlow-condensed/files/barlow-condensed-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('@fontsource/barlow-condensed/files/barlow-condensed-latin-700-normal.woff2') format('woff2');
+}
+
+:root {
+  --bg: #f3f3f0;
+  --surface: #ffffff;
+  --text: #16181b;
+  --text-muted: #585e66;
+  --border: #d9dad5;
+  --accent: #ffd21f;
+  --success: #137a4b;
+  --danger: #c62828;
+  --accent-contrast: #16181b;
+  --danger-contrast: #ffffff;
+  --shadow: none;
+
+  /* Teinte de marque neutre : graphite (bandeau et barre d'onglets). Jamais pour une action. */
+  --brand: #202326;
+  --brand-contrast: #ffffff;
+  --brand-muted: #a9aeb4;
+  /* Le jaune sur fond clair ne fait que 1,3:1 : il n'est jamais utilisé seul comme trait. */
+  --primary-border: var(--text);
+  --current-border: var(--text);
+
+  --font-display: 'Barlow Condensed', 'Arial Narrow', var(--font-sans);
+  --radius: 6px;
+  --radius-pill: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101113;
+    --surface: #1a1c1f;
+    --text: #f3f3ef;
+    --text-muted: #a2a6ac;
+    --border: #2f3236;
+    --accent: #ffd21f;
+    --success: #34c27c;
+    --danger: #ff6b6b;
+    --accent-contrast: #16181b;
+    --danger-contrast: #101113;
+    --brand: #000000;
+    --brand-contrast: #ffffff;
+    --brand-muted: #a2a6ac;
+    /* En sombre le jaune fait 11,8:1 sur la surface : il peut porter le contour. */
+    --primary-border: var(--accent);
+    --current-border: var(--accent);
+  }
+}
+
+/* ---------- Typographie : titres d'écran et chiffres en condensé (échelle 40 / 24 / 16 / 13 inchangée) ---------- */
+.page__title,
+.session-exercise__name,
+.empty-state__title,
+.dialog__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.number-field--hero .number-field__input,
+.stat__value,
+.progress-sentence,
+.pr-list__number,
+.rest-timer__time,
+.chart__last-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Boutons : formes droites ; action principale jaune cerclée d'encre ---------- */
+.btn--primary {
+  border: 2px solid var(--primary-border);
+  font-weight: 700;
+}
+
+/* ---------- Série en cours : carte cerclée d'encre + bande jaune en tête ---------- */
+.set-current {
+  border: 2px solid var(--current-border);
+  border-top: 8px solid var(--accent);
+}
+
+/* Carte suggérée : étiquette en encre (pas en jaune). */
+.template-card--featured { border: 2px solid var(--text); }
+.template-card__badge {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 2px 8px;
+  background: var(--text);
+  color: var(--surface);
+  border-radius: 2px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------- SIGNATURE : barre crantée (un cran par exercice) ---------- */
+.session-progress__track {
+  height: 10px;
+  border-radius: 2px;
+  -webkit-mask-image: repeating-linear-gradient(90deg, transparent 0 2px, #000 2px calc(100% / var(--steps, 1) - 2px), transparent calc(100% / var(--steps, 1) - 2px) calc(100% / var(--steps, 1)));
+  mask-image: repeating-linear-gradient(90deg, transparent 0 2px, #000 2px calc(100% / var(--steps, 1) - 2px), transparent calc(100% / var(--steps, 1) - 2px) calc(100% / var(--steps, 1)));
+  /* Piste élargie de 2 px de chaque côté : les écarts de 4 px tombent entre les crans, la barre s'arrête au milieu d'un écart. */
+  width: calc(100% + 4px);
+  margin-inline: -2px;
+}
+.session-progress__bar { border-radius: 0; }
+.session-progress__label {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ---------- Barre d'onglets en graphite ---------- */
+.tabbar {
+  background: var(--brand);
+  border-top-color: var(--brand);
+}
+.tabbar__item {
+  color: var(--brand-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tabbar__item.active {
+  color: var(--brand-contrast);
+  border-top: 3px solid var(--brand-contrast);
+}
+
+/* ---------- Graphique : trait d'encre épais, points carrés ---------- */
+.chart__line { stroke-width: 3; stroke-linejoin: miter; stroke-linecap: square; }
+.chart__gridline { stroke-dasharray: 2 4; }
+
+/* ---------- Nouveau : bandeau de marque (onglets uniquement, pas en mode séance) ---------- */
+.brand-header {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) var(--space-3);
+  padding: 0 var(--space-3);
+  background: var(--brand);
+  color: var(--brand-contrast);
+}
+.brand-header svg { height: 26px; width: auto; }

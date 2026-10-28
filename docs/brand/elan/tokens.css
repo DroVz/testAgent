@@ -1,0 +1,123 @@
+/*
+ * Direction « ÉLAN » — surcharge des jetons de src/styles.css (proposition, non implémentée).
+ * Intention : l'énergie du mouvement, sans bruit. Magenta profond, titres larges et pleins, coupe en biais.
+ * À charger APRÈS styles.css. Polices : npm i @fontsource/unbounded (OFL-1.1), Inter reste le corps.
+ * Logo dans l'app : logo-app.svg, monochrome (currentColor) — la couleur de marque ne vit que dans l'icône.
+ * Nouveau composant : .brand-header (wordmark en haut des 3 onglets).
+ * Signature : le « biais » (12°) — étiquettes d'état, crans de progression et marque partagent la même pente.
+ */
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('@fontsource/unbounded/files/unbounded-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Unbounded';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 800;
+  src: url('@fontsource/unbounded/files/unbounded-latin-800-normal.woff2') format('woff2');
+}
+
+:root {
+  --bg: #f8f5f7;
+  --surface: #ffffff;
+  --text: #18121b;
+  --text-muted: #64596a;
+  --border: #e7e0e8;
+  --accent: #a3159a;
+  --success: #137a4b;
+  --danger: #c62828;
+  --accent-contrast: #ffffff;
+  --danger-contrast: #ffffff;
+  --shadow: 0 1px 2px rgba(24, 18, 27, 0.06);
+
+  --font-display: 'Unbounded', var(--font-sans);
+  --radius: 14px;
+  --radius-pill: 14px;
+  --slant: -12deg;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #120d14;
+    --surface: #1d1720;
+    --text: #f6f0f7;
+    --text-muted: #ada2b3;
+    --border: #342b39;
+    --accent: #f07be8;
+    --success: #34c27c;
+    --danger: #ff6b6b;
+    --accent-contrast: #120d14;
+    --danger-contrast: #120d14;
+    --shadow: none;
+  }
+}
+
+/* ---------- Typographie : Unbounded pour titres et chiffres (échelle 40 / 24 / 16 / 13 inchangée) ---------- */
+.page__title,
+.session-exercise__name,
+.empty-state__title,
+.dialog__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.number-field--hero .number-field__input,
+.stat__value,
+.progress-sentence,
+.pr-list__number,
+.rest-timer__time,
+.chart__last-label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.btn--primary { font-weight: 700; }
+
+/* ---------- Série en cours : contour magenta ---------- */
+.set-current { border: 2px solid var(--accent); }
+
+/* ---------- SIGNATURE : le biais ---------- */
+/* Étiquettes d'état en encre, coupées en biais (jamais en magenta : l'accent reste à l'action). */
+.template-card__badge,
+.set-current__state {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 2px 10px;
+  background: var(--text);
+  color: var(--surface);
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.set-current__title { align-items: center; }
+/* Progression en crans biseautés (un cran par exercice : --steps). */
+.session-progress__track {
+  height: 10px;
+  border-radius: 0;
+  transform: skewX(var(--slant));
+  -webkit-mask-image: repeating-linear-gradient(90deg, transparent 0 2px, #000 2px calc(100% / var(--steps, 1) - 2px), transparent calc(100% / var(--steps, 1) - 2px) calc(100% / var(--steps, 1)));
+  mask-image: repeating-linear-gradient(90deg, transparent 0 2px, #000 2px calc(100% / var(--steps, 1) - 2px), transparent calc(100% / var(--steps, 1) - 2px) calc(100% / var(--steps, 1)));
+  width: calc(100% + 4px);
+  margin-inline: -2px;
+}
+.session-progress__bar { border-radius: 0; }
+.chart__line { stroke-width: 3; }
+
+/* Onglet actif : trait d'encre épais, biseauté. */
+.tabbar__item.active { border-top-width: 3px; }
+
+/* ---------- Nouveau : en-tête de marque (onglets uniquement) ---------- */
+.brand-header {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  margin-bottom: var(--space-2);
+  color: var(--text);
+}
+.brand-header svg { height: 22px; width: auto; }
