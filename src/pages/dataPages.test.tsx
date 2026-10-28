@@ -5,13 +5,17 @@ import { STORAGE_KEY, createDefaultState, exportState, type StorageLike } from '
 import { createTemplate, createTemplateExercise } from '../lib/templates';
 import type { AppState, WorkoutSession } from '../lib/types';
 import { AppStoreProvider } from '../state/AppStore';
+import { REST_TIMER_KEY } from '../lib/restTimer';
 import { PROGRESS_EXERCISE_KEY } from './ProgressPage';
+import { MAX_IMPORT_BYTES } from './SettingsPage';
 
-function memoryStorage(initial?: AppState) {
-  const data: Record<string, string> = initial ? { [STORAGE_KEY]: JSON.stringify(initial) } : {};
+function memoryStorage(initial?: AppState | string, { failWrites = false } = {}) {
+  const data: Record<string, string> =
+    initial === undefined ? {} : { [STORAGE_KEY]: typeof initial === 'string' ? initial : JSON.stringify(initial) };
   const storage: StorageLike = {
     getItem: (k) => data[k] ?? null,
     setItem: (k, v) => {
+      if (failWrites) throw new Error('QuotaExceededError');
       data[k] = v;
     },
   };
@@ -19,9 +23,9 @@ function memoryStorage(initial?: AppState) {
   return { storage, saved };
 }
 
-function renderAt(hash: string, initial?: AppState) {
+function renderAt(hash: string, initial?: AppState | string, options?: { failWrites?: boolean }) {
   window.location.hash = hash;
-  const mem = memoryStorage(initial);
+  const mem = memoryStorage(initial, options);
   const { unmount } = render(
     <AppStoreProvider storage={mem.storage}>
       <App />
@@ -177,6 +181,31 @@ describe('progrès', () => {
     expect(screen.getByRole('combobox', { name: 'Exercice' })).toHaveValue('developpe-couche');
   });
 
+  it('plusieurs exercices supprimés : distingués dans le sélecteur', () => {
+    const s = stateWithHistory();
+    s.sessions.push(
+      session('s-del', 'Ancienne', 12, [
+        { exerciseId: 'custom-a', sets: [{ weight: 20, reps: 10, done: true }] },
+        { exerciseId: 'custom-b', sets: [{ weight: 30, reps: 10, done: true }] },
+      ]),
+    );
+    renderAt('#/progres', s);
+    const options = within(screen.getByRole('combobox', { name: 'Exercice' }))
+      .getAllByRole('option')
+      .map((o) => o.textContent);
+    expect(options).toContain('Exercice supprimé (1)');
+    expect(options).toContain('Exercice supprimé (2)');
+    expect(options).not.toContain('Exercice supprimé');
+  });
+
+  it('un seul exercice supprimé : libellé sans numéro', () => {
+    const s = stateWithHistory();
+    s.sessions.push(session('s-del', 'Ancienne', 12, [{ exerciseId: 'custom-a', sets: [{ weight: 20, reps: 10, done: true }] }]));
+    renderAt('#/progres', s);
+    const select = within(screen.getByRole('combobox', { name: 'Exercice' }));
+    expect(select.getByRole('option', { name: 'Exercice supprimé' })).toBeInTheDocument();
+  });
+
   it('exercice mémorisé sans historique : retour à l’exercice par défaut', () => {
     localStorage.setItem(PROGRESS_EXERCISE_KEY, 'curl-biceps');
     renderAt('#/progres', stateWithHistory());
@@ -308,10 +337,61 @@ describe('réglages', () => {
   });
 
   it('réinitialisation avec confirmation', () => {
+    localStorage.setItem(PROGRESS_EXERCISE_KEY, 'squat');
+    sessionStorage.setItem(REST_TIMER_KEY, JSON.stringify({ sessionId: 'a1', endsAt: Date.now() + 60_000 }));
     const { saved } = renderAt('#/reglages', stateWithHistory());
     fireEvent.click(screen.getByRole('button', { name: 'Réinitialiser toutes les données' }));
     fireEvent.click(dialog().getByRole('button', { name: 'Tout effacer' }));
     expect(saved()).toEqual(createDefaultState());
+    expect(localStorage.getItem(PROGRESS_EXERCISE_KEY)).toBeNull();
+    expect(sessionStorage.getItem(REST_TIMER_KEY)).toBeNull();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByText(/MuscuTrack v\d+\.\d+\.\d+/)).toBeInTheDocument();
+  });
+  it('import trop volumineux (> 5 Mo) : refusé avec un message clair', () => {
+    renderAt('#/reglages', stateWithHistory());
+    const file = new File(['{}'], 'enorme.json', { type: 'application/json' });
+    Object.defineProperty(file, 'size', { value: MAX_IMPORT_BYTES + 1 });
+    const text = vi.spyOn(file, 'text');
+    fireEvent.change(screen.getByLabelText('Choisir un fichier .json'), { target: { files: [file] } });
+    expect(screen.getByRole('alert')).toHaveTextContent('dépassent la taille maximale de 5 Mo');
+    expect(text).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('import dont la sauvegarde échoue : message d’échec, pas de « Import réussi »', () => {
+    renderAt('#/reglages', stateWithHistory(), { failWrites: true });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ou collez le contenu exporté' }), {
+      target: { value: exportState(createDefaultState()) },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Importer le texte' }));
+    fireEvent.click(dialog().getByRole('button', { name: 'Remplacer' }));
+    expect(screen.queryByText(/Import réussi/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Échec de l’import/)).toBeInTheDocument();
+  });
+
+  it('bandeau de données illisibles : fermable, et masqué après un import réussi', () => {
+    const { unmount } = renderAt('#/reglages', 'corrompu');
+    expect(screen.getByText(/illisibles/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Fermer le message' }));
+    expect(screen.queryByText(/illisibles/)).not.toBeInTheDocument();
+    unmount();
+
+    renderAt('#/reglages', 'corrompu');
+    expect(screen.getByText(/illisibles/)).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ou collez le contenu exporté' }), {
+      target: { value: exportState(createDefaultState()) },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Importer le texte' }));
+    fireEvent.click(dialog().getByRole('button', { name: 'Remplacer' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Import réussi');
+    expect(screen.queryByText(/illisibles/)).not.toBeInTheDocument();
+  });
+
+  it('bandeau de données illisibles : masqué après une réinitialisation réussie', () => {
+    renderAt('#/reglages', 'corrompu');
+    fireEvent.click(screen.getByRole('button', { name: 'Réinitialiser toutes les données' }));
+    fireEvent.click(dialog().getByRole('button', { name: 'Tout effacer' }));
+    expect(screen.queryByText(/illisibles/)).not.toBeInTheDocument();
   });
 });

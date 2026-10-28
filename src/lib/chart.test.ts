@@ -163,4 +163,20 @@ describe('layoutChart', () => {
     );
     expect(l.xLabels.map((x) => x.date)).toEqual(['2026-01-01', '2026-10-30']);
   });
+
+  it('ignore les points à date invalide ou valeur non finie', () => {
+    const l = layoutChart(
+      [
+        { date: '2026-10-01', value: 60 },
+        { date: 'pas une date', value: 70 },
+        { date: '2026-10-05', value: Number.NaN },
+        { date: '2026-10-06', value: Number.POSITIVE_INFINITY },
+        { date: '2026-10-11', value: 80 },
+      ],
+      DIMS,
+    );
+    expect(l.points.map((p) => p.value)).toEqual([60, 80]);
+    expect(l.points.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))).toBe(true);
+    expect(l.yTicks.every((t) => Number.isFinite(t.value) && Number.isFinite(t.y))).toBe(true);
+  });
 });

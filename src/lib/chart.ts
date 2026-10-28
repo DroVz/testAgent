@@ -131,6 +131,7 @@ function spacedLabels(points: PlacedPoint[], gap: number): { date: string; x: nu
 /**
  * Place les points d'une série temporelle dans la zone de tracé. L'axe X est proportionnel au temps
  * (un seul point, ou toutes les dates identiques → centré). L'axe Y utilise `valueTicks`.
+ * Les points dont la date ou la valeur n'est pas finie sont ignorés.
  */
 export function layoutChart(
   data: ChartInputPoint[],
@@ -143,7 +144,10 @@ export function layoutChart(
     top: dims.padding.top,
     bottom: dims.height - dims.padding.bottom,
   };
-  const sorted = [...data].sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+  // Filtre défensif : un point à date illisible ou valeur non finie fausserait les échelles (NaN).
+  const sorted = data
+    .filter((p) => Number.isFinite(Date.parse(p.date)) && Number.isFinite(p.value))
+    .sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
   const times = sorted.map((p) => Date.parse(p.date));
   const t0 = times.length > 0 ? Math.min(...times) : 0;
   const t1 = times.length > 0 ? Math.max(...times) : 0;

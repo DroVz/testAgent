@@ -1,9 +1,17 @@
 import { useRef, useState, type ChangeEvent } from 'react';
 import { version } from '../../package.json';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { saveRestEndsAt } from '../lib/restTimer';
 import { exportFileName, exportState, validateImport } from '../lib/storage';
 import { MUSCLE_GROUPS, type AppState, type Exercise, type MuscleGroup } from '../lib/types';
 import { useAppStore } from '../state/AppStore';
+import { clearStoredExercise } from './ProgressPage';
+
+/** Taille maximale acceptée pour un import (fichier ou texte collé). */
+export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+const TOO_LARGE = 'Import impossible : les données dépassent la taille maximale de 5 Mo.';
+const SAVE_FAILED =
+  'Échec de l’import : les données n’ont pas pu être enregistrées sur l’appareil (stockage plein ou indisponible).';
 
 /** Déclenche le téléchargement d'un fichier texte ; renvoie false si le navigateur ne le permet pas. */
 function downloadText(text: string, filename: string): boolean {
@@ -44,6 +52,7 @@ export default function SettingsPage() {
   const [importError, setImportError] = useState<string | null>(null);
   const [importDone, setImportDone] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
   const exportRef = useRef<HTMLTextAreaElement>(null);
 
   const customExercises = state.exercises.filter((e) => e.isCustom);
@@ -73,9 +82,13 @@ export default function SettingsPage() {
 
   const checkImport = (text: string) => {
     setImportDone(null);
+    if (new Blob([text]).size > MAX_IMPORT_BYTES) {
+      setImportError(TOO_LARGE);
+      return;
+    }
     const result = validateImport(text);
     if (!result.ok) {
-      setImportError(result.error);
+      setImportError(`Import impossible : ${result.error}`);
       return;
     }
     setImportError(null);
@@ -86,11 +99,16 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     e.target.value = ''; // permet de re-choisir le même fichier
     if (!file) return;
+    if (file.size > MAX_IMPORT_BYTES) {
+      setImportDone(null);
+      setImportError(TOO_LARGE);
+      return;
+    }
     try {
       checkImport(await file.text());
     } catch {
       setImportDone(null);
-      setImportError('Impossible de lire ce fichier.');
+      setImportError('Import impossible : impossible de lire ce fichier.');
     }
   };
 
@@ -164,7 +182,7 @@ export default function SettingsPage() {
         </button>
         {importError && (
           <p className="field__error" role="alert">
-            Import impossible : {importError}
+            {importError}
           </p>
         )}
         {importDone && (
@@ -199,6 +217,11 @@ export default function SettingsPage() {
         <button type="button" className="btn btn--block btn--danger" onClick={() => setDialog({ kind: 'reset' })}>
           Réinitialiser toutes les données
         </button>
+        {resetError && (
+          <p className="field__error" role="alert">
+            {resetError}
+          </p>
+        )}
       </div>
 
       <p className="muted settings-footer">MuscuTrack v{version} — données stockées localement sur cet appareil.</p>
@@ -224,8 +247,13 @@ export default function SettingsPage() {
         onCancel={() => setDialog(null)}
         onConfirm={() => {
           if (dialog?.kind === 'import') {
-            actions.replaceState(dialog.state);
-            setImportDone(`Import réussi : ${describeState(dialog.state)}.`);
+            if (actions.replaceState(dialog.state)) {
+              setImportError(null);
+              setImportDone(`Import réussi : ${describeState(dialog.state)}.`);
+            } else {
+              setImportDone(null);
+              setImportError(SAVE_FAILED);
+            }
             setPasted('');
             setExported(null);
           }
@@ -254,9 +282,12 @@ export default function SettingsPage() {
         danger
         onCancel={() => setDialog(null)}
         onConfirm={() => {
-          actions.resetState();
+          const ok = actions.resetState();
+          clearStoredExercise();
+          saveRestEndsAt(undefined, null);
           setExported(null);
           setImportDone(null);
+          setResetError(ok ? null : 'Réinitialisation non enregistrée : le stockage de l’appareil est plein ou indisponible.');
           setDialog(null);
         }}
       />

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import LineChart from '../components/LineChart';
-import { exerciseName, formatDate, formatNumber, formatWeight } from '../lib/format';
+import { DELETED_EXERCISE_NAME, exerciseName, formatDate, formatNumber, formatWeight } from '../lib/format';
 import {
   completedSessions,
   exerciseHistory,
@@ -35,6 +35,15 @@ function readStoredExercise(): string | null {
   }
 }
 
+/** Efface la préférence (réinitialisation des données). */
+export function clearStoredExercise(): void {
+  try {
+    globalThis.localStorage?.removeItem(PROGRESS_EXERCISE_KEY);
+  } catch {
+    // Stockage indisponible : rien à effacer.
+  }
+}
+
 function storeExercise(id: string): void {
   try {
     globalThis.localStorage?.setItem(PROGRESS_EXERCISE_KEY, id);
@@ -60,9 +69,14 @@ export default function ProgressPage() {
         }
       }
     }
-    const list = ids
-      .map((id) => ({ id, name: exerciseName(state.exercises, id) }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    // Plusieurs exercices supprimés : numérotés pour rester distincts dans le sélecteur.
+    const deleted = ids.filter((id) => !state.exercises.some((e) => e.id === id));
+    const label = (id: string) => {
+      const n = deleted.indexOf(id);
+      if (n < 0) return exerciseName(state.exercises, id);
+      return deleted.length > 1 ? `${DELETED_EXERCISE_NAME} (${n + 1})` : DELETED_EXERCISE_NAME;
+    };
+    const list = ids.map((id) => ({ id, name: label(id) })).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
     return { options: list, mostRecent: ids[ids.length - 1] };
   }, [completed, state.exercises]);
 
@@ -80,7 +94,7 @@ export default function ProgressPage() {
   );
   const data = useMemo(() => history.map((p) => ({ date: p.date, value: p[metric] })), [history, metric]);
 
-  const selectedName = selected ? exerciseName(state.exercises, selected) : '';
+  const selectedName = options.find((o) => o.id === selected)?.name ?? '';
   const metricLabel = METRICS.find((m) => m.key === metric)?.label ?? '';
 
   return (

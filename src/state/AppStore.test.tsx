@@ -46,6 +46,50 @@ describe('AppStoreProvider', () => {
     expect(data[STORAGE_KEY]).toBe('corrompu');
   });
 
+  it('replaceState / resetState sauvegardent immédiatement et effacent l’erreur de chargement', () => {
+    const { data, store } = setup({ [STORAGE_KEY]: 'corrompu' });
+    expect(store.current!.loadError).toBeDefined();
+    let ok = false;
+    act(() => {
+      ok = store.current!.actions.resetState();
+    });
+    expect(ok).toBe(true);
+    expect(store.current!.loadError).toBeUndefined();
+    expect(JSON.parse(data[STORAGE_KEY]).version).toBe(1);
+  });
+
+  it('replaceState renvoie false si la sauvegarde échoue (erreur de chargement conservée)', () => {
+    const store: { current?: AppStoreValue } = {};
+    function Probe() {
+      store.current = useAppStore();
+      return null;
+    }
+    const storage: StorageLike = {
+      getItem: () => 'corrompu',
+      setItem: () => {
+        throw new Error('plein');
+      },
+    };
+    render(
+      <AppStoreProvider storage={storage}>
+        <Probe />
+      </AppStoreProvider>,
+    );
+    let ok = true;
+    act(() => {
+      ok = store.current!.actions.replaceState({ ...store.current!.state, templates: [] });
+    });
+    expect(ok).toBe(false);
+    expect(store.current!.saveFailed).toBe(true);
+    expect(store.current!.loadError).toBeDefined();
+  });
+
+  it('dismissLoadError masque l’erreur de chargement', () => {
+    const { store } = setup({ [STORAGE_KEY]: 'corrompu' });
+    act(() => store.current!.actions.dismissLoadError());
+    expect(store.current!.loadError).toBeUndefined();
+  });
+
   it('lève une erreur explicite hors du provider', () => {
     function Orphan() {
       useAppStore();

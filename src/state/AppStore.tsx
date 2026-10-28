@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react';
 import { createId } from '../lib/id';
-import { loadState, saveState, type StorageLike } from '../lib/storage';
+import { createDefaultState, loadState, saveState, type StorageLike } from '../lib/storage';
 import { createTemplate, type TemplateInput } from '../lib/templates';
 import type { AppState, MuscleGroup } from '../lib/types';
 import { appReducer } from './appReducer';
@@ -30,8 +30,12 @@ export interface AppActions {
   deleteSession(sessionId: string): void;
   applySessionToTemplate(sessionId: string): void;
 
-  replaceState(state: AppState): void;
-  resetState(): void;
+  /** Remplace toutes les données et les sauvegarde immédiatement ; renvoie false si la sauvegarde a échoué. */
+  replaceState(state: AppState): boolean;
+  /** Revient à l'état par défaut et le sauvegarde immédiatement ; renvoie false si la sauvegarde a échoué. */
+  resetState(): boolean;
+  /** Masque le bandeau d'erreur de chargement. */
+  dismissLoadError(): void;
 }
 
 export interface AppStoreValue {
@@ -49,6 +53,7 @@ export function AppStoreProvider({ children, storage }: { children: ReactNode; s
   const [initial] = useState(() => loadState(storage));
   const [state, dispatch] = useReducer(appReducer, initial.state);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [loadError, setLoadError] = useState(initial.error);
 
   useEffect(() => {
     // Pas de sauvegarde au démarrage : on n'écrase pas des données corrompues tant
@@ -59,6 +64,14 @@ export function AppStoreProvider({ children, storage }: { children: ReactNode; s
 
   const actions = useMemo<AppActions>(() => {
     const now = () => new Date();
+    /** Sauvegarde synchrone d'un état complet : en cas de succès, l'erreur de chargement n'a plus lieu d'être. */
+    const replaceAndSave = (next: AppState): boolean => {
+      const ok = saveState(next, storage);
+      setSaveFailed(!ok);
+      if (ok) setLoadError(undefined);
+      dispatch({ type: 'data/replace', state: next });
+      return ok;
+    };
     return {
       createTemplate(input) {
         const template = createTemplate(input, now(), createId());
@@ -101,14 +114,15 @@ export function AppStoreProvider({ children, storage }: { children: ReactNode; s
       deleteSession: (sessionId) => dispatch({ type: 'history/delete', sessionId }),
       applySessionToTemplate: (sessionId) => dispatch({ type: 'history/applyToTemplate', sessionId, now: now() }),
 
-      replaceState: (next) => dispatch({ type: 'data/replace', state: next }),
-      resetState: () => dispatch({ type: 'data/reset' }),
+      replaceState: (next) => replaceAndSave(next),
+      resetState: () => replaceAndSave(createDefaultState()),
+      dismissLoadError: () => setLoadError(undefined),
     };
-  }, []);
+  }, [storage]);
 
   const value = useMemo<AppStoreValue>(
-    () => ({ state, loadError: initial.error, saveFailed, actions }),
-    [state, initial.error, saveFailed, actions],
+    () => ({ state, loadError, saveFailed, actions }),
+    [state, loadError, saveFailed, actions],
   );
 
   return <AppStoreContext.Provider value={value}>{children}</AppStoreContext.Provider>;

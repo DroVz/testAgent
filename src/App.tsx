@@ -26,7 +26,7 @@ export default function App() {
 }
 
 function Shell() {
-  const { loadError, saveFailed } = useAppStore();
+  const { loadError, saveFailed, actions } = useAppStore();
   const { pathname } = useLocation();
   // La séance en cours est un écran plein : pas de barre d'onglets ni de bannière de reprise.
   const fullscreen = pathname === '/seance';
@@ -34,8 +34,16 @@ function Shell() {
   return (
     <div className="app">
       {loadError && (
-        <div className="banner banner--warning" role="alert">
-          {loadError}
+        <div className="banner banner--warning banner--dismissible" role="alert">
+          <span className="banner__text">{loadError}</span>
+          <button
+            type="button"
+            className="icon-btn banner__close"
+            aria-label="Fermer le message"
+            onClick={actions.dismissLoadError}
+          >
+            ✕
+          </button>
         </div>
       )}
       {saveFailed && (
