@@ -3,8 +3,12 @@ import {
   DELETED_EXERCISE_NAME,
   exerciseName,
   formatClock,
+  formatCount,
   formatDate,
   formatDuration,
+  formatRecordSentence,
+  formatSessionSummary,
+  formatSetValues,
   formatSetsSummary,
   formatShortDate,
   formatWeight,
@@ -127,5 +131,35 @@ describe('normalizeSearch', () => {
   it('ignore accents et casse', () => {
     expect(normalizeSearch('  Élévations Latérales ')).toBe('elevations laterales');
     expect(normalizeSearch('développé')).toBe(normalizeSearch('DEVELOPPE'));
+  });
+});
+
+describe('phrases de séance', () => {
+  // Intl fr-FR : séparateur de milliers = espace fine insécable (U+202F).
+  const fr = (text: string) => text.replace(/[\u202f\u00a0]/g, ' ');
+
+  it('formatCount accorde à partir de 2', () => {
+    expect(formatCount(0, 'série')).toBe('0 série');
+    expect(formatCount(1, 'série')).toBe('1 série');
+    expect(formatCount(2, 'série')).toBe('2 séries');
+    expect(formatCount(3, 'série non validée', 'séries non validées')).toBe('3 séries non validées');
+  });
+
+  it('formatSessionSummary : pluriels et milliers à la française', () => {
+    expect(formatSessionSummary(5, 18, 6240)).toMatch(/^Séance terminée : 5 exercices, 18 séries, 6[\u202f\u00a0]240 kg soulevés\.$/);
+    expect(fr(formatSessionSummary(5, 18, 6240))).toBe('Séance terminée : 5 exercices, 18 séries, 6 240 kg soulevés.');
+    expect(formatSessionSummary(1, 1, 500)).toBe('Séance terminée : 1 exercice, 1 série, 500 kg soulevés.');
+    expect(formatSessionSummary(1, 1, 0)).toBe('Séance terminée : 1 exercice, 1 série, 0 kg soulevé.');
+  });
+
+  it('formatRecordSentence : seul « ! » autorisé, nom en minuscule dans la phrase', () => {
+    expect(formatRecordSentence('Développé couché', 82.5)).toBe('Nouveau record en développé couché : 82,5 kg !');
+    expect(fr(formatRecordSentence('Squat', 1650, 'volume'))).toBe('Nouveau record de volume en squat : 1 650 kg !');
+  });
+
+  it('formatSetValues : « 72,5 kg × 8 », « 8 reps » au poids du corps', () => {
+    expect(formatSetValues(72.5, 8)).toBe('72,5 kg × 8');
+    expect(formatSetValues(0, 8)).toBe('8 reps');
+    expect(formatSetValues(0, 1)).toBe('1 rep');
   });
 });

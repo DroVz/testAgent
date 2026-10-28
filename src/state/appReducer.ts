@@ -5,10 +5,12 @@ import {
   createFreeSession,
   createSessionFromTemplate,
   finishSession,
+  goToExercise,
   removeExercise,
   removeSet,
   setSetDone,
   updateSet,
+  validateSet,
 } from '../lib/session';
 import { createDefaultState } from '../lib/storage';
 import {
@@ -45,6 +47,8 @@ export type AppAction =
   | { type: 'session/removeSet'; exerciseIndex: number; setIndex: number }
   | { type: 'session/updateSet'; exerciseIndex: number; setIndex: number; weight?: number; reps?: number }
   | { type: 'session/setDone'; exerciseIndex: number; setIndex: number; done: boolean }
+  | { type: 'session/validateSet'; exerciseIndex: number; setIndex: number }
+  | { type: 'session/goToExercise'; exerciseIndex: number }
   | { type: 'session/finish'; now: Date }
   | { type: 'session/abandon' }
   // Historique
@@ -134,6 +138,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       );
     case 'session/setDone':
       return withActive(state, (s) => setSetDone(s, action.exerciseIndex, action.setIndex, action.done));
+    case 'session/validateSet':
+      return withActive(state, (s) => validateSet(s, action.exerciseIndex, action.setIndex));
+    case 'session/goToExercise':
+      return withActive(state, (s) => goToExercise(s, action.exerciseIndex));
     case 'session/finish': {
       if (!state.activeSession) return state;
       const finished = finishSession(state.activeSession, action.now);

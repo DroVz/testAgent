@@ -7,6 +7,11 @@ import { describe, expect, it } from 'vitest';
 const SRC = join(process.cwd(), 'src');
 const css = readFileSync(join(SRC, 'styles.css'), 'utf-8');
 
+/** Retire les commentaires (une ligne et bloc) pour ne contrôler que le code et les textes. */
+function stripComments(code: string): string {
+  return code.replace(/\/\*[\s\S]*?\*\/|(^|[^:])\/\/.*$/gm, '$1');
+}
+
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
@@ -76,7 +81,28 @@ describe('ton des textes', () => {
 
   it('tutoiement partout, jamais « OK »', () => {
     for (const file of files) {
-      expect(readFileSync(file, 'utf-8'), file).not.toMatch(/\bvous\b|\bvos\b|\bvotre\b|>OK<|'OK'/i);
+      expect(readFileSync(file, 'utf-8'), file).not.toMatch(/\bvous\b|\bvos\b|\bvotre\b|>OK<|'OK'|"OK"|`OK`/i);
+    }
+  });
+
+  it('pas d’impératif au vouvoiement (« Créez », « Ajoutez »…)', () => {
+    // Mots courants en -ez qui ne sont pas des impératifs au vouvoiement.
+    const allowed = new Set(['assez', 'chez', 'nez', 'rez']);
+    for (const file of files) {
+      const code = stripComments(readFileSync(file, 'utf-8'));
+      const hits = [...code.matchAll(/\b[A-Za-zÀ-ÿ]{3,}ez\b/g)]
+        .map((m) => m[0])
+        .filter((word) => !allowed.has(word.toLowerCase()));
+      expect(hits, file).toEqual([]);
+    }
+  });
+
+  it('pas de « ! » dans les textes, sauf pour un record', () => {
+    for (const file of files) {
+      const lines = stripComments(readFileSync(file, 'utf-8')).split('\n');
+      // « ! » collé à un mot puis fin de texte (guillemet, balise, accolade, fin de ligne) : ni « !== », ni « x! ».
+      const hits = lines.filter((line) => /[A-Za-zÀ-ÿ0-9.)»]\s?!(?=\s*(['"`<{]|$))/.test(line) && !/record/i.test(line));
+      expect(hits, file).toEqual([]);
     }
   });
 

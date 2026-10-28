@@ -151,12 +151,13 @@ function Editor({ template }: { template?: Template }) {
         Ajouter un exercice
       </button>
 
+      {/* Action principale en premier, pleine largeur ; « Annuler » en contour dessous. */}
       <div className="action-bar">
-        <button type="button" className="btn" onClick={cancel}>
-          Annuler
-        </button>
-        <button type="button" className="btn btn--primary" onClick={save}>
+        <button type="button" className="btn btn--primary btn--block" onClick={save}>
           Enregistrer la séance
+        </button>
+        <button type="button" className="btn btn--block" onClick={cancel}>
+          Annuler
         </button>
       </div>
 

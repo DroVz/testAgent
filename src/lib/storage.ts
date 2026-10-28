@@ -1,5 +1,5 @@
 import { DEFAULT_EXERCISES } from './defaultExercises';
-import { MAX_REPS, MAX_WEIGHT } from './session';
+import { MAX_REPS, MAX_WEIGHT, clampExerciseIndex } from './session';
 import {
   MUSCLE_GROUPS,
   type AppState,
@@ -168,6 +168,11 @@ function parseSession(v: unknown, path: string): WorkoutSession {
   if (o.endedAt !== undefined) s.endedAt = date(o.endedAt, `${path}.endedAt`);
   const notes = optStr(o.notes, `${path}.notes`);
   if (notes !== undefined) s.notes = notes;
+  // Optionnel (données antérieures sans ce champ acceptées) ; borné au nombre d'exercices.
+  if (o.currentExerciseIndex !== undefined) {
+    const index = nonNegInt(o.currentExerciseIndex, `${path}.currentExerciseIndex`);
+    s.currentExerciseIndex = clampExerciseIndex(s.exercises.length, index);
+  }
   return s;
 }
 

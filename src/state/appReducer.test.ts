@@ -120,6 +120,35 @@ describe('appReducer — séance en cours', () => {
   });
 });
 
+describe('appReducer — mode un exercice à la fois', () => {
+  it('validateSet passe à l’exercice suivant, goToExercise navigue (borné)', () => {
+    const start = run(
+      withTemplate(),
+      { type: 'session/startFromTemplate', templateId: 't1', sessionId: 's1', now: T0 },
+      { type: 'session/addExercise', exerciseId: 'dips' },
+      { type: 'session/goToExercise', exerciseIndex: 0 },
+    );
+    expect(start.activeSession?.currentExerciseIndex).toBe(0);
+    const s = run(
+      start,
+      { type: 'session/validateSet', exerciseIndex: 0, setIndex: 0 },
+      { type: 'session/validateSet', exerciseIndex: 0, setIndex: 1 },
+    );
+    expect(s.activeSession?.currentExerciseIndex).toBe(0);
+    const next = appReducer(s, { type: 'session/validateSet', exerciseIndex: 0, setIndex: 2 });
+    expect(next.activeSession?.currentExerciseIndex).toBe(1);
+    expect(next.activeSession?.exercises[0].sets.every((x) => x.done)).toBe(true);
+    expect(appReducer(next, { type: 'session/goToExercise', exerciseIndex: 99 }).activeSession?.currentExerciseIndex).toBe(1);
+    expect(appReducer(next, { type: 'session/goToExercise', exerciseIndex: 0 }).activeSession?.currentExerciseIndex).toBe(0);
+  });
+
+  it('sans séance active → état inchangé', () => {
+    const s = createDefaultState();
+    expect(appReducer(s, { type: 'session/validateSet', exerciseIndex: 0, setIndex: 0 })).toBe(s);
+    expect(appReducer(s, { type: 'session/goToExercise', exerciseIndex: 1 })).toBe(s);
+  });
+});
+
 describe('appReducer — historique et données', () => {
   it('supprime une séance de l’historique', () => {
     const s = run(

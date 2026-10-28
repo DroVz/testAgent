@@ -1,3 +1,4 @@
+import { BellRing } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { formatClock } from '../lib/format';
 
@@ -45,7 +46,8 @@ export default function RestTimer({ endsAt, onAdjust, onDismiss, now = Date.now 
   useEffect(() => {
     if (finished && vibratedFor.current !== endsAt) {
       vibratedFor.current = endsAt;
-      navigator.vibrate?.([200, 100, 200]);
+      // Sans geste de l'utilisateur depuis le chargement, le navigateur refuse la vibration (et le signale en console).
+      if (navigator.userActivation?.hasBeenActive !== false) navigator.vibrate?.([200, 100, 200]);
     }
   }, [finished, endsAt]);
 
@@ -53,6 +55,7 @@ export default function RestTimer({ endsAt, onAdjust, onDismiss, now = Date.now 
     <div className={`rest-timer${finished ? ' rest-timer--done' : ''}`} role="region" aria-label="Minuteur de repos">
       {finished ? (
         <p className="rest-timer__time" role="status">
+          <BellRing size={24} aria-hidden="true" />
           Repos terminé.
         </p>
       ) : (

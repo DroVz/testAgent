@@ -6,15 +6,22 @@ import {
   addExercise,
   addSet,
   applySessionToTemplate,
+  clampExerciseIndex,
   createFreeSession,
   createSessionFromTemplate,
+  currentExerciseIndex,
+  currentSetIndex,
   finishSession,
+  goToExercise,
+  nextExerciseIndex,
+  pendingSetCount,
   removeExercise,
   removeSet,
   sanitizeReps,
   sanitizeWeight,
   setSetDone,
   updateSet,
+  validateSet,
 } from './session';
 import type { SetEntry, Template, WorkoutSession } from './types';
 
@@ -212,5 +219,146 @@ describe('sanitizeWeight / sanitizeReps', () => {
     expect(sanitizeReps(12.9)).toBe(12);
     expect(sanitizeReps(1001)).toBe(1000);
     expect(sanitizeReps(Number.NaN)).toBe(0);
+  });
+});
+
+describe('mode séance « un exercice à la fois »', () => {
+  const twoExercises = (current?: number): WorkoutSession => ({
+    id: 'a',
+    name: 'Push',
+    startedAt: NOW.toISOString(),
+    exercises: [
+      { exerciseId: 'developpe-couche', sets: [set(60, 10), set(60, 10)] },
+      { exerciseId: 'tractions', sets: [set(0, 8)] },
+    ],
+    ...(current !== undefined && { currentExerciseIndex: current }),
+  });
+
+  it('clampExerciseIndex borne l’index dans [0, n − 1]', () => {
+    expect(clampExerciseIndex(3, -2)).toBe(0);
+    expect(clampExerciseIndex(3, 7)).toBe(2);
+    expect(clampExerciseIndex(3, 1.8)).toBe(1);
+    expect(clampExerciseIndex(0, 4)).toBe(0);
+    expect(clampExerciseIndex(3, Number.NaN)).toBe(0);
+  });
+
+  it('currentExerciseIndex : champ absent = 0 (données existantes), valeur hors bornes ramenée', () => {
+    expect(currentExerciseIndex(twoExercises())).toBe(0);
+    expect(currentExerciseIndex(twoExercises(1))).toBe(1);
+    expect(currentExerciseIndex(twoExercises(9))).toBe(1);
+  });
+
+  it('goToExercise change l’exercice affiché (borné), sans copie inutile', () => {
+    const s = twoExercises();
+    expect(goToExercise(s, 1).currentExerciseIndex).toBe(1);
+    expect(goToExercise(s, 5).currentExerciseIndex).toBe(1);
+    expect(goToExercise(s, -1).currentExerciseIndex).toBe(0);
+    const at1 = twoExercises(1);
+    expect(goToExercise(at1, 1)).toBe(at1);
+  });
+
+  it('currentSetIndex = première série non validée, -1 si tout est fait', () => {
+    expect(currentSetIndex({ exerciseId: 'x', sets: [set(1, 1, true), set(1, 1), set(1, 1)] })).toBe(1);
+    expect(currentSetIndex({ exerciseId: 'x', sets: [set(1, 1, true), set(1, 1, false), set(1, 1, true)] })).toBe(1);
+    expect(currentSetIndex({ exerciseId: 'x', sets: [set(1, 1, true)] })).toBe(-1);
+    expect(currentSetIndex({ exerciseId: 'x', sets: [] })).toBe(-1);
+    expect(currentSetIndex(undefined)).toBe(-1);
+  });
+
+  it('pendingSetCount compte les séries non validées de toute la séance', () => {
+    expect(pendingSetCount(twoExercises())).toBe(3);
+    expect(pendingSetCount(setSetDone(twoExercises(), 1, 0, true))).toBe(2);
+  });
+
+  it('validateSet : reste sur l’exercice tant qu’il reste des séries', () => {
+    const s = validateSet(twoExercises(), 0, 0);
+    expect(s.exercises[0].sets[0].done).toBe(true);
+    expect(currentExerciseIndex(s)).toBe(0);
+  });
+
+  it('validateSet : dernière série de l’exercice → exercice suivant', () => {
+    const s = validateSet(validateSet(twoExercises(), 0, 0), 0, 1);
+    expect(s.currentExerciseIndex).toBe(1);
+  });
+
+  it('validateSet : dernier exercice → on y reste', () => {
+    const s = validateSet(twoExercises(1), 1, 0);
+    expect(s.exercises[1].sets[0].done).toBe(true);
+    expect(currentExerciseIndex(s)).toBe(1);
+  });
+
+  it('validateSet : un exercice qui n’est pas affiché ne fait pas changer d’écran', () => {
+    const s = validateSet(twoExercises(1), 0, 0);
+    const done = validateSet(s, 0, 1);
+    expect(currentExerciseIndex(done)).toBe(1);
+  });
+
+  it('validateSet : index invalide → séance inchangée', () => {
+    const s = twoExercises();
+    expect(validateSet(s, 0, 9)).toBe(s);
+    expect(validateSet(s, 4, 0)).toBe(s);
+  });
+
+  it('addExercise affiche l’exercice ajouté', () => {
+    const s = addExercise(twoExercises(), 'dips', []);
+    expect(s.currentExerciseIndex).toBe(2);
+  });
+
+  it('removeExercise garde l’exercice affiché ou se replie sur un exercice existant', () => {
+    // Retrait avant l'exercice affiché : l'index suit l'exercice.
+    expect(removeExercise(twoExercises(1), 0).currentExerciseIndex).toBe(0);
+    // Retrait de l'exercice affiché (le dernier) : on affiche le précédent.
+    expect(removeExercise(twoExercises(1), 1).currentExerciseIndex).toBe(0);
+    // Retrait après : inchangé.
+    expect(removeExercise(twoExercises(0), 1).currentExerciseIndex).toBe(0);
+  });
+
+  it('finishSession retire l’index d’exercice affiché', () => {
+    const done = finishSession(setSetDone(twoExercises(1), 1, 0, true), NOW);
+    expect(done).not.toHaveProperty('currentExerciseIndex');
+  });
+});
+
+describe('mode séance — cas limites', () => {
+  const three = (current: number): WorkoutSession => ({
+    id: 'b',
+    name: 'Trois',
+    startedAt: NOW.toISOString(),
+    currentExerciseIndex: current,
+    exercises: [
+      { exerciseId: 'a', sets: [set(10, 10)] },
+      { exerciseId: 'b', sets: [set(10, 10, true)] },
+      { exerciseId: 'c', sets: [set(10, 10)] },
+    ],
+  });
+
+  it('removeExercise de l’exercice affiché au milieu : celui qui prend sa place est affiché', () => {
+    const s = removeExercise(three(1), 1);
+    expect(s.exercises.map((e) => e.exerciseId)).toEqual(['a', 'c']);
+    expect(s.currentExerciseIndex).toBe(1);
+  });
+
+  it('validateSet sur un exercice sans série : séance inchangée', () => {
+    const s: WorkoutSession = { ...three(0), exercises: [{ exerciseId: 'a', sets: [] }] };
+    expect(validateSet(s, 0, 0)).toBe(s);
+  });
+
+  it('validateSet sur une série déjà validée : séance inchangée (une correction n’est pas une validation)', () => {
+    const s = three(1);
+    expect(validateSet(s, 1, 0)).toBe(s);
+  });
+
+  it('nextExerciseIndex : prochain exercice avec des séries en attente, sinon le suivant', () => {
+    expect(nextExerciseIndex(three(0), 0)).toBe(2);
+    const allDone: WorkoutSession = {
+      ...three(0),
+      exercises: three(0).exercises.map((e) => ({ ...e, sets: e.sets.map((x) => ({ ...x, done: true })) })),
+    };
+    expect(nextExerciseIndex(allDone, 0)).toBe(1);
+    expect(nextExerciseIndex(three(2), 2)).toBe(-1);
+  });
+
+  it('validateSet : passage auto au prochain exercice en attente (saute un exercice fini)', () => {
+    expect(validateSet(three(0), 0, 0).currentExerciseIndex).toBe(2);
   });
 });

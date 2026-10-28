@@ -1,23 +1,27 @@
-import { Check, Plus, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Check, ChevronLeft, ChevronRight, Ellipsis, Pencil } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExercisePicker from '../components/ExercisePicker';
 import NumberField from '../components/NumberField';
 import RestTimer from '../components/RestTimer';
-import { exerciseName, formatClock, formatSetsSummary, restSecondsFor } from '../lib/format';
-import { MAX_REPS, MAX_WEIGHT } from '../lib/session';
+import { exerciseName, formatClock, formatCount, formatSetValues, inSentence, restSecondsFor } from '../lib/format';
+import { MAX_REPS, MAX_WEIGHT, currentExerciseIndex, currentSetIndex, pendingSetCount } from '../lib/session';
 import { loadRestEndsAt, saveRestEndsAt } from '../lib/restTimer';
 import { countDoneSets, lastPerformance, sessionDurationMs, type LastPerformance } from '../lib/stats';
 import { useAppStore } from '../state/AppStore';
 
 type Dialog =
-  | { kind: 'finish' }
+  | { kind: 'finish'; remaining: number }
   | { kind: 'empty' }
   | { kind: 'abandon' }
   | { kind: 'removeExercise'; index: number; name: string };
 
-/** Écran plein de la séance en cours (/seance). */
+/** Pas des boutons −/+ de la série en cours (identity.md §4.6). */
+const WEIGHT_STEP = 2.5;
+const REPS_STEP = 1;
+
+/** Écran plein de la séance en cours (/seance) : un exercice à la fois. */
 export default function ActiveSessionPage() {
   const { state, actions } = useAppStore();
   const navigate = useNavigate();
@@ -27,6 +31,16 @@ export default function ActiveSessionPage() {
   const [restEndsAt, setRestEndsAt] = useState<number | null>(() => loadRestEndsAt(session?.id));
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [picking, setPicking] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  /**
+   * Série faite rouverte pour correction. Une correction n'est pas une validation : elle ne relance
+   * pas le repos et ne change pas d'exercice. La série reste validée pendant la correction.
+   */
+  const [editing, setEditing] = useState<{ exIdx: number; setIdx: number } | null>(null);
+  /** Retour affiché dans le bas d'écran, et série dont la coche s'anime. */
+  const [feedback, setFeedback] = useState<{ text: string; exIdx?: number; setIdx?: number } | null>(null);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
@@ -48,17 +62,95 @@ export default function ActiveSessionPage() {
     return map;
   }, [state.sessions, exerciseIdsKey]);
 
+  // Exercice affiché (persisté dans la séance). Le sens de la transition est figé au moment où
+  // l'exercice change : les autres rendus (tic du chrono…) ne rejouent pas l'animation.
+  const exIdx = session ? currentExerciseIndex(session) : 0;
+  const transition = useRef<{ index: number; direction: 'next' | 'prev' }>({ index: exIdx, direction: 'next' });
+  if (transition.current.index !== exIdx) {
+    transition.current = { index: exIdx, direction: exIdx > transition.current.index ? 'next' : 'prev' };
+  }
+  const direction = transition.current.direction;
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [exIdx]);
+
+  // Menu ⋯ : fermeture au tap hors du menu et sur Échap (le focus revient au bouton ⋯).
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setMenuOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    const onPointer = (e: PointerEvent | MouseEvent) => {
+      const target = e.target as Element | null;
+      if (!target || menuRef.current?.contains(target) || menuButtonRef.current?.contains(target)) return;
+      setMenuOpen(false);
+      // On ne vole pas le focus d'un champ ou d'un bouton qu'on vient de toucher.
+      if (!target.closest('button, input, a, select, textarea')) menuButtonRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointer);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointer);
+    };
+  }, [menuOpen]);
+
   if (!session) return <Navigate to="/seances" replace />;
 
-  const toggleSet = (exIdx: number, setIdx: number, done: boolean) => {
-    actions.setSetDone(exIdx, setIdx, done);
-    if (done) {
-      const rest = restSecondsFor(session, state.templates, session.exercises[exIdx].exerciseId);
-      if (rest > 0) setRestEndsAt(Date.now() + rest * 1000);
+  const total = session.exercises.length;
+  const exercise = session.exercises[exIdx];
+  const name = exercise ? exerciseName(state.exercises, exercise.exerciseId) : '';
+  // Série en cours = première série non validée de l'exercice affiché.
+  const setIdx = currentSetIndex(exercise);
+  const isLastExercise = exIdx === total - 1;
+  const pending = pendingSetCount(session);
+  // Correction valide seulement si la série existe toujours, est faite et appartient à l'exercice affiché.
+  const correcting =
+    editing && editing.exIdx === exIdx && exercise?.sets[editing.setIdx]?.done ? editing.setIdx : -1;
+  // Série mise en avant (grande carte) : celle en correction, sinon celle en cours.
+  const heroIdx = correcting >= 0 ? correcting : setIdx;
+
+  // Référence d'une série : la même série la dernière fois, sinon l'objectif de la séance type.
+  const referenceFor = (i: number): string | null => {
+    if (!exercise) return null;
+    const last = lastByExercise.get(exercise.exerciseId);
+    if (last) {
+      // Série au-delà de la dernière fois : on ne réutilise pas la valeur d'une autre série.
+      if (i >= last.sets.length) return `Série en plus : ${formatCount(last.sets.length, 'série')} la dernière fois.`;
+      return `Dernière fois : ${formatSetValues(last.sets[i].weight, last.sets[i].reps)}`;
     }
+    const template = session.templateId ? state.templates.find((t) => t.id === session.templateId) : undefined;
+    const target = template?.exercises.find((te) => te.exerciseId === exercise.exerciseId);
+    return target ? `Objectif : ${formatSetValues(target.targetWeight ?? 0, target.targetReps)}` : null;
   };
 
-  const askFinish = () => setDialog({ kind: countDoneSets(session) === 0 ? 'empty' : 'finish' });
+  const validate = () => {
+    if (!exercise || setIdx < 0) return;
+    const n = setIdx + 1;
+    // Plus rien à faire après cette série : pas de repos.
+    const rest = pending > 1 ? restSecondsFor(session, state.templates, exercise.exerciseId) : 0;
+    const exerciseFinished = exercise.sets.filter((s) => !s.done).length === 1;
+    actions.validateSet(exIdx, setIdx);
+    setRestEndsAt(rest > 0 ? Date.now() + rest * 1000 : null);
+    const restText = rest > 0 ? ` Repos : ${rest} s.` : '';
+    // Exercice fini : l'écran passe au suivant, on ne cite donc pas un numéro de série.
+    const text = exerciseFinished ? `Exercice terminé : ${inSentence(name)}.${restText}` : `Série ${n} validée.${restText}`;
+    setFeedback({ text, exIdx, setIdx });
+  };
+
+  /** Fin de correction : rien d'autre ne change (ni repos ni exercice affiché). */
+  const saveCorrection = () => {
+    setEditing(null);
+    setFeedback({ text: `Série ${correcting + 1} corrigée.` });
+  };
+
+  const goTo = (index: number) => {
+    actions.goToExercise(index);
+    setEditing(null);
+    setFeedback(null);
+  };
 
   const finish = () => {
     const id = session.id; // mémorisé avant que la séance ne quitte activeSession
@@ -67,135 +159,268 @@ export default function ActiveSessionPage() {
     navigate(`/resume/${id}`, { replace: true });
   };
 
+  /** Confirmation légère seulement s'il reste des séries ; la garde « séance vide » est inchangée. */
+  const askFinish = () => {
+    if (countDoneSets(session) === 0) setDialog({ kind: 'empty' });
+    else if (pending > 0) setDialog({ kind: 'finish', remaining: pending });
+    else finish();
+  };
+
   const abandon = () => {
     saveRestEndsAt(session.id, null);
     actions.abandonSession();
     navigate('/seances', { replace: true });
   };
 
+  /** Action du menu ⋯ : ferme le menu et abandonne une éventuelle correction en cours. */
+  const menuAction = (fn: () => void) => () => {
+    setMenuOpen(false);
+    setEditing(null);
+    fn();
+  };
+
+  // Une seule action principale, fixée en bas de l'écran.
+  const primary =
+    total === 0
+      ? { label: 'Ajouter un exercice', onClick: () => setPicking(true) }
+      : correcting >= 0
+        ? { label: 'Enregistrer la correction', onClick: saveCorrection }
+        : setIdx >= 0
+          ? { label: 'Valider la série', onClick: validate }
+          : isLastExercise
+            ? { label: 'Terminer la séance', onClick: askFinish }
+            : { label: 'Exercice suivant', onClick: () => goTo(exIdx + 1) };
+
+  const neighbourName = (i: number) => {
+    const ex = session.exercises[i];
+    return ex ? exerciseName(state.exercises, ex.exerciseId) : '';
+  };
+  const prevName = neighbourName(exIdx - 1);
+  const nextName = neighbourName(exIdx + 1);
+
   return (
-    <section className={`page session${restEndsAt !== null ? ' session--with-timer' : ''}`}>
+    <section className="page session">
       <header className="session__header">
-        <div>
+        <div className="session__info">
           <h1 className="session__name">{session.name}</h1>
           <p className="session__clock">
             <span className="visually-hidden">Durée de la séance : </span>
             {formatClock(sessionDurationMs(session, new Date(now)))}
           </p>
         </div>
-        <button type="button" className="btn" onClick={askFinish}>
-          Terminer la séance
-        </button>
+        {/* Toujours accessible mais secondaire ; masqué quand c'est devenu l'action principale. */}
+        {primary.label !== 'Terminer la séance' && (
+          <button type="button" className="btn btn--ghost session__finish" onClick={askFinish}>
+            Terminer la séance
+          </button>
+        )}
       </header>
 
-      {session.exercises.length === 0 && (
-        <p className="muted">Ajoute un premier exercice pour commencer.</p>
-      )}
+      {total === 0 ? (
+        <>
+          <p className="muted">Ajoute un premier exercice pour commencer.</p>
+          {/* Sans exercice, pas de menu ⋯ : l'abandon reste accessible ici, discret. */}
+          <button type="button" className="btn btn--danger-ghost session__abandon" onClick={() => setDialog({ kind: 'abandon' })}>
+            Abandonner la séance
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="session-progress">
+            <p className="session-progress__label">
+              Exercice {exIdx + 1} sur {total}
+            </p>
+            <div
+              className="session-progress__track"
+              role="progressbar"
+              aria-label="Progression dans la séance"
+              aria-valuemin={1}
+              aria-valuemax={total}
+              aria-valuenow={exIdx + 1}
+              aria-valuetext={`Exercice ${exIdx + 1} sur ${total}`}
+            >
+              <div className="session-progress__bar" style={{ width: `${((exIdx + 1) / total) * 100}%` }} />
+            </div>
+          </div>
 
-      {session.exercises.map((ex, exIdx) => {
-        const name = exerciseName(state.exercises, ex.exerciseId);
-        const last = lastByExercise.get(ex.exerciseId);
-        return (
-          <article key={`${ex.exerciseId}-${exIdx}`} className="card session-exercise" aria-label={name}>
+          <article key={exIdx} className={`session-exercise session-exercise--${direction}`} aria-label={name}>
             <div className="session-exercise__head">
               <h2 className="session-exercise__name">{name}</h2>
               <button
+                ref={menuButtonRef}
                 type="button"
-                className="icon-btn icon-btn--danger"
-                aria-label={`Retirer ${name}`}
-                onClick={() => setDialog({ kind: 'removeExercise', index: exIdx, name })}
+                className="icon-btn"
+                aria-label={`Options de ${name}`}
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((open) => !open)}
               >
-                <X size={20} aria-hidden="true" />
+                <Ellipsis size={24} aria-hidden="true" />
               </button>
             </div>
-            {last && <p className="muted session-exercise__last">Dernière fois : {formatSetsSummary(last.sets)}</p>}
 
-            <div className="set-table" role="table" aria-label={`Séries de ${name}`}>
-              <div className="set-row set-row--head" role="row">
-                <span role="columnheader">#</span>
-                <span role="columnheader">kg</span>
-                <span role="columnheader">Reps</span>
-                <span role="columnheader">
-                  <span className="visually-hidden">Validée</span>
-                </span>
-                <span role="columnheader">
-                  <span className="visually-hidden">Supprimer</span>
-                </span>
+            {menuOpen && (
+              <div className="session-menu" ref={menuRef}>
+                <button type="button" className="btn btn--block" onClick={menuAction(() => actions.addSet(exIdx))}>
+                  Ajouter une série
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--block"
+                  disabled={exercise.sets.length === 0}
+                  onClick={menuAction(() => {
+                    actions.removeSet(exIdx, exercise.sets.length - 1);
+                    setFeedback(null);
+                  })}
+                >
+                  Supprimer la dernière série
+                </button>
+                <button type="button" className="btn btn--block" onClick={menuAction(() => setPicking(true))}>
+                  Ajouter un exercice
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--block btn--danger-outline"
+                  onClick={menuAction(() => setDialog({ kind: 'removeExercise', index: exIdx, name }))}
+                >
+                  Retirer cet exercice
+                </button>
+                <hr className="session-menu__separator" />
+                <button
+                  type="button"
+                  className="btn btn--block btn--danger-ghost"
+                  onClick={menuAction(() => setDialog({ kind: 'abandon' }))}
+                >
+                  Abandonner la séance
+                </button>
               </div>
-              {ex.sets.map((s, setIdx) => {
-                const n = setIdx + 1;
-                return (
-                  <div key={setIdx} className={`set-row${s.done ? ' set-row--done' : ''}`} role="row">
-                    <span className="set-row__num" role="cell">
-                      {n}
-                    </span>
-                    <span role="cell">
+            )}
+
+            {exercise.sets.length === 0 && (
+              <p className="muted">Aucune série. Ajoute une série depuis le menu Options.</p>
+            )}
+
+            <ol className="set-list" aria-label={`Séries de ${name}`}>
+              {exercise.sets.map((s, i) => {
+                const n = i + 1;
+                const values = formatSetValues(s.weight, s.reps);
+                if (i === heroIdx) {
+                  // En cours (ou en correction) : carte bordée d'accent, chiffres en 40 px, −/+ et clavier en repli.
+                  const reference = referenceFor(i);
+                  return (
+                    <li key={i} className="set-current" aria-current="step">
+                      <p className="set-current__title">
+                        <span>
+                          Série {n} sur {exercise.sets.length}
+                        </span>
+                        <span className="set-current__state">{i === correcting ? 'En correction' : 'En cours'}</span>
+                      </p>
                       <NumberField
-                        label={`Poids série ${n} – ${name}`}
+                        label="Charge (kg)"
+                        size="hero"
+                        step={WEIGHT_STEP}
                         max={MAX_WEIGHT}
+                        suffix="kg"
                         value={s.weight}
-                        onChange={(weight) => actions.updateSet(exIdx, setIdx, { weight })}
+                        onChange={(weight) => actions.updateSet(exIdx, i, { weight })}
                       />
-                    </span>
-                    <span role="cell">
                       <NumberField
-                        label={`Reps série ${n} – ${name}`}
+                        label="Reps"
+                        size="hero"
                         kind="integer"
+                        step={REPS_STEP}
                         max={MAX_REPS}
+                        suffix="reps"
                         value={s.reps}
-                        onChange={(reps) => actions.updateSet(exIdx, setIdx, { reps })}
+                        onChange={(reps) => actions.updateSet(exIdx, i, { reps })}
                       />
-                    </span>
-                    <span role="cell">
+                      {reference && <p className="set-current__ref">{reference}</p>}
+                    </li>
+                  );
+                }
+                if (s.done) {
+                  // Faite : compacte, remplie en encre + coche + « Faite » ; « Corriger » la rouvre.
+                  const justDone = feedback?.exIdx === exIdx && feedback.setIdx === i;
+                  return (
+                    <li key={i}>
                       <button
                         type="button"
-                        className="check-btn"
-                        aria-pressed={s.done}
-                        aria-label={`Valider la série ${n}`}
-                        onClick={() => toggleSet(exIdx, setIdx, !s.done)}
+                        className={`set-row set-row--done${justDone ? ' set-row--just-done' : ''}`}
+                        aria-label={`Corriger la série ${n} : ${values}, faite`}
+                        onClick={() => {
+                          setEditing({ exIdx, setIdx: i });
+                          setFeedback({ text: `Série ${n} en correction.` });
+                        }}
                       >
-                        <Check size={24} aria-hidden="true" />
+                        <span className="set-row__num">{n}</span>
+                        <span className="set-row__values">{values}</span>
+                        <span className="set-row__state">
+                          <Check className="set-row__check" size={20} strokeWidth={2.5} aria-hidden="true" />
+                          Faite
+                        </span>
+                        <span className="set-row__edit">
+                          <Pencil size={20} aria-hidden="true" />
+                          Corriger
+                        </span>
                       </button>
-                    </span>
-                    <span role="cell">
-                      <button
-                        type="button"
-                        className="icon-btn icon-btn--small"
-                        aria-label={`Supprimer la série ${n}`}
-                        onClick={() => actions.removeSet(exIdx, setIdx)}
-                      >
-                        <X size={18} aria-hidden="true" />
-                      </button>
-                    </span>
-                  </div>
+                    </li>
+                  );
+                }
+                // À venir : contour + texte grisé + libellé.
+                return (
+                  <li key={i} className="set-row set-row--todo">
+                    <span className="set-row__num">{n}</span>
+                    <span className="set-row__values">{values}</span>
+                    <span className="set-row__state">À venir</span>
+                  </li>
                 );
               })}
-            </div>
-            <button type="button" className="btn btn--block" onClick={() => actions.addSet(exIdx)}>
-              <Plus size={20} aria-hidden="true" />
-              Ajouter une série
-            </button>
+            </ol>
           </article>
-        );
-      })}
 
-      <div className="stack">
-        <button type="button" className="btn btn--block btn--lg" onClick={() => setPicking(true)}>
-          <Plus size={20} aria-hidden="true" />
-          Ajouter un exercice
-        </button>
-        <button type="button" className="btn btn--block btn--danger-outline" onClick={() => setDialog({ kind: 'abandon' })}>
-          Abandonner la séance
+          <div className="session-nav">
+            {exIdx > 0 && (
+              <button
+                type="button"
+                className="btn btn--ghost"
+                aria-label={`Exercice précédent : ${prevName}`}
+                onClick={() => goTo(exIdx - 1)}
+              >
+                <ChevronLeft size={20} aria-hidden="true" />
+                Précédent
+              </button>
+            )}
+            {!isLastExercise && primary.label !== 'Exercice suivant' && (
+              <button
+                type="button"
+                className="btn btn--ghost session-nav__next"
+                aria-label={`Exercice suivant : ${nextName}`}
+                onClick={() => goTo(exIdx + 1)}
+              >
+                Suivant
+                <ChevronRight size={20} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Bas d'écran : retour d'action, minuteur de repos discret, action principale. */}
+      <div className="session-dock">
+        {/* Zone annoncée toujours présente dans l'arbre (masquée visuellement quand elle est vide). */}
+        <p className={feedback ? 'session-dock__feedback' : 'visually-hidden'} role="status">
+          {feedback?.text}
+        </p>
+        {restEndsAt !== null && (
+          <RestTimer
+            endsAt={restEndsAt}
+            onAdjust={(sec) => setRestEndsAt((end) => (end === null ? end : Math.max(Date.now(), end + sec * 1000)))}
+            onDismiss={() => setRestEndsAt(null)}
+          />
+        )}
+        <button type="button" className="btn btn--primary btn--lg btn--block" onClick={primary.onClick}>
+          {primary.label}
         </button>
       </div>
-
-      {restEndsAt !== null && (
-        <RestTimer
-          endsAt={restEndsAt}
-          onAdjust={(sec) => setRestEndsAt((end) => (end === null ? end : Math.max(Date.now(), end + sec * 1000)))}
-          onDismiss={() => setRestEndsAt(null)}
-        />
-      )}
 
       {picking && (
         <ExercisePicker
@@ -203,6 +428,7 @@ export default function ActiveSessionPage() {
           onSelect={(id) => {
             actions.addSessionExercise(id);
             setPicking(false);
+            setFeedback(null);
           }}
         />
       )}
@@ -210,7 +436,10 @@ export default function ActiveSessionPage() {
       <ConfirmDialog
         open={dialog?.kind === 'finish'}
         title="Terminer la séance ?"
-        message="Les séries non validées seront ignorées."
+        message={
+          dialog?.kind === 'finish' &&
+          `Il reste ${formatCount(dialog.remaining, 'série non validée', 'séries non validées')}. Terminer quand même ?`
+        }
         confirmLabel="Terminer la séance"
         cancelLabel="Continuer"
         onCancel={() => setDialog(null)}
@@ -246,6 +475,7 @@ export default function ActiveSessionPage() {
         onConfirm={() => {
           if (dialog?.kind === 'removeExercise') actions.removeSessionExercise(dialog.index);
           setDialog(null);
+          setFeedback(null);
         }}
       />
     </section>

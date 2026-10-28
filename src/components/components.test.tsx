@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppStoreProvider, useAppStore } from '../state/AppStore';
 import ConfirmDialog from './ConfirmDialog';
 import ExercisePicker from './ExercisePicker';
-import LineChart from './LineChart';
+import LineChart, { chartFontSize } from './LineChart';
 import NumberField from './NumberField';
 import RestTimer from './RestTimer';
 
@@ -121,6 +121,9 @@ describe('RestTimer', () => {
     expect(screen.getByRole('button', { name: 'Série suivante' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'OK' })).not.toBeInTheDocument();
     expect(screen.getByRole('status')).not.toHaveTextContent('!');
+    // Signal distinct de l'état « en cours » : classe dédiée + icône (pas la couleur seule)
+    expect(screen.getByRole('region', { name: 'Minuteur de repos' })).toHaveClass('rest-timer--done');
+    expect(screen.getByRole('status').querySelector('svg')).not.toBeNull();
     rerender(<RestTimer endsAt={5_000} now={() => 11_000} onAdjust={() => {}} onDismiss={() => {}} />);
     expect(vibrate).toHaveBeenCalledTimes(1);
   });
@@ -213,6 +216,36 @@ describe('ExercisePicker', () => {
 
 describe('LineChart', () => {
   const fmt = (v: number) => `${v} kg`;
+
+  it('chartFontSize : graduations ≥ 13 px affichés, même à 360 px de large', () => {
+    // À 360 px d'écran, le SVG fait ≈ 310 px pour un viewBox de 340 unités.
+    for (const width of [250, 310, 358, 600]) {
+      const size = chartFontSize(14, width);
+      expect(size * (width / 340), String(width)).toBeGreaterThanOrEqual(13);
+      expect(size).toBeGreaterThanOrEqual(14);
+    }
+    expect(chartFontSize(14, null)).toBe(14);
+  });
+
+  it('applique la taille calculée selon la largeur réelle du SVG', () => {
+    const rect = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ width: 310 } as DOMRect);
+    try {
+      const { container } = render(
+        <LineChart
+          data={[
+            { date: '2026-10-01', value: 50 },
+            { date: '2026-10-08', value: 60 },
+          ]}
+          label="Poids max"
+          formatValue={fmt}
+        />,
+      );
+      const tick = container.querySelector<SVGTextElement>('.chart__tick')!;
+      expect(parseFloat(tick.style.fontSize) * (310 / 340)).toBeGreaterThanOrEqual(13);
+    } finally {
+      rect.mockRestore();
+    }
+  });
 
   it('0 point : message, pas de graphique', () => {
     render(<LineChart data={[]} label="Poids max" formatValue={fmt} />);

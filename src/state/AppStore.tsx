@@ -24,6 +24,10 @@ export interface AppActions {
   removeSet(exerciseIndex: number, setIndex: number): void;
   updateSet(exerciseIndex: number, setIndex: number, patch: { weight?: number; reps?: number }): void;
   setSetDone(exerciseIndex: number, setIndex: number, done: boolean): void;
+  /** Valide une série ; passe à l'exercice suivant si c'était la dernière de l'exercice affiché. */
+  validateSet(exerciseIndex: number, setIndex: number): void;
+  /** Affiche un autre exercice de la séance (mode « un exercice à la fois »). */
+  goToExercise(exerciseIndex: number): void;
   finishSession(): void;
   abandonSession(): void;
 
@@ -108,6 +112,8 @@ export function AppStoreProvider({ children, storage }: { children: ReactNode; s
         dispatch({ type: 'session/updateSet', exerciseIndex, setIndex, ...patch }),
       setSetDone: (exerciseIndex, setIndex, done) =>
         dispatch({ type: 'session/setDone', exerciseIndex, setIndex, done }),
+      validateSet: (exerciseIndex, setIndex) => dispatch({ type: 'session/validateSet', exerciseIndex, setIndex }),
+      goToExercise: (exerciseIndex) => dispatch({ type: 'session/goToExercise', exerciseIndex }),
       finishSession: () => dispatch({ type: 'session/finish', now: now() }),
       abandonSession: () => dispatch({ type: 'session/abandon' }),
 

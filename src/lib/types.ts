@@ -60,6 +60,11 @@ export interface WorkoutSession {
   endedAt?: string;
   exercises: SessionExercise[];
   notes?: string;
+  /**
+   * Séance en cours uniquement : index de l'exercice affiché (mode « un exercice à la fois »).
+   * Optionnel (rétrocompatible) ; absent = 0 ; retiré à la fin de la séance.
+   */
+  currentExerciseIndex?: number;
 }
 
 export interface AppState {

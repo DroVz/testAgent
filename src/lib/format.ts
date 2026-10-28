@@ -58,6 +58,38 @@ export function formatWeight(kg: number): string {
   return `${formatNumber(kg)} kg`;
 }
 
+/** Une série en une ligne : « 72,5 kg × 8 », ou « 8 reps » au poids du corps. */
+export function formatSetValues(weight: number, reps: number): string {
+  return weight > 0 ? `${formatWeight(weight)} × ${formatNumber(reps)}` : formatCount(reps, 'rep');
+}
+
+/** Nombre + nom accordé : « 1 série », « 18 séries » (pluriel à partir de 2, règle française). */
+export function formatCount(n: number, singular: string, plural = `${singular}s`): string {
+  return `${formatNumber(n)} ${Math.abs(n) >= 2 ? plural : singular}`;
+}
+
+/** Phrase de fin : « Séance terminée : 5 exercices, 18 séries, 6 240 kg soulevés. » */
+export function formatSessionSummary(exercises: number, sets: number, volumeKg: number): string {
+  return (
+    `Séance terminée : ${formatCount(exercises, 'exercice')}, ${formatCount(sets, 'série')}, ` +
+    `${formatWeight(volumeKg)} ${Math.abs(volumeKg) >= 2 ? 'soulevés' : 'soulevé'}.`
+  );
+}
+
+/** Nom d'exercice dans une phrase : première lettre en minuscule (« Développé couché » → « développé couché »). */
+export function inSentence(name: string): string {
+  return name.charAt(0).toLocaleLowerCase('fr-FR') + name.slice(1);
+}
+
+/**
+ * Phrase de record (seul endroit où le point d'exclamation est permis) :
+ * « Nouveau record en développé couché : 82,5 kg ! ». `kind` précise le record s'il ne s'agit pas
+ * du poids max (« Nouveau record de volume en squat : 1 650 kg ! »).
+ */
+export function formatRecordSentence(exercise: string, valueKg: number, kind?: string): string {
+  return `Nouveau record${kind ? ` de ${kind}` : ''} en ${inSentence(exercise)} : ${formatWeight(valueKg)} !`;
+}
+
 /**
  * Résumé de séries. Séries identiques : « 3×10 @ 60 kg » (« 3×10 » au poids du corps).
  * Séries différentes : groupes consécutifs séparés par « · », ex. « 2×10 @ 60 kg · 1×8 @ 65 kg ».

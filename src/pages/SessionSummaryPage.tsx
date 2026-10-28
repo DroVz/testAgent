@@ -1,13 +1,29 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { exerciseName, formatDuration, formatNumber, formatSetsSummary, formatWeight } from '../lib/format';
-import { countDoneSets, detectNewRecords, sessionDurationMs, sessionVolume, type RecordType } from '../lib/stats';
+import {
+  exerciseName,
+  formatDuration,
+  formatNumber,
+  formatRecordSentence,
+  formatSessionSummary,
+  formatSetsSummary,
+  formatWeight,
+} from '../lib/format';
+import {
+  countDoneSets,
+  detectNewRecords,
+  sessionDurationMs,
+  sessionVolume,
+  strongestRecords,
+  type RecordType,
+} from '../lib/stats';
 import { useAppStore } from '../state/AppStore';
 
-const RECORD_LABELS: Record<RecordType, string> = {
-  maxWeight: 'Poids max',
+/** Précision du record dans la phrase (le poids max est le record « par défaut »). */
+const RECORD_KINDS: Record<RecordType, string | undefined> = {
+  maxWeight: undefined,
   bestOneRepMax: '1RM estimé',
-  bestVolume: 'Volume',
+  bestVolume: 'volume',
 };
 
 /** Résumé d'une séance terminée (/resume/:id). */
@@ -17,7 +33,11 @@ export default function SessionSummaryPage() {
   const navigate = useNavigate();
   const [applied, setApplied] = useState(false);
   const session = state.sessions.find((s) => s.id === id);
-  const records = useMemo(() => (session ? detectNewRecords(session, state.sessions) : []), [session, state.sessions]);
+  // Une seule ligne par exercice (le record le plus parlant) : un « ! » par exercice, pas plus.
+  const records = useMemo(
+    () => (session ? strongestRecords(detectNewRecords(session, state.sessions)) : []),
+    [session, state.sessions],
+  );
 
   if (!session) {
     return (
@@ -33,9 +53,12 @@ export default function SessionSummaryPage() {
   const template = session.templateId ? state.templates.find((t) => t.id === session.templateId) : undefined;
 
   return (
-    <section className="page">
-      <h1 className="page__title">Séance terminée</h1>
-      <p className="muted">{session.name}</p>
+    <section className="page summary">
+      {/* Titre = nom de la séance ; la phrase dit déjà « Séance terminée ». */}
+      <h1 className="page__title">{session.name}</h1>
+      <p className="summary-sentence">
+        {formatSessionSummary(session.exercises.length, countDoneSets(session), sessionVolume(session))}
+      </p>
 
       <dl className="stat-grid">
         <div className="stat">
@@ -58,8 +81,8 @@ export default function SessionSummaryPage() {
           <ul className="records__list">
             {records.map((r) => (
               <li key={`${r.exerciseId}-${r.type}`} className="records__item">
-                <strong>{exerciseName(state.exercises, r.exerciseId)}</strong> — {RECORD_LABELS[r.type]} :{' '}
-                {formatWeight(r.value)} <span className="muted">(avant {formatWeight(r.previous)})</span>
+                {formatRecordSentence(exerciseName(state.exercises, r.exerciseId), r.value, RECORD_KINDS[r.type])}{' '}
+                <span className="muted">(avant {formatWeight(r.previous)})</span>
               </li>
             ))}
           </ul>
@@ -75,24 +98,27 @@ export default function SessionSummaryPage() {
         ))}
       </ul>
 
-      <div className="stack">
-        {template &&
-          (applied ? (
-            <p className="muted" role="status">
-              Séance type « {template.name} » mise à jour.
-            </p>
-          ) : (
-            <button
-              type="button"
-              className="btn btn--block"
-              onClick={() => {
-                actions.applySessionToTemplate(session.id);
-                setApplied(true);
-              }}
-            >
-              Mettre à jour la séance type avec ces poids
-            </button>
-          ))}
+      {/* Action secondaire (contour), au-dessus du bas d'écran. */}
+      {template &&
+        (applied ? (
+          <p className="muted summary__secondary" role="status">
+            Séance type « {template.name} » mise à jour.
+          </p>
+        ) : (
+          <button
+            type="button"
+            className="btn btn--block summary__secondary"
+            onClick={() => {
+              actions.applySessionToTemplate(session.id);
+              setApplied(true);
+            }}
+          >
+            Mettre à jour la séance type
+          </button>
+        ))}
+
+      {/* Action principale collée en bas, au-dessus de la barre d'onglets (comme en séance). */}
+      <div className="summary-dock">
         <button type="button" className="btn btn--primary btn--lg btn--block" onClick={() => navigate('/progres')}>
           Voir mes progrès
         </button>

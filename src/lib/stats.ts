@@ -174,6 +174,25 @@ export function detectNewRecords(session: WorkoutSession, history: WorkoutSessio
   return result;
 }
 
+/**
+ * Ordre de préférence quand un exercice bat plusieurs records : le poids max d'abord (c'est le
+ * chiffre réellement soulevé, celui que l'utilisateur voit), puis le 1RM (estimé, donc dérivé),
+ * puis le volume (qui dépend surtout du nombre de séries).
+ */
+const RECORD_PRIORITY: RecordType[] = ['maxWeight', 'bestOneRepMax', 'bestVolume'];
+
+/** Un seul record par exercice, le plus significatif ; l'ordre des exercices est conservé. */
+export function strongestRecords(records: NewRecord[]): NewRecord[] {
+  const best = new Map<string, NewRecord>();
+  for (const r of records) {
+    const current = best.get(r.exerciseId);
+    if (!current || RECORD_PRIORITY.indexOf(r.type) < RECORD_PRIORITY.indexOf(current.type)) {
+      best.set(r.exerciseId, r);
+    }
+  }
+  return [...best.values()];
+}
+
 /** Début de semaine (lundi 00:00, heure locale). */
 export function startOfWeek(date: Date): Date {
   const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());

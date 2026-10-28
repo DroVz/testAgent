@@ -243,6 +243,51 @@ describe('validateImport / exportState', () => {
   });
 });
 
+describe('currentExerciseIndex (séance en cours)', () => {
+  const withIndex = (value: unknown) => {
+    const s = sampleState() as unknown as Record<string, unknown>;
+    s.activeSession = {
+      id: 's2',
+      name: 'Libre',
+      startedAt: '2026-01-03T10:00:00.000Z',
+      exercises: [
+        { exerciseId: 'squat', sets: [{ weight: 80, reps: 5, done: true }] },
+        { exerciseId: 'dips', sets: [{ weight: 0, reps: 8, done: false }] },
+      ],
+      currentExerciseIndex: value,
+    };
+    return parseAppState(s);
+  };
+
+  it('données sans ce champ : acceptées, champ absent (rétrocompatible)', () => {
+    const r = parseAppState(sampleState());
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.state.activeSession).not.toHaveProperty('currentExerciseIndex');
+  });
+
+  it('valeur valide conservée, valeur trop grande bornée au dernier exercice', () => {
+    const ok = withIndex(1);
+    expect(ok.ok && ok.state.activeSession?.currentExerciseIndex).toBe(1);
+    const big = withIndex(12);
+    expect(big.ok && big.state.activeSession?.currentExerciseIndex).toBe(1);
+  });
+
+  it('séance sans exercice : index ramené à 0', () => {
+    const s = sampleState() as unknown as Record<string, unknown>;
+    s.activeSession = { id: 's2', name: 'Libre', startedAt: '2026-01-03T10:00:00.000Z', exercises: [], currentExerciseIndex: 3 };
+    const r = parseAppState(s);
+    expect(r.ok && r.state.activeSession?.currentExerciseIndex).toBe(0);
+  });
+
+  it('valeur invalide rejetée avec un message clair', () => {
+    for (const bad of [-1, 1.5, '1', null]) {
+      const r = withIndex(bad);
+      expect(r.ok, String(bad)).toBe(false);
+      if (!r.ok) expect(r.error).toMatch(/activeSession\.currentExerciseIndex/);
+    }
+  });
+});
+
 describe('exportFileName', () => {
   it('muscutrack-AAAA-MM-JJ.json en date locale', () => {
     expect(exportFileName(new Date(2026, 0, 5, 23, 59))).toBe('muscutrack-2026-01-05.json');

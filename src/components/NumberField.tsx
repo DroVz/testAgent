@@ -15,6 +15,8 @@ export interface NumberFieldProps {
   /** Libellé visible (sinon uniquement pour les lecteurs d'écran). */
   showLabel?: boolean;
   suffix?: string;
+  /** « hero » : chiffre en 40 px / 700 et boutons −/+ de 56 px (série en cours). */
+  size?: 'default' | 'hero';
 }
 
 function clampValue(n: number, kind: 'decimal' | 'integer', min: number, max: number | undefined): number {
@@ -36,6 +38,7 @@ export default function NumberField({
   max,
   showLabel = false,
   suffix,
+  size = 'default',
 }: NumberFieldProps) {
   const id = useId();
   const parse = kind === 'decimal' ? parseDecimalInput : parseIntInput;
@@ -84,7 +87,7 @@ export default function NumberField({
   );
 
   return (
-    <div className="number-field">
+    <div className={`number-field${size === 'hero' ? ' number-field--hero' : ''}`}>
       <label htmlFor={id} className={showLabel ? 'number-field__label' : 'visually-hidden'}>
         {label}
       </label>

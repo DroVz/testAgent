@@ -283,6 +283,8 @@ svg {
   line-height: 1.25;
   text-align: center;
   text-decoration: none;
+  /* Un libellé de bouton ne se coupe jamais sur deux lignes. */
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background-color var(--duration) var(--ease),
@@ -323,6 +325,13 @@ svg {
 .btn--ghost {
   background: transparent;
   border-color: transparent;
+}
+
+/* Action destructive discrète : texte danger, sans contour ni aplat. */
+.btn--danger-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--danger);
 }
 
 .btn--lg {
@@ -565,14 +574,12 @@ svg {
   margin-top: var(--space-2);
 }
 
+/* Constructeur : action principale pleine largeur en premier, « Annuler » dessous. */
 .action-bar {
   display: flex;
+  flex-direction: column;
   gap: var(--space-2);
   margin-top: var(--space-4);
-}
-
-.action-bar > * {
-  flex: 1;
 }
 
 /* ---------- Modales ---------- */
@@ -730,8 +737,14 @@ svg {
   color: var(--surface);
 }
 
-.session--with-timer {
-  padding-bottom: 176px;
+/*
+ * Mode séance « un exercice à la fois ». La page est une colonne de la hauteur de l'écran ;
+ * le bas d'écran (retour, minuteur, action principale) colle au bas de la fenêtre.
+ */
+.session {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--space-3) - var(--space-3) - env(safe-area-inset-bottom, 0px));
 }
 
 .session__header {
@@ -742,99 +755,207 @@ svg {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) var(--space-3);
-  padding: var(--space-3);
-  padding-top: calc(var(--space-3) + env(safe-area-inset-top, 0px));
+  margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  padding-top: calc(var(--space-2) + env(safe-area-inset-top, 0px));
   border-bottom: 1px solid var(--border);
   background: var(--bg);
 }
 
+.session__info {
+  min-width: 0;
+}
+
+/* Nom de séance et chrono : discrets (le héros est l'exercice et ses chiffres). Nom long → ellipse. */
 .session__name {
   margin: 0;
-  font-size: var(--fs-title);
-  font-weight: 700;
-  line-height: 1.25;
+  overflow: hidden;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Chrono : information, pas action → texte secondaire. */
 .session__clock {
   margin: 0;
   color: var(--text-muted);
-  font-size: var(--fs-body);
+  font-size: var(--fs-caption);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+}
+
+.session__finish {
+  flex: none;
+  padding-inline: var(--space-2);
+}
+
+.session-progress {
+  margin-bottom: var(--space-3);
+}
+
+.session-progress__label {
+  margin: 0 0 var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+}
+
+/* Barre fine de 4 px, en encre (l'accent reste réservé à l'action principale). */
+.session-progress__track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+}
+
+.session-progress__bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--text);
+  transition: width var(--duration) var(--ease);
 }
 
 .session-exercise {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
 }
 
-.session-exercise__last {
+/* Transition horizontale discrète entre exercices (désactivée sous prefers-reduced-motion). */
+.session-exercise--next {
+  animation: slide-from-right 180ms var(--ease);
+}
+
+.session-exercise--prev {
+  animation: slide-from-left 180ms var(--ease);
+}
+
+@keyframes slide-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes slide-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.session-exercise .session-exercise__head {
+  align-items: center;
+}
+
+.session-exercise__name {
   margin: 0;
-  font-size: var(--fs-caption);
-  font-weight: 500;
+  padding-top: 0;
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
-.set-table {
+.session-menu__separator {
+  width: 100%;
+  margin: var(--space-1) 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.session-menu {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
 }
 
+.set-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Série faite ou à venir : ligne compacte de 48 px. */
 .set-row {
   display: grid;
-  /* À 360 px : 24 + 52 + 48 + 4 gaps = 156 px, il reste ~70 px par champ. */
-  grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) 52px var(--touch);
+  grid-template-columns: 24px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: var(--space-2);
-}
-
-.set-row--head {
-  color: var(--text-muted);
-  font-size: var(--fs-caption);
-  font-weight: 500;
-  text-align: center;
+  width: 100%;
+  min-height: var(--touch);
+  padding: var(--space-1) 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--fs-body);
+  text-align: left;
 }
 
 .set-row__num {
-  color: var(--text-muted);
   font-weight: 700;
   text-align: center;
 }
 
-.set-row--done .set-row__num {
-  color: var(--text);
+.set-row__values {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.check-btn {
+.set-row__state {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 52px;
-  min-height: var(--touch);
-  padding: 0;
-  border: 2px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text-muted);
-  transition:
-    background-color var(--duration) var(--ease),
-    border-color var(--duration) var(--ease),
-    color var(--duration) var(--ease);
+  gap: var(--space-1);
+  font-size: var(--fs-caption);
+  font-weight: 600;
 }
 
-/* Série faite : remplie en encre + coche (pas de vert : le vert est réservé aux records). */
-.check-btn[aria-pressed="true"] {
-  background: var(--text);
+/* Faite : remplie en encre + coche + libellé (pas de vert : le vert est réservé aux records). */
+.set-row--done {
   border-color: var(--text);
+  background: var(--text);
   color: var(--surface);
+  cursor: pointer;
 }
 
-.check-btn[aria-pressed="true"] svg {
+/* « Corriger » : dit à l'œil que la ligne faite se touche. */
+.set-row__edit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-left: var(--space-2);
+  border-left: 1px solid currentColor;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+
+/* Coche animée à la validation (150–200 ms). */
+.set-row--just-done .set-row__check {
   animation: check-in 180ms var(--ease);
+}
+
+/* À venir : contour + texte grisé. */
+.set-row--todo {
+  background: transparent;
+  color: var(--text-muted);
 }
 
 @keyframes check-in {
@@ -848,32 +969,131 @@ svg {
   }
 }
 
-.rest-timer {
-  position: fixed;
-  inset: auto 0 0 0;
-  z-index: 10;
+/* En cours : grande carte bordée d'accent (contour, pas d'aplat : l'aplat reste au bouton principal). */
+.set-current {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.set-current__title {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+  font-weight: 700;
+}
+
+.set-current__state {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+
+.set-current__ref {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+}
+
+/* Champ « héros » : chiffre en 40 px / 700 tabulaire, −/+ de 56 px ; un tap sur le chiffre ouvre le clavier. */
+.number-field--hero .number-field__control {
+  gap: var(--space-2);
+}
+
+.number-field--hero .number-field__input {
+  min-height: var(--touch-primary);
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  font-size: var(--fs-display);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.number-field--hero .number-field__btn {
+  width: var(--touch-primary);
+  min-height: var(--touch-primary);
+}
+
+.number-field--hero .number-field__suffix {
+  min-width: 32px;
+}
+
+/* « ‹ Précédent » à gauche, « Suivant › » à droite, sur une seule ligne. */
+.session-nav {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.session-nav__next {
+  margin-left: auto;
+}
+
+/* Séance libre vide : abandon discret (fantôme danger), centré. */
+.session__abandon {
+  align-self: center;
+  margin-block: var(--space-3);
+}
+
+/* Bas d'écran collé à la fenêtre, au-dessus de la zone sûre. */
+.session-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: auto calc(-1 * var(--space-3)) calc(-1 * (var(--space-3) + env(safe-area-inset-bottom, 0px)));
+  padding: var(--space-2) var(--space-3);
   padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border);
-  background: var(--surface);
-  box-shadow: 0 -2px 8px rgba(17, 20, 24, 0.06);
+  background: var(--bg);
+}
+
+.session-dock__feedback {
+  margin: 0;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Minuteur de repos discret : ni aplat d'accent ni plein écran. */
+.rest-timer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
 
 .rest-timer__time {
   margin: 0;
-  font-size: var(--fs-display);
+  font-size: var(--fs-title);
   font-weight: 700;
-  line-height: 1.1;
-  text-align: center;
+  line-height: 1.25;
   font-variant-numeric: tabular-nums;
 }
 
+/* Repos terminé : encadré en encre + icône (signal distinct, sans aplat d'accent). */
+.rest-timer--done {
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border: 2px solid var(--text);
+  border-radius: var(--radius);
+}
+
 .rest-timer--done .rest-timer__time {
-  font-size: var(--fs-title);
-  line-height: 1.25;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-body);
 }
 
 .rest-timer__label {
@@ -887,15 +1107,39 @@ svg {
   gap: var(--space-2);
 }
 
-.rest-timer__actions > * {
-  flex: 1;
+.rest-timer__actions .btn {
+  padding-inline: var(--space-3);
 }
 
 /* ---------- Résumé ---------- */
 
+/* Récap : colonne de la hauteur de l'écran, action principale collée au-dessus des onglets. */
+.summary {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(
+    100dvh - var(--tabbar-height) - env(safe-area-inset-bottom, 0px) - var(--space-3) - var(--space-3)
+  );
+}
+
+.summary__secondary {
+  margin-top: var(--space-3);
+}
+
+.summary-dock {
+  position: sticky;
+  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px));
+  z-index: 5;
+  margin: auto calc(-1 * var(--space-3)) calc(-1 * var(--space-3));
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+/* Les tuiles prennent la largeur de leur valeur : un chiffre ne se casse jamais. */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: auto auto auto;
   gap: var(--space-2);
   margin: var(--space-3) 0;
 }
@@ -916,9 +1160,16 @@ svg {
 
 .stat__value {
   margin: var(--space-1) 0 0;
+  white-space: nowrap;
   font-size: var(--fs-title);
   font-weight: 700;
   line-height: 1.25;
+}
+
+.summary-sentence {
+  margin: 0;
+  font-size: var(--fs-body);
+  font-weight: 600;
 }
 
 /* Records : seul usage du vert (succès). */

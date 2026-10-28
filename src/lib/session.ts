@@ -110,13 +110,24 @@ export function addExercise(
   const sets: SetEntry[] = last
     ? last.sets.map((s) => ({ weight: s.weight, reps: s.reps, done: false }))
     : [{ weight: 0, reps: 0, done: false }];
-  return { ...session, exercises: [...session.exercises, { exerciseId, sets }] };
+  // L'exercice ajouté devient l'exercice affiché : c'est celui qu'on veut faire.
+  return {
+    ...session,
+    exercises: [...session.exercises, { exerciseId, sets }],
+    currentExerciseIndex: session.exercises.length,
+  };
 }
 
-/** Retire un exercice de la séance (sans effet si l'index est invalide). */
+/**
+ * Retire un exercice de la séance (sans effet si l'index est invalide). L'exercice affiché
+ * reste le même s'il est toujours là ; sinon on affiche celui qui prend sa place (ou le précédent).
+ */
 export function removeExercise(session: WorkoutSession, exerciseIndex: number): WorkoutSession {
   if (exerciseIndex < 0 || exerciseIndex >= session.exercises.length) return session;
-  return { ...session, exercises: session.exercises.filter((_, i) => i !== exerciseIndex) };
+  const current = currentExerciseIndex(session);
+  const exercises = session.exercises.filter((_, i) => i !== exerciseIndex);
+  const next = exerciseIndex < current ? current - 1 : current;
+  return { ...session, exercises, currentExerciseIndex: clampExerciseIndex(exercises.length, next) };
 }
 
 /** Ajoute une série recopiant les valeurs de la dernière série de l'exercice (non validée). */
@@ -165,13 +176,72 @@ export function setSetDone(
   return mapSet(session, exerciseIndex, setIndex, (s) => ({ ...s, done }));
 }
 
+// ---------- Mode séance « un exercice à la fois » ----------
+
+/** Borne un index d'exercice dans [0, count − 1] (0 si aucun exercice ou valeur invalide). */
+export function clampExerciseIndex(count: number, index: number): number {
+  if (!Number.isFinite(index) || count <= 0) return 0;
+  return Math.min(Math.max(0, Math.floor(index)), count - 1);
+}
+
+/** Index de l'exercice affiché (champ absent = 0), toujours borné. */
+export function currentExerciseIndex(session: WorkoutSession): number {
+  return clampExerciseIndex(session.exercises.length, session.currentExerciseIndex ?? 0);
+}
+
+/** Affiche un autre exercice (index borné). */
+export function goToExercise(session: WorkoutSession, index: number): WorkoutSession {
+  const next = clampExerciseIndex(session.exercises.length, index);
+  return next === session.currentExerciseIndex ? session : { ...session, currentExerciseIndex: next };
+}
+
+/** Série en cours d'un exercice : la première série non validée, ou -1 si toutes sont faites. */
+export function currentSetIndex(exercise: SessionExercise | undefined): number {
+  return exercise ? exercise.sets.findIndex((s) => !s.done) : -1;
+}
+
+/** Nombre de séries non validées dans toute la séance. */
+export function pendingSetCount(session: WorkoutSession): number {
+  return session.exercises.reduce((n, e) => n + e.sets.filter((s) => !s.done).length, 0);
+}
+
+/**
+ * Exercice à afficher après `fromIndex` : le prochain qui a encore une série non validée,
+ * sinon simplement le suivant. -1 s'il n'y a pas d'exercice après `fromIndex`.
+ */
+export function nextExerciseIndex(session: WorkoutSession, fromIndex: number): number {
+  if (fromIndex + 1 >= session.exercises.length) return -1;
+  for (let i = fromIndex + 1; i < session.exercises.length; i++) {
+    if (currentSetIndex(session.exercises[i]) !== -1) return i;
+  }
+  return fromIndex + 1;
+}
+
+/**
+ * Valide une série **non encore validée**. Si c'était la dernière série en attente de l'exercice
+ * affiché, on passe au prochain exercice qui a des séries en attente (sinon au suivant).
+ *
+ * Une série déjà validée renvoie la séance inchangée : corriger une série faite n'est pas une
+ * validation (pas de navigation) ; la correction passe par `updateSet`.
+ */
+export function validateSet(session: WorkoutSession, exerciseIndex: number, setIndex: number): WorkoutSession {
+  const set = session.exercises[exerciseIndex]?.sets[setIndex];
+  if (!set || set.done) return session;
+  const next = setSetDone(session, exerciseIndex, setIndex, true);
+  const exerciseDone = currentSetIndex(next.exercises[exerciseIndex]) === -1;
+  const isDisplayed = exerciseIndex === currentExerciseIndex(session);
+  const target = exerciseDone && isDisplayed ? nextExerciseIndex(next, exerciseIndex) : -1;
+  return target === -1 ? next : { ...next, currentExerciseIndex: target };
+}
+
 /**
  * Termine la séance : retire les séries non validées et les exercices sans série validée,
- * et pose `endedAt`.
+ * et pose `endedAt`. L'index d'exercice affiché (propre à la séance en cours) est retiré.
  */
 export function finishSession(session: WorkoutSession, now: Date = new Date()): WorkoutSession {
+  const { currentExerciseIndex: _displayed, ...rest } = session;
   return {
-    ...session,
+    ...rest,
     endedAt: now.toISOString(),
     exercises: session.exercises
       .map((e) => ({ ...e, sets: doneSets(e.sets) }))

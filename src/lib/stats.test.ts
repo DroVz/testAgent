@@ -13,6 +13,7 @@ import {
   sessionsThisMonth,
   sessionsThisWeek,
   startOfWeek,
+  strongestRecords,
 } from './stats';
 import type { SetEntry, WorkoutSession } from './types';
 
@@ -229,5 +230,15 @@ describe('compteurs semaine / mois', () => {
 
   it('séances du mois', () => {
     expect(sessionsThisMonth(sessions, now)).toBe(4);
+  });
+});
+
+describe('strongestRecords', () => {
+  it('un record par exercice : poids max, sinon 1RM, sinon volume ; ordre des exercices conservé', () => {
+    const r = (exerciseId: string, type: 'maxWeight' | 'bestOneRepMax' | 'bestVolume') => ({ exerciseId, type, value: 1, previous: 0 });
+    expect(
+      strongestRecords([r('squat', 'bestVolume'), r('squat', 'maxWeight'), r('squat', 'bestOneRepMax'), r('dips', 'bestVolume'), r('rowing', 'bestOneRepMax'), r('rowing', 'bestVolume')]),
+    ).toEqual([r('squat', 'maxWeight'), r('dips', 'bestVolume'), r('rowing', 'bestOneRepMax')]);
+    expect(strongestRecords([])).toEqual([]);
   });
 });
