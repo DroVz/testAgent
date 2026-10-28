@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   STORAGE_KEY,
   createDefaultState,
+  exportFileName,
   exportState,
   loadState,
   parseAppState,
@@ -239,5 +240,12 @@ describe('validateImport / exportState', () => {
     const r = validateImport('{"version":1}');
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/Données invalides/);
+  });
+});
+
+describe('exportFileName', () => {
+  it('muscutrack-AAAA-MM-JJ.json en date locale', () => {
+    expect(exportFileName(new Date(2026, 0, 5, 23, 59))).toBe('muscutrack-2026-01-05.json');
+    expect(exportFileName(new Date(2026, 11, 31))).toBe('muscutrack-2026-12-31.json');
   });
 });

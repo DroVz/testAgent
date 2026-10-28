@@ -16,6 +16,11 @@ export interface NumberFieldProps {
   suffix?: string;
 }
 
+function clampValue(n: number, kind: 'decimal' | 'integer', min: number, max: number | undefined): number {
+  const rounded = kind === 'integer' ? Math.round(n) : Math.round(n * 100) / 100;
+  return Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min, rounded));
+}
+
 /**
  * Champ numérique tactile. Le texte saisi est conservé localement (ex. « 62, » en cours de frappe) ;
  * la valeur n'est transmise que lorsqu'elle est valide.
@@ -35,15 +40,17 @@ export default function NumberField({
   const parse = kind === 'decimal' ? parseDecimalInput : parseIntInput;
   const [text, setText] = useState(() => toInputText(value));
 
-  // Valeur modifiée de l'extérieur (bouton −/+, store) : on resynchronise le texte.
-  useEffect(() => {
-    setText((current) => (parse(current) === value ? current : toInputText(value)));
-  }, [value, parse]);
+  const clamp = (n: number) => clampValue(n, kind, min, max);
 
-  const clamp = (n: number) => {
-    const rounded = kind === 'integer' ? Math.round(n) : Math.round(n * 100) / 100;
-    return Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min, rounded));
-  };
+  // Valeur modifiée de l'extérieur (bouton −/+, store) : on resynchronise le texte, sauf si le texte
+  // en cours de frappe correspond déjà à cette valeur une fois arrondi/borné (ex. « 62,555 » → 62,56) :
+  // il ne sera normalisé qu'au blur.
+  useEffect(() => {
+    setText((current) => {
+      const n = parse(current);
+      return n !== null && clampValue(n, kind, min, max) === value ? current : toInputText(value);
+    });
+  }, [value, parse, kind, min, max]);
 
   const commit = (n: number) => {
     const next = clamp(n);

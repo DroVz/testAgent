@@ -3,6 +3,7 @@ import ResumeBanner from './components/ResumeBanner';
 import ActiveSessionPage from './pages/ActiveSessionPage';
 import HistoryPage from './pages/HistoryPage';
 import ProgressPage from './pages/ProgressPage';
+import SessionDetailPage from './pages/SessionDetailPage';
 import SessionSummaryPage from './pages/SessionSummaryPage';
 import SettingsPage from './pages/SettingsPage';
 import TemplateEditorPage from './pages/TemplateEditorPage';
@@ -52,6 +53,7 @@ function Shell() {
           <Route path="/seance" element={<ActiveSessionPage />} />
           <Route path="/resume/:id" element={<SessionSummaryPage />} />
           <Route path="/historique" element={<HistoryPage />} />
+          <Route path="/historique/:id" element={<SessionDetailPage />} />
           <Route path="/progres" element={<ProgressPage />} />
           <Route path="/reglages" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/seances" replace />} />

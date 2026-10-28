@@ -262,3 +262,9 @@ export function saveState(
 export function exportState(state: AppState): string {
   return JSON.stringify(state, null, 2);
 }
+
+/** Nom du fichier d'export : « muscutrack-AAAA-MM-JJ.json » (date locale). */
+export function exportFileName(date: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `muscutrack-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}.json`;
+}

@@ -38,6 +38,14 @@ export function formatDate(value: string | Date): string {
   return Number.isNaN(d.getTime()) ? '' : dateFormatter.format(d);
 }
 
+const shortDateFormatter = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
+
+/** Date abrégée pour un axe de graphique, ex. « 27 oct. ». */
+export function formatShortDate(value: string | Date): string {
+  const d = typeof value === 'string' ? new Date(value) : value;
+  return Number.isNaN(d.getTime()) ? '' : shortDateFormatter.format(d);
+}
+
 const numberFormatter = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
 
 /** Nombre à la française (virgule décimale, 2 décimales max). */

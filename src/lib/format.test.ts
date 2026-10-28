@@ -6,6 +6,7 @@ import {
   formatDate,
   formatDuration,
   formatSetsSummary,
+  formatShortDate,
   formatWeight,
   normalizeSearch,
   parseDecimalInput,
@@ -42,6 +43,14 @@ describe('formatDate', () => {
     expect(formatDate(new Date(2026, 9, 27, 18).toISOString())).toBe('mar. 27 oct. 2026');
   });
   it('date invalide → chaîne vide', () => expect(formatDate('hier')).toBe(''));
+});
+
+describe('formatShortDate', () => {
+  it('jour et mois abrégé', () => {
+    expect(formatShortDate(new Date(2026, 9, 27, 18))).toBe('27 oct.');
+    expect(formatShortDate(new Date(2026, 4, 3).toISOString())).toBe('3 mai');
+  });
+  it('date invalide → chaîne vide', () => expect(formatShortDate('???')).toBe(''));
 });
 
 describe('formatWeight', () => {

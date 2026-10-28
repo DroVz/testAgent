@@ -18,13 +18,23 @@ export default function RestTimer({ endsAt, onAdjust, onDismiss, now = Date.now 
   const vibratedFor = useRef<number | null>(null);
 
   useEffect(() => {
-    const tick = () => setCurrent(now());
+    let interval: number | undefined;
+    const stop = () => {
+      if (interval !== undefined) window.clearInterval(interval);
+      interval = undefined;
+    };
+    const tick = () => {
+      const t = now();
+      setCurrent(t);
+      // Repos terminé : plus besoin de rafraîchir.
+      if (t >= endsAt) stop();
+    };
     tick();
-    const interval = window.setInterval(tick, 250);
+    if (now() < endsAt) interval = window.setInterval(tick, 250);
     // Au retour de veille, on recalcule immédiatement.
     document.addEventListener('visibilitychange', tick);
     return () => {
-      window.clearInterval(interval);
+      stop();
       document.removeEventListener('visibilitychange', tick);
     };
   }, [now, endsAt]);

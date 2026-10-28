@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import ConfirmDialog from '../components/ConfirmDialog';
 import ExercisePicker from '../components/ExercisePicker';
 import NumberField from '../components/NumberField';
 import { exerciseName } from '../lib/format';
@@ -35,6 +36,14 @@ function Editor({ template }: { template?: Template }) {
   const [exercises, setExercises] = useState<TemplateExercise[]>(() => template?.exercises.map((e) => ({ ...e })) ?? []);
   const [nameError, setNameError] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [initial] = useState(() => JSON.stringify({ name: template?.name ?? '', exercises: template?.exercises ?? [] }));
+  const dirty = JSON.stringify({ name, exercises }) !== initial;
+
+  const cancel = () => {
+    if (dirty) setConfirmLeave(true);
+    else navigate('/seances');
+  };
 
   const patch = (index: number, p: Partial<TemplateExercise>) =>
     setExercises((list) => list.map((e, i) => (i === index ? { ...e, ...p } : e)));
@@ -119,7 +128,7 @@ function Editor({ template }: { template?: Template }) {
                 </div>
               </div>
               <div className="editor-item__fields">
-                <NumberField label="Séries" showLabel kind="integer" step={1} max={20} value={te.targetSets} onChange={(v) => patch(i, { targetSets: v })} />
+                <NumberField label="Séries" showLabel kind="integer" step={1} min={1} max={20} value={te.targetSets} onChange={(v) => patch(i, { targetSets: v })} />
                 <NumberField label="Reps" showLabel kind="integer" step={1} max={MAX_REPS} value={te.targetReps} onChange={(v) => patch(i, { targetReps: v })} />
                 <NumberField
                   label="Poids (kg)"
@@ -141,13 +150,24 @@ function Editor({ template }: { template?: Template }) {
       </button>
 
       <div className="action-bar">
-        <button type="button" className="btn" onClick={() => navigate('/seances')}>
+        <button type="button" className="btn" onClick={cancel}>
           Annuler
         </button>
         <button type="button" className="btn btn--primary" onClick={save}>
           Enregistrer
         </button>
       </div>
+
+      <ConfirmDialog
+        open={confirmLeave}
+        title="Abandonner les modifications ?"
+        message="Vos modifications non enregistrées seront perdues."
+        confirmLabel="Abandonner"
+        cancelLabel="Continuer l’édition"
+        danger
+        onCancel={() => setConfirmLeave(false)}
+        onConfirm={() => navigate('/seances')}
+      />
 
       {picking && (
         <ExercisePicker

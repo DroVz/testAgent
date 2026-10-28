@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExercisePicker from '../components/ExercisePicker';
@@ -6,7 +6,8 @@ import NumberField from '../components/NumberField';
 import RestTimer from '../components/RestTimer';
 import { exerciseName, formatClock, formatSetsSummary, restSecondsFor } from '../lib/format';
 import { MAX_REPS, MAX_WEIGHT } from '../lib/session';
-import { countDoneSets, lastPerformance, sessionDurationMs } from '../lib/stats';
+import { loadRestEndsAt, saveRestEndsAt } from '../lib/restTimer';
+import { countDoneSets, lastPerformance, sessionDurationMs, type LastPerformance } from '../lib/stats';
 import { useAppStore } from '../state/AppStore';
 
 type Dialog =
@@ -21,7 +22,8 @@ export default function ActiveSessionPage() {
   const navigate = useNavigate();
   const session = state.activeSession;
   const [now, setNow] = useState(() => Date.now());
-  const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
+  // Le repos en cours est persisté (stockage de session) : il survit à un rechargement ou à un détour.
+  const [restEndsAt, setRestEndsAt] = useState<number | null>(() => loadRestEndsAt(session?.id));
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [picking, setPicking] = useState(false);
 
@@ -29,6 +31,21 @@ export default function ActiveSessionPage() {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(interval);
   }, []);
+
+  const sessionId = session?.id;
+  useEffect(() => {
+    if (sessionId) saveRestEndsAt(sessionId, restEndsAt);
+  }, [sessionId, restEndsAt]);
+
+  // « Dernière fois » : ne dépend que de l'historique et de la liste des exercices, pas des saisies en cours.
+  const exerciseIdsKey = session?.exercises.map((e) => e.exerciseId).join('|') ?? '';
+  const lastByExercise = useMemo(() => {
+    const map = new Map<string, LastPerformance | undefined>();
+    for (const id of exerciseIdsKey ? exerciseIdsKey.split('|') : []) {
+      if (!map.has(id)) map.set(id, lastPerformance(state.sessions, id));
+    }
+    return map;
+  }, [state.sessions, exerciseIdsKey]);
 
   if (!session) return <Navigate to="/seances" replace />;
 
@@ -44,11 +61,13 @@ export default function ActiveSessionPage() {
 
   const finish = () => {
     const id = session.id; // mémorisé avant que la séance ne quitte activeSession
+    saveRestEndsAt(id, null);
     actions.finishSession();
     navigate(`/resume/${id}`, { replace: true });
   };
 
   const abandon = () => {
+    saveRestEndsAt(session.id, null);
     actions.abandonSession();
     navigate('/seances', { replace: true });
   };
@@ -58,7 +77,8 @@ export default function ActiveSessionPage() {
       <header className="session__header">
         <div>
           <h1 className="session__name">{session.name}</h1>
-          <p className="session__clock" aria-label="Durée de la séance">
+          <p className="session__clock">
+            <span className="visually-hidden">Durée de la séance : </span>
             {formatClock(sessionDurationMs(session, new Date(now)))}
           </p>
         </div>
@@ -73,7 +93,7 @@ export default function ActiveSessionPage() {
 
       {session.exercises.map((ex, exIdx) => {
         const name = exerciseName(state.exercises, ex.exerciseId);
-        const last = lastPerformance(state.sessions, ex.exerciseId);
+        const last = lastByExercise.get(ex.exerciseId);
         return (
           <article key={`${ex.exerciseId}-${exIdx}`} className="card session-exercise" aria-label={name}>
             <div className="session-exercise__head">
@@ -110,7 +130,7 @@ export default function ActiveSessionPage() {
                     </span>
                     <span role="cell">
                       <NumberField
-                        label={`Poids série ${n}`}
+                        label={`Poids série ${n} – ${name}`}
                         max={MAX_WEIGHT}
                         value={s.weight}
                         onChange={(weight) => actions.updateSet(exIdx, setIdx, { weight })}
@@ -118,7 +138,7 @@ export default function ActiveSessionPage() {
                     </span>
                     <span role="cell">
                       <NumberField
-                        label={`Reps série ${n}`}
+                        label={`Reps série ${n} – ${name}`}
                         kind="integer"
                         max={MAX_REPS}
                         value={s.reps}

@@ -20,12 +20,12 @@ function memoryStorage(initial?: AppState) {
 
 function renderApp(initial?: AppState) {
   const mem = memoryStorage(initial);
-  render(
+  const { unmount } = render(
     <AppStoreProvider storage={mem.storage}>
       <App />
     </AppStoreProvider>,
   );
-  return mem;
+  return { ...mem, unmount };
 }
 
 function stateWithTemplate(): AppState {
@@ -40,6 +40,7 @@ const dialog = () => within(screen.getByRole('dialog'));
 
 beforeEach(() => {
   window.location.hash = '';
+  sessionStorage.clear();
 });
 
 describe('parcours séance', () => {
@@ -83,8 +84,8 @@ describe('parcours séance', () => {
     expect(screen.getAllByRole('button', { name: /^Valider la série/ })).toHaveLength(2);
 
     // Saisie et validation d'une série → minuteur de repos
-    fireEvent.change(screen.getByLabelText('Poids série 1'), { target: { value: '62,5' } });
-    fireEvent.change(screen.getByLabelText('Reps série 1'), { target: { value: '8' } });
+    fireEvent.change(screen.getByLabelText('Poids série 1 – Développé couché'), { target: { value: '62,5' } });
+    fireEvent.change(screen.getByLabelText('Reps série 1 – Développé couché'), { target: { value: '8' } });
     fireEvent.click(screen.getByRole('button', { name: 'Valider la série 1' }));
     expect(screen.getByRole('button', { name: 'Valider la série 1' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('region', { name: 'Minuteur de repos' })).toHaveTextContent('01:00');
@@ -122,8 +123,8 @@ describe('parcours séance', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Démarrer Jambes' }));
     // Pré-rempli avec la dernière fois
     expect(screen.getByText('Dernière fois : 1×5 @ 100 kg')).toBeInTheDocument();
-    expect(screen.getByLabelText('Poids série 1')).toHaveValue('100');
-    fireEvent.change(screen.getByLabelText('Poids série 1'), { target: { value: '110' } });
+    expect(screen.getByLabelText('Poids série 1 – Squat')).toHaveValue('100');
+    fireEvent.change(screen.getByLabelText('Poids série 1 – Squat'), { target: { value: '110' } });
     fireEvent.click(screen.getByRole('button', { name: 'Valider la série 1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Terminer' }));
     fireEvent.click(dialog().getByRole('button', { name: 'Terminer' }));
@@ -199,6 +200,22 @@ describe('parcours séance', () => {
     expect(screen.queryByRole('link', { name: /Séance en cours/ })).not.toBeInTheDocument();
   });
 
+  it('le minuteur de repos survit à un rechargement de l’écran de séance', () => {
+    const first = renderApp(stateWithTemplate());
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer Jambes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Valider la série 1' }));
+    expect(screen.getByRole('region', { name: 'Minuteur de repos' })).toBeInTheDocument();
+    const saved = first.saved();
+    first.unmount();
+
+    window.location.hash = '#/seance';
+    renderApp(saved);
+    expect(screen.getByRole('region', { name: 'Minuteur de repos' })).toHaveTextContent(/01:(29|30)/);
+    fireEvent.click(screen.getByRole('button', { name: 'Passer' }));
+    expect(screen.queryByRole('region', { name: 'Minuteur de repos' })).not.toBeInTheDocument();
+    expect(sessionStorage.length).toBe(0);
+  });
+
   it('/seance sans séance active redirige vers /seances', () => {
     window.location.hash = '#/seance';
     renderApp();
@@ -226,5 +243,30 @@ describe('parcours séance', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Nom' }), { target: { value: 'Legs' } });
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
     expect(saved().templates[0].name).toBe('Legs');
+  });
+
+  it('éditeur : séries ≥ 1 et « Annuler » demande confirmation s’il y a des modifications', () => {
+    const { saved } = renderApp(stateWithTemplate());
+    fireEvent.click(screen.getByRole('button', { name: 'Options de Jambes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier' }));
+
+    // Sans modification : retour direct
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+    expect(screen.getByRole('heading', { name: 'Séances' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Options de Jambes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier' }));
+    for (let i = 0; i < 5; i++) fireEvent.click(screen.getByRole('button', { name: 'Séries : moins 1' }));
+    expect(screen.getByLabelText('Séries')).toHaveValue('1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+    expect(dialog().getByRole('heading', { name: 'Abandonner les modifications ?' })).toBeInTheDocument();
+    fireEvent.click(dialog().getByRole('button', { name: 'Continuer l’édition' }));
+    expect(screen.getByLabelText('Séries')).toHaveValue('1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+    fireEvent.click(dialog().getByRole('button', { name: 'Abandonner' }));
+    expect(screen.getByRole('heading', { name: 'Séances' })).toBeInTheDocument();
+    expect(saved().templates[0].exercises[0].targetSets).toBe(3);
   });
 });

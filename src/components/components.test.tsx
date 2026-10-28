@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppStoreProvider, useAppStore } from '../state/AppStore';
 import ConfirmDialog from './ConfirmDialog';
 import ExercisePicker from './ExercisePicker';
+import LineChart from './LineChart';
 import NumberField from './NumberField';
 import RestTimer from './RestTimer';
 
@@ -45,6 +46,23 @@ describe('NumberField', () => {
     expect(screen.getByRole('status')).toHaveTextContent('62');
     fireEvent.change(input, { target: { value: '62,5' } });
     expect(screen.getByRole('status')).toHaveTextContent('62.5');
+  });
+
+  it('ne réécrit pas le texte pendant la frappe (plus de 2 décimales, au-delà du max) ; normalise au blur', () => {
+    render(<ControlledNumber initial={60} max={100} />);
+    const input = screen.getByLabelText('Poids');
+    fireEvent.change(input, { target: { value: '62,555' } });
+    expect(input).toHaveValue('62,555');
+    const rounded = Number(screen.getByRole('status').textContent);
+    expect(rounded).toBeCloseTo(62.56, 1);
+    fireEvent.blur(input);
+    expect(input).toHaveValue(String(rounded).replace('.', ','));
+
+    fireEvent.change(input, { target: { value: '120' } });
+    expect(input).toHaveValue('120');
+    expect(screen.getByRole('status')).toHaveTextContent('100');
+    fireEvent.blur(input);
+    expect(input).toHaveValue('100');
   });
 
   it('saisie invalide : valeur conservée puis texte restauré au blur ; vide → 0', () => {
@@ -103,6 +121,33 @@ describe('RestTimer', () => {
     expect(vibrate).toHaveBeenCalledTimes(1);
   });
 
+  it('arrête de se rafraîchir une fois le repos terminé', () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 0;
+      render(<RestTimer endsAt={1_000} now={() => clock} onAdjust={() => {}} onDismiss={() => {}} />);
+      expect(vi.getTimerCount()).toBe(1);
+      clock = 1_000;
+      act(() => {
+        vi.advanceTimersByTime(250);
+      });
+      expect(screen.getByRole('status')).toHaveTextContent('Repos terminé');
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('repos déjà terminé au montage : aucun interval', () => {
+    vi.useFakeTimers();
+    try {
+      render(<RestTimer endsAt={1_000} now={() => 5_000} onAdjust={() => {}} onDismiss={() => {}} />);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('sans API de vibration : pas d’erreur', () => {
     vi.stubGlobal('navigator', { ...navigator, vibrate: undefined });
     render(<RestTimer endsAt={0} now={() => 1} onAdjust={() => {}} onDismiss={() => {}} />);
@@ -159,5 +204,43 @@ describe('ExercisePicker', () => {
     const { onClose } = setup();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe('LineChart', () => {
+  const fmt = (v: number) => `${v} kg`;
+
+  it('0 point : message, pas de graphique', () => {
+    render(<LineChart data={[]} label="Poids max" formatValue={fmt} />);
+    expect(screen.getByText('Pas encore de données pour cet exercice.')).toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('1 point : un point mis en évidence, pas de ligne', () => {
+    const { container } = render(<LineChart data={[{ date: '2026-10-01T10:00:00Z', value: 80 }]} label="Poids max" formatValue={fmt} />);
+    expect(screen.getByRole('img')).toHaveAccessibleName(/^Poids max : 1 séance, dernière valeur 80 kg/);
+    expect(container.querySelectorAll('circle')).toHaveLength(1);
+    expect(container.querySelector('.chart__point--last')).not.toBeNull();
+    expect(container.querySelector('.chart__line')).toBeNull();
+  });
+
+  it('valeurs identiques : coordonnées valides, ligne tracée, viewBox responsive', () => {
+    const { container } = render(
+      <LineChart
+        data={[
+          { date: '2026-10-01', value: 50 },
+          { date: '2026-10-08', value: 50 },
+          { date: '2026-10-15', value: 50 },
+        ]}
+        label="Volume"
+        formatValue={fmt}
+      />,
+    );
+    const svg = container.querySelector('svg')!;
+    expect(svg).toHaveAttribute('viewBox');
+    expect(svg).toHaveAttribute('width', '100%');
+    expect(container.querySelector('.chart__line')?.getAttribute('d')).not.toMatch(/NaN|Infinity/);
+    container.querySelectorAll('circle').forEach((c) => expect(Number(c.getAttribute('cy'))).not.toBeNaN());
+    expect(container.querySelectorAll('.chart__tick--x').length).toBeGreaterThan(0);
   });
 });
