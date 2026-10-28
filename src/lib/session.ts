@@ -4,14 +4,19 @@ import type { SessionExercise, SetEntry, Template, WorkoutSession } from './type
 
 export const FREE_SESSION_NAME = 'Séance libre';
 
-/** Normalise un poids : nombre fini ≥ 0 (sinon 0). Décimales conservées. */
+/** Poids maximal accepté (kg). */
+export const MAX_WEIGHT = 1000;
+/** Nombre maximal de répétitions accepté. */
+export const MAX_REPS = 1000;
+
+/** Normalise un poids : nombre fini ≥ 0 (sinon 0), plafonné à MAX_WEIGHT. Décimales conservées. */
 export function sanitizeWeight(value: number): number {
-  return Number.isFinite(value) && value > 0 ? value : 0;
+  return Number.isFinite(value) && value > 0 ? Math.min(value, MAX_WEIGHT) : 0;
 }
 
-/** Normalise des répétitions : entier ≥ 0 (sinon 0). */
+/** Normalise des répétitions : entier ≥ 0 (sinon 0), plafonné à MAX_REPS. */
 export function sanitizeReps(value: number): number {
-  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+  return Number.isFinite(value) && value > 0 ? Math.min(Math.floor(value), MAX_REPS) : 0;
 }
 
 /**
@@ -106,6 +111,12 @@ export function addExercise(
     ? last.sets.map((s) => ({ weight: s.weight, reps: s.reps, done: false }))
     : [{ weight: 0, reps: 0, done: false }];
   return { ...session, exercises: [...session.exercises, { exerciseId, sets }] };
+}
+
+/** Retire un exercice de la séance (sans effet si l'index est invalide). */
+export function removeExercise(session: WorkoutSession, exerciseIndex: number): WorkoutSession {
+  if (exerciseIndex < 0 || exerciseIndex >= session.exercises.length) return session;
+  return { ...session, exercises: session.exercises.filter((_, i) => i !== exerciseIndex) };
 }
 
 /** Ajoute une série recopiant les valeurs de la dernière série de l'exercice (non validée). */

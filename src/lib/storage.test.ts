@@ -9,6 +9,8 @@ import {
   validateImport,
   type StorageLike,
 } from './storage';
+import { appReducer, type AppAction } from '../state/appReducer';
+import { createTemplate, createTemplateExercise } from './templates';
 import type { AppState } from './types';
 
 function memoryStorage(initial: Record<string, string> = {}): StorageLike & { data: Record<string, string> } {
@@ -152,6 +154,18 @@ describe('parseAppState', () => {
       return s;
     }],
     ['poids NaN (sérialisé null)', (s) => JSON.parse(JSON.stringify(s).replace('"weight":62.5', '"weight":null'))],
+    ['poids > 1000 kg', (s) => {
+      s.sessions[0].exercises[0].sets[0].weight = 1000.5;
+      return s;
+    }],
+    ['reps > 1000', (s) => {
+      s.sessions[0].exercises[0].sets[0].reps = 1001;
+      return s;
+    }],
+    ['poids cible > 1000 kg', (s) => {
+      s.templates[0].exercises[0].targetWeight = 2000;
+      return s;
+    }],
     ['date invalide', (s) => {
       s.sessions[0].startedAt = 'hier';
       return s;
@@ -177,6 +191,40 @@ describe('parseAppState', () => {
 describe('validateImport / exportState', () => {
   it('l’export est réimportable à l’identique', () => {
     const state = sampleState();
+    const r = validateImport(exportState(state));
+    expect(r).toEqual({ ok: true, state });
+  });
+
+  it('aller-retour sans perte d’un état produit par le reducer', () => {
+    const t0 = new Date('2026-03-01T10:00:00.000Z');
+    const t1 = new Date('2026-03-01T11:00:00.000Z');
+    const t2 = new Date('2026-03-02T10:00:00.000Z');
+    const template = createTemplate(
+      { name: 'Push', exercises: [createTemplateExercise('developpe-couche'), createTemplateExercise('dips')] },
+      t0,
+      't1',
+    );
+    const actions: AppAction[] = [
+      { type: 'template/save', template },
+      { type: 'exercise/addCustom', id: 'custom-1', name: 'Pull-over', muscleGroup: 'Dos' },
+      { type: 'session/startFromTemplate', templateId: 't1', sessionId: 's1', now: t0 },
+      { type: 'session/updateSet', exerciseIndex: 0, setIndex: 0, weight: 62.5, reps: 8 },
+      { type: 'session/setDone', exerciseIndex: 0, setIndex: 0, done: true },
+      { type: 'session/addExercise', exerciseId: 'custom-1' },
+      { type: 'session/updateSet', exerciseIndex: 2, setIndex: 0, weight: 20, reps: 12 },
+      { type: 'session/setDone', exerciseIndex: 2, setIndex: 0, done: true },
+      { type: 'session/finish', now: t1 },
+      { type: 'history/applyToTemplate', sessionId: 's1', now: t1 },
+      { type: 'session/startFree', sessionId: 's2', now: t2 },
+      { type: 'session/addExercise', exerciseId: 'squat' },
+    ];
+    const state = actions.reduce(appReducer, createDefaultState());
+    // L'état contient bien chaque type de donnée.
+    expect(state.templates[0].exercises[0].targetWeight).toBe(62.5);
+    expect(state.sessions[0].exercises).toHaveLength(2);
+    expect(state.exercises.some((e) => e.isCustom)).toBe(true);
+    expect(state.activeSession?.exercises).toHaveLength(1);
+
     const r = validateImport(exportState(state));
     expect(r).toEqual({ ok: true, state });
   });

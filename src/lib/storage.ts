@@ -1,4 +1,5 @@
 import { DEFAULT_EXERCISES } from './defaultExercises';
+import { MAX_REPS, MAX_WEIGHT } from './session';
 import {
   MUSCLE_GROUPS,
   type AppState,
@@ -81,6 +82,18 @@ function nonNegInt(v: unknown, path: string): number {
   return n;
 }
 
+function weight(v: unknown, path: string): number {
+  const n = nonNegNumber(v, path);
+  if (n > MAX_WEIGHT) fail(path, `poids ≤ ${MAX_WEIGHT} kg`);
+  return n;
+}
+
+function reps(v: unknown, path: string): number {
+  const n = nonNegInt(v, path);
+  if (n > MAX_REPS) fail(path, `répétitions ≤ ${MAX_REPS}`);
+  return n;
+}
+
 function arr<T>(v: unknown, path: string, item: (x: unknown, p: string) => T): T[] {
   if (!Array.isArray(v)) fail(path, 'liste');
   return v.map((x, i) => item(x, `${path}[${i}]`));
@@ -104,11 +117,11 @@ function parseTemplateExercise(v: unknown, path: string): TemplateExercise {
   const te: TemplateExercise = {
     exerciseId: nonEmptyStr(o.exerciseId, `${path}.exerciseId`),
     targetSets: nonNegInt(o.targetSets, `${path}.targetSets`),
-    targetReps: nonNegInt(o.targetReps, `${path}.targetReps`),
+    targetReps: reps(o.targetReps, `${path}.targetReps`),
     restSeconds: nonNegInt(o.restSeconds, `${path}.restSeconds`),
   };
   if (o.targetWeight !== undefined) {
-    te.targetWeight = nonNegNumber(o.targetWeight, `${path}.targetWeight`);
+    te.targetWeight = weight(o.targetWeight, `${path}.targetWeight`);
   }
   return te;
 }
@@ -128,8 +141,8 @@ function parseSet(v: unknown, path: string): SetEntry {
   const o = obj(v, path);
   if (typeof o.done !== 'boolean') fail(`${path}.done`, 'booléen');
   return {
-    weight: nonNegNumber(o.weight, `${path}.weight`),
-    reps: nonNegInt(o.reps, `${path}.reps`),
+    weight: weight(o.weight, `${path}.weight`),
+    reps: reps(o.reps, `${path}.reps`),
     done: o.done,
   };
 }

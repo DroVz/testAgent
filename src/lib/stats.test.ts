@@ -45,6 +45,12 @@ describe('estimateOneRepMax', () => {
   it('reps = 1 → poids', () => expect(estimateOneRepMax(120, 1)).toBe(120));
   it('reps = 0 → 0', () => expect(estimateOneRepMax(120, 0)).toBe(0));
   it('poids = 0 → 0', () => expect(estimateOneRepMax(0, 10)).toBe(0));
+  it('valeurs non finies → 0', () => {
+    expect(estimateOneRepMax(Number.NaN, 5)).toBe(0);
+    expect(estimateOneRepMax(100, Number.NaN)).toBe(0);
+    expect(estimateOneRepMax(Number.POSITIVE_INFINITY, 5)).toBe(0);
+    expect(estimateOneRepMax(100, Number.POSITIVE_INFINITY)).toBe(0);
+  });
 });
 
 describe('volume, séries et durée', () => {
@@ -166,6 +172,19 @@ describe('detectNewRecords', () => {
   it('pas de record pour un exercice sans historique antérieur', () => {
     const current = session('s2', local(2026, 1, 8), { tractions: [set(10, 8)] });
     expect(detectNewRecords(current, history)).toEqual([]);
+  });
+
+  it('historique au poids du corps (meilleur = 0) : passer à > 0 est un record', () => {
+    const bw = [session('s1', local(2026, 1, 5), { tractions: [set(0, 8)] })];
+    const current = session('s2', local(2026, 1, 8), { tractions: [set(10, 5)] });
+    expect(detectNewRecords(current, bw)).toEqual([
+      { exerciseId: 'tractions', type: 'maxWeight', value: 10, previous: 0 },
+      { exerciseId: 'tractions', type: 'bestOneRepMax', value: estimateOneRepMax(10, 5), previous: 0 },
+      { exerciseId: 'tractions', type: 'bestVolume', value: 50, previous: 0 },
+    ]);
+    // Toujours au poids du corps : pas de record.
+    const again = session('s3', local(2026, 1, 9), { tractions: [set(0, 12)] });
+    expect(detectNewRecords(again, bw)).toEqual([]);
   });
 
   it('égalité ≠ record et séries non validées ignorées', () => {

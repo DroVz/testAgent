@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   FREE_SESSION_NAME,
+  MAX_REPS,
+  MAX_WEIGHT,
   addExercise,
   addSet,
   applySessionToTemplate,
   createFreeSession,
   createSessionFromTemplate,
   finishSession,
+  removeExercise,
   removeSet,
+  sanitizeReps,
+  sanitizeWeight,
   setSetDone,
   updateSet,
 } from './session';
@@ -120,6 +125,19 @@ describe('édition de la séance', () => {
     expect(s.exercises[0].sets[0]).toEqual(set(0, 0));
   });
 
+  it('updateSet plafonne poids et reps', () => {
+    const s = updateSet(base(), 0, 0, { weight: 5000, reps: 99999 });
+    expect(s.exercises[0].sets[0]).toEqual(set(MAX_WEIGHT, MAX_REPS));
+  });
+
+  it('removeExercise retire l’exercice ciblé', () => {
+    const b = addExercise(base(), 'tractions', []);
+    const s = removeExercise(b, 0);
+    expect(s.exercises.map((e) => e.exerciseId)).toEqual(['tractions']);
+    expect(removeExercise(b, 5)).toBe(b);
+    expect(removeExercise(b, -1)).toBe(b);
+  });
+
   it('valider / dévalider', () => {
     let s = setSetDone(base(), 0, 0, true);
     expect(s.exercises[0].sets[0].done).toBe(true);
@@ -141,6 +159,7 @@ describe('édition de la séance', () => {
     setSetDone(b, 0, 0, true);
     addSet(b, 0);
     removeSet(b, 0, 0);
+    removeExercise(b, 0);
     expect(b).toEqual(snapshot);
   });
 });
@@ -181,5 +200,17 @@ describe('applySessionToTemplate', () => {
   it('renvoie la même séance type si rien ne change', () => {
     const same = { ...done, exercises: [{ exerciseId: 'developpe-couche', sets: [set(60, 10, true)] }] };
     expect(applySessionToTemplate(template, same, later)).toBe(template);
+  });
+});
+
+describe('sanitizeWeight / sanitizeReps', () => {
+  it('bornent à 0 et au plafond', () => {
+    expect(sanitizeWeight(62.5)).toBe(62.5);
+    expect(sanitizeWeight(-1)).toBe(0);
+    expect(sanitizeWeight(Number.POSITIVE_INFINITY)).toBe(0);
+    expect(sanitizeWeight(1000.5)).toBe(1000);
+    expect(sanitizeReps(12.9)).toBe(12);
+    expect(sanitizeReps(1001)).toBe(1000);
+    expect(sanitizeReps(Number.NaN)).toBe(0);
   });
 });

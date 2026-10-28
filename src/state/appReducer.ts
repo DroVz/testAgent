@@ -5,6 +5,7 @@ import {
   createFreeSession,
   createSessionFromTemplate,
   finishSession,
+  removeExercise,
   removeSet,
   setSetDone,
   updateSet,
@@ -39,6 +40,7 @@ export type AppAction =
   | { type: 'session/startFromTemplate'; templateId: string; sessionId: string; now: Date }
   | { type: 'session/startFree'; sessionId: string; now: Date }
   | { type: 'session/addExercise'; exerciseId: string }
+  | { type: 'session/removeExercise'; exerciseIndex: number }
   | { type: 'session/addSet'; exerciseIndex: number }
   | { type: 'session/removeSet'; exerciseIndex: number; setIndex: number }
   | { type: 'session/updateSet'; exerciseIndex: number; setIndex: number; weight?: number; reps?: number }
@@ -120,6 +122,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, activeSession: createFreeSession(action.now, action.sessionId) };
     case 'session/addExercise':
       return withActive(state, (s) => addExercise(s, action.exerciseId, state.sessions));
+    case 'session/removeExercise':
+      return withActive(state, (s) => removeExercise(s, action.exerciseIndex));
     case 'session/addSet':
       return withActive(state, (s) => addSet(s, action.exerciseIndex));
     case 'session/removeSet':

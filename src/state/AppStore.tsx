@@ -19,6 +19,7 @@ export interface AppActions {
   startSessionFromTemplate(templateId: string): void;
   startFreeSession(): void;
   addSessionExercise(exerciseId: string): void;
+  removeSessionExercise(exerciseIndex: number): void;
   addSet(exerciseIndex: number): void;
   removeSet(exerciseIndex: number, setIndex: number): void;
   updateSet(exerciseIndex: number, setIndex: number, patch: { weight?: number; reps?: number }): void;
@@ -87,6 +88,7 @@ export function AppStoreProvider({ children, storage }: { children: ReactNode; s
         dispatch({ type: 'session/startFromTemplate', templateId, sessionId: createId(), now: now() }),
       startFreeSession: () => dispatch({ type: 'session/startFree', sessionId: createId(), now: now() }),
       addSessionExercise: (exerciseId) => dispatch({ type: 'session/addExercise', exerciseId }),
+      removeSessionExercise: (exerciseIndex) => dispatch({ type: 'session/removeExercise', exerciseIndex }),
       addSet: (exerciseIndex) => dispatch({ type: 'session/addSet', exerciseIndex }),
       removeSet: (exerciseIndex, setIndex) => dispatch({ type: 'session/removeSet', exerciseIndex, setIndex }),
       updateSet: (exerciseIndex, setIndex, patch) =>

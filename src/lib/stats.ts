@@ -1,8 +1,8 @@
 import type { SessionExercise, SetEntry, WorkoutSession } from './types';
 
-/** 1RM estimé (Epley). reps = 1 → poids ; reps ≤ 0 → 0. */
+/** 1RM estimé (Epley). reps = 1 → poids ; reps ≤ 0 ou valeur non finie → 0. */
 export function estimateOneRepMax(weight: number, reps: number): number {
-  if (reps <= 0 || weight <= 0) return 0;
+  if (!Number.isFinite(weight) || !Number.isFinite(reps) || reps <= 0 || weight <= 0) return 0;
   if (reps === 1) return weight;
   return weight * (1 + reps / 30);
 }
@@ -143,7 +143,9 @@ export interface NewRecord {
 
 /**
  * Records battus par `session` par rapport aux séances terminées antérieures
- * (commencées avant elle). Un exercice sans historique antérieur ne génère pas de record.
+ * (commencées avant elle). Un exercice sans historique antérieur ne génère pas de record ;
+ * s'il a un historique dont le meilleur est 0 (ex. poids du corps), toute valeur > 0 est un record
+ * (précédent = 0).
  */
 export function detectNewRecords(session: WorkoutSession, history: WorkoutSession[]): NewRecord[] {
   const start = Date.parse(session.startedAt);
@@ -154,6 +156,7 @@ export function detectNewRecords(session: WorkoutSession, history: WorkoutSessio
   for (const exerciseId of exerciseIds) {
     const sets = doneSetsFor(session, exerciseId);
     if (sets.length === 0) continue;
+    if (exerciseHistory(previous, exerciseId).length === 0) continue;
     const prs = personalRecords(previous, exerciseId);
     const current = metricsOf(sets);
     const checks: [RecordType, number][] = [
@@ -162,9 +165,9 @@ export function detectNewRecords(session: WorkoutSession, history: WorkoutSessio
       ['bestVolume', current.volume],
     ];
     for (const [type, value] of checks) {
-      const prev = prs[type];
-      if (prev !== undefined && value > prev.value) {
-        result.push({ exerciseId, type, value, previous: prev.value });
+      const prev = prs[type]?.value ?? 0;
+      if (value > prev) {
+        result.push({ exerciseId, type, value, previous: prev });
       }
     }
   }

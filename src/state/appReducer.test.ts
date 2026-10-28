@@ -76,6 +76,16 @@ describe('appReducer — séance en cours', () => {
     ]);
   });
 
+  it('retire un exercice de la séance en cours', () => {
+    const s = run(
+      withTemplate(),
+      { type: 'session/startFromTemplate', templateId: 't1', sessionId: 's1', now: T0 },
+      { type: 'session/addExercise', exerciseId: 'dips' },
+      { type: 'session/removeExercise', exerciseIndex: 0 },
+    );
+    expect(s.activeSession?.exercises.map((e) => e.exerciseId)).toEqual(['dips']);
+  });
+
   it('ne démarre pas une seconde séance si une est en cours', () => {
     const s = appReducer(createDefaultState(), { type: 'session/startFree', sessionId: 'a', now: T0 });
     expect(appReducer(s, { type: 'session/startFree', sessionId: 'b', now: T1 })).toBe(s);
