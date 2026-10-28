@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { normalizeSearch } from '../lib/format';
 import { MUSCLE_GROUPS, type MuscleGroup } from '../lib/types';
@@ -133,7 +134,8 @@ export default function ExercisePicker({ onSelect, onClose }: ExercisePickerProp
           </ul>
           {results.length === 0 && <p className="muted picker__empty">Aucun exercice trouvé.</p>}
           <button type="button" className="btn btn--block" onClick={startCreate}>
-            + Créer un exercice{query.trim() ? ` « ${query.trim()} »` : ''}
+            <Plus size={20} aria-hidden="true" />
+            Créer un exercice{query.trim() ? ` « ${query.trim()} »` : ''}
           </button>
         </>
       )}

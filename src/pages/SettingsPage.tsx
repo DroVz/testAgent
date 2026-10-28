@@ -1,3 +1,4 @@
+import { Trash } from 'lucide-react';
 import { useRef, useState, type ChangeEvent } from 'react';
 import { version } from '../../package.json';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -62,8 +63,8 @@ export default function SettingsPage() {
     setExported(text);
     setExportMsg(
       downloadText(text, exportFileName())
-        ? 'Fichier téléchargé. Vous pouvez aussi copier le texte ci-dessous.'
-        : 'Téléchargement indisponible sur ce navigateur : copiez le texte ci-dessous.',
+        ? 'Fichier téléchargé. Tu peux aussi copier le texte ci-dessous.'
+        : 'Téléchargement indisponible sur ce navigateur : copie le texte ci-dessous.',
     );
   };
 
@@ -76,7 +77,7 @@ export default function SettingsPage() {
     } catch {
       exportRef.current?.focus();
       exportRef.current?.select();
-      setExportMsg('Copie automatique impossible : le texte est sélectionné, copiez-le manuellement.');
+      setExportMsg('Copie automatique impossible : le texte est sélectionné, copie-le manuellement.');
     }
   };
 
@@ -127,7 +128,7 @@ export default function SettingsPage() {
       <div className="card settings-section">
         <h2 className="section-title">Sauvegarde</h2>
         <p className="muted settings-section__text">
-          Vos données sont stockées uniquement sur cet appareil, dans ce navigateur. Exportez-les régulièrement pour
+          Tes données sont stockées uniquement sur cet appareil, dans ce navigateur. Exporte-les régulièrement pour
           ne rien perdre (changement de téléphone, nettoyage du navigateur…).
         </p>
         <button type="button" className="btn btn--primary btn--block" onClick={doExport}>
@@ -167,7 +168,7 @@ export default function SettingsPage() {
           Choisir un fichier .json
         </label>
         <label htmlFor="import-text" className="field__label">
-          Ou collez le contenu exporté
+          Ou colle le contenu exporté
         </label>
         <textarea
           id="import-text"
@@ -196,7 +197,7 @@ export default function SettingsPage() {
         <h2 className="section-title">Exercices personnalisés</h2>
         {customExercises.length === 0 ? (
           <p className="muted settings-section__text">
-            Aucun exercice personnalisé. Vous pouvez en créer depuis le sélecteur d’exercices d’une séance.
+            Aucun exercice personnalisé. Tu peux en créer depuis le sélecteur d’exercices d’une séance.
           </p>
         ) : (
           <ul className="custom-list">
@@ -233,7 +234,7 @@ export default function SettingsPage() {
           dialog?.kind === 'import' && (
             <>
               <p>Données importées : {describeState(dialog.state)}.</p>
-              <p>Vos données actuelles ({describeState(state)}) seront définitivement remplacées.</p>
+              <p>Tes données actuelles ({describeState(state)}) seront définitivement remplacées.</p>
               {state.activeSession && (
                 <p>
                   <strong>La séance en cours « {state.activeSession.name} » sera perdue.</strong>
@@ -277,7 +278,7 @@ export default function SettingsPage() {
       <ConfirmDialog
         open={dialog?.kind === 'reset'}
         title="Réinitialiser toutes les données ?"
-        message="Séances types, historique, séance en cours et exercices personnalisés seront effacés. Cette action est irréversible : exportez vos données avant si besoin."
+        message="Séances types, historique, séance en cours et exercices personnalisés seront effacés. Cette action est irréversible : exporte tes données avant si besoin."
         confirmLabel="Tout effacer"
         danger
         onCancel={() => setDialog(null)}
@@ -352,7 +353,7 @@ function CustomExerciseRow({
           Modifier
         </button>
         <button type="button" className="icon-btn icon-btn--danger" aria-label={`Supprimer ${exercise.name}`} onClick={onDelete}>
-          ✕
+          <Trash size={20} aria-hidden="true" />
         </button>
       </li>
     );

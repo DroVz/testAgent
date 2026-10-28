@@ -1,3 +1,4 @@
+import { Check, Plus, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -82,13 +83,13 @@ export default function ActiveSessionPage() {
             {formatClock(sessionDurationMs(session, new Date(now)))}
           </p>
         </div>
-        <button type="button" className="btn btn--primary" onClick={askFinish}>
-          Terminer
+        <button type="button" className="btn" onClick={askFinish}>
+          Terminer la séance
         </button>
       </header>
 
       {session.exercises.length === 0 && (
-        <p className="muted">Ajoutez un premier exercice pour commencer.</p>
+        <p className="muted">Ajoute un premier exercice pour commencer.</p>
       )}
 
       {session.exercises.map((ex, exIdx) => {
@@ -104,7 +105,7 @@ export default function ActiveSessionPage() {
                 aria-label={`Retirer ${name}`}
                 onClick={() => setDialog({ kind: 'removeExercise', index: exIdx, name })}
               >
-                ✕
+                <X size={20} aria-hidden="true" />
               </button>
             </div>
             {last && <p className="muted session-exercise__last">Dernière fois : {formatSetsSummary(last.sets)}</p>}
@@ -153,7 +154,7 @@ export default function ActiveSessionPage() {
                         aria-label={`Valider la série ${n}`}
                         onClick={() => toggleSet(exIdx, setIdx, !s.done)}
                       >
-                        ✓
+                        <Check size={24} aria-hidden="true" />
                       </button>
                     </span>
                     <span role="cell">
@@ -163,7 +164,7 @@ export default function ActiveSessionPage() {
                         aria-label={`Supprimer la série ${n}`}
                         onClick={() => actions.removeSet(exIdx, setIdx)}
                       >
-                        ✕
+                        <X size={18} aria-hidden="true" />
                       </button>
                     </span>
                   </div>
@@ -171,7 +172,8 @@ export default function ActiveSessionPage() {
               })}
             </div>
             <button type="button" className="btn btn--block" onClick={() => actions.addSet(exIdx)}>
-              + Série
+              <Plus size={20} aria-hidden="true" />
+              Ajouter une série
             </button>
           </article>
         );
@@ -179,7 +181,8 @@ export default function ActiveSessionPage() {
 
       <div className="stack">
         <button type="button" className="btn btn--block btn--lg" onClick={() => setPicking(true)}>
-          + Ajouter un exercice
+          <Plus size={20} aria-hidden="true" />
+          Ajouter un exercice
         </button>
         <button type="button" className="btn btn--block btn--danger-outline" onClick={() => setDialog({ kind: 'abandon' })}>
           Abandonner la séance
@@ -208,7 +211,7 @@ export default function ActiveSessionPage() {
         open={dialog?.kind === 'finish'}
         title="Terminer la séance ?"
         message="Les séries non validées seront ignorées."
-        confirmLabel="Terminer"
+        confirmLabel="Terminer la séance"
         cancelLabel="Continuer"
         onCancel={() => setDialog(null)}
         onConfirm={finish}
@@ -216,7 +219,7 @@ export default function ActiveSessionPage() {
       <ConfirmDialog
         open={dialog?.kind === 'empty'}
         title="Aucune série validée"
-        message="Une séance sans série validée ne peut pas être enregistrée. Voulez-vous l’abandonner ?"
+        message="Une séance sans série validée ne peut pas être enregistrée. Tu veux l’abandonner ?"
         confirmLabel="Abandonner la séance"
         cancelLabel="Continuer"
         danger

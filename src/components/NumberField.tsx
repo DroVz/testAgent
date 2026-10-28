@@ -1,3 +1,4 @@
+import { Minus, Plus } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { parseDecimalInput, parseIntInput, toInputText } from '../lib/format';
 
@@ -95,7 +96,7 @@ export default function NumberField({
             aria-label={`${label} : moins ${toInputText(step)}`}
             onClick={() => commit(value - step)}
           >
-            −
+            <Minus size={20} aria-hidden="true" />
           </button>
         )}
         {input}
@@ -107,7 +108,7 @@ export default function NumberField({
             aria-label={`${label} : plus ${toInputText(step)}`}
             onClick={() => commit(value + step)}
           >
-            +
+            <Plus size={20} aria-hidden="true" />
           </button>
         )}
       </div>

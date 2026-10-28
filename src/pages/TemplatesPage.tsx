@@ -1,3 +1,4 @@
+import { Ellipsis, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -39,11 +40,8 @@ export default function TemplatesPage() {
 
       {empty ? (
         <div className="empty-state">
-          <p className="empty-state__title">Aucune séance type pour l’instant</p>
-          <p className="muted">
-            Créez une séance type (ex. « Push », « Jambes ») avec vos exercices et objectifs, puis lancez-la en un
-            tap à la salle. Vous pouvez aussi démarrer une séance libre.
-          </p>
+          <p className="empty-state__title">Aucune séance pour l’instant.</p>
+          <p className="muted">Crée la première en 1 minute, ou démarre une séance libre.</p>
         </div>
       ) : (
         <ul className="template-list">
@@ -64,7 +62,7 @@ export default function TemplatesPage() {
                   aria-expanded={menuFor === t.id}
                   onClick={() => setMenuFor(menuFor === t.id ? null : t.id)}
                 >
-                  ⋯
+                  <Ellipsis size={24} aria-hidden="true" />
                 </button>
               </div>
               {menuFor === t.id && (
@@ -90,10 +88,10 @@ export default function TemplatesPage() {
               <button
                 type="button"
                 className="btn btn--primary btn--lg btn--block"
-                aria-label={`Démarrer ${t.name}`}
+                aria-label={`Démarrer la séance ${t.name}`}
                 onClick={() => start(t.id)}
               >
-                Démarrer
+                Démarrer la séance
               </button>
             </li>
           ))}
@@ -102,7 +100,8 @@ export default function TemplatesPage() {
 
       <div className="stack">
         <Link to="/seances/nouvelle" className={`btn btn--block${empty ? ' btn--primary btn--lg' : ''}`}>
-          + Nouvelle séance type
+          <Plus size={20} aria-hidden="true" />
+          Créer une séance
         </Link>
         <button type="button" className="btn btn--block" onClick={() => start()}>
           Séance libre
@@ -112,7 +111,7 @@ export default function TemplatesPage() {
       <ConfirmDialog
         open={toDelete !== null}
         title="Supprimer la séance type ?"
-        message={toDelete && `« ${toDelete.name} » sera supprimée. L’historique de vos séances est conservé.`}
+        message={toDelete && `« ${toDelete.name} » sera supprimée. L’historique de tes séances est conservé.`}
         confirmLabel="Supprimer"
         danger
         onCancel={() => setToDelete(null)}
@@ -126,7 +125,7 @@ export default function TemplatesPage() {
       <ConfirmDialog
         open={resumeAsk}
         title="Une séance est déjà en cours"
-        message={active && `Terminez ou abandonnez « ${active.name} » avant d’en démarrer une autre.`}
+        message={active && `Termine ou abandonne « ${active.name} » avant d’en démarrer une autre.`}
         confirmLabel="Reprendre la séance"
         onCancel={() => setResumeAsk(false)}
         onConfirm={() => {

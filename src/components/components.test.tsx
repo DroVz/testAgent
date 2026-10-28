@@ -116,7 +116,11 @@ describe('RestTimer', () => {
     const vibrate = vi.fn();
     vi.stubGlobal('navigator', { ...navigator, vibrate });
     const { rerender } = render(<RestTimer endsAt={5_000} now={() => 10_000} onAdjust={() => {}} onDismiss={() => {}} />);
-    expect(screen.getByRole('status')).toHaveTextContent('Repos terminé');
+    expect(screen.getByRole('status')).toHaveTextContent('Repos terminé.');
+    // Libellé d'action explicite (jamais « OK »), sans point d'exclamation.
+    expect(screen.getByRole('button', { name: 'Série suivante' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'OK' })).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).not.toHaveTextContent('!');
     rerender(<RestTimer endsAt={5_000} now={() => 11_000} onAdjust={() => {}} onDismiss={() => {}} />);
     expect(vibrate).toHaveBeenCalledTimes(1);
   });
@@ -192,7 +196,7 @@ describe('ExercisePicker', () => {
     const { onSelect, store } = setup();
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Pull-over' } });
     expect(screen.getByText('Aucun exercice trouvé.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '+ Créer un exercice « Pull-over »' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Créer un exercice « Pull-over »' }));
     expect(screen.getByRole('textbox', { name: 'Nom de l’exercice' })).toHaveValue('Pull-over');
     fireEvent.change(screen.getByRole('combobox', { name: 'Groupe musculaire' }), { target: { value: 'Dos' } });
     fireEvent.click(screen.getByRole('button', { name: 'Créer et ajouter' }));

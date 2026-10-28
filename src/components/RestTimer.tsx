@@ -53,7 +53,7 @@ export default function RestTimer({ endsAt, onAdjust, onDismiss, now = Date.now 
     <div className={`rest-timer${finished ? ' rest-timer--done' : ''}`} role="region" aria-label="Minuteur de repos">
       {finished ? (
         <p className="rest-timer__time" role="status">
-          Repos terminé !
+          Repos terminé.
         </p>
       ) : (
         <p className="rest-timer__time" role="timer" aria-live="off">
@@ -71,8 +71,8 @@ export default function RestTimer({ endsAt, onAdjust, onDismiss, now = Date.now 
             </button>
           </>
         )}
-        <button type="button" className="btn btn--primary" onClick={onDismiss}>
-          {finished ? 'OK' : 'Passer'}
+        <button type="button" className="btn" onClick={onDismiss}>
+          {finished ? 'Série suivante' : 'Passer'}
         </button>
       </div>
     </div>

@@ -1,31 +1,74 @@
+/*
+ * Jetons de design : docs/identity.md §6 (couleurs exactes, clair par défaut, sombre via prefers-color-scheme).
+ * L'accent est réservé à « la prochaine chose à faire » ; le vert au succès / record.
+ */
 :root {
-  --bg: #121212;
-  --surface: #1e1e1e;
-  --surface-2: #2a2a2a;
-  --border: #333;
-  --text: #f2f2f2;
-  --text-muted: #a0a0a0;
-  --accent: #ff8a3d;
-  --accent-contrast: #121212;
-  --success: #4caf50;
-  --danger: #ef5350;
-  --warning: #ffb300;
+  --bg: #f7f7f4;
+  --surface: #ffffff;
+  --text: #111418;
+  --text-muted: #5b636e;
+  --border: #e3e5e8;
+  --accent: #e8481c;
+  --success: #137a4b;
+  --danger: #c62828;
+  /* Texte posé sur l'accent / le danger : choisi pour garder un contraste ≥ 4.5:1. */
+  --accent-contrast: #111418;
+  --danger-contrast: #ffffff;
+  --backdrop: rgba(17, 20, 24, 0.5);
+  --shadow: 0 1px 2px rgba(17, 20, 24, 0.06);
 
+  /* Typographie : Inter variable, échelle 40 / 24 / 16 / 13 (jamais < 13 px). */
+  --font-sans: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fs-display: 40px;
+  --fs-title: 24px;
+  --fs-body: 16px;
+  --fs-caption: 13px;
+
+  /* Forme et espace : grille de 8 px (--space-1 = demi-pas pour les écarts serrés). */
   --radius: 12px;
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 1rem;
-  --space-4: 1.5rem;
-  --touch: 44px;
+  --radius-pill: 999px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --touch: 48px;
+  --touch-primary: 56px;
   --tabbar-height: 56px;
 
-  color-scheme: dark;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  font-size: 16px;
-  line-height: 1.4;
+  /* Mouvement : discret, 150–200 ms. */
+  --duration: 150ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  color-scheme: light;
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  font-weight: 400;
+  line-height: 1.5;
+  /* Chiffres tabulaires partout : poids, reps et temps restent alignés. */
+  font-variant-numeric: tabular-nums;
   color: var(--text);
   background: var(--bg);
   -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1114;
+    --surface: #181b20;
+    --text: #f2f3f5;
+    --text-muted: #9aa3af;
+    --border: #2a2f36;
+    --accent: #ff6a3d;
+    --success: #34c27c;
+    --danger: #ff6b6b;
+    --accent-contrast: #0f1114;
+    --danger-contrast: #0f1114;
+    --backdrop: rgba(0, 0, 0, 0.6);
+    --shadow: none;
+
+    color-scheme: dark;
+  }
 }
 
 *,
@@ -38,6 +81,7 @@ body {
   margin: 0;
   min-height: 100dvh;
   background: var(--bg);
+  font-variant-numeric: tabular-nums;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -46,6 +90,7 @@ input,
 select,
 textarea {
   font: inherit;
+  font-variant-numeric: tabular-nums;
   color: inherit;
 }
 
@@ -53,6 +98,43 @@ button {
   min-height: var(--touch);
   cursor: pointer;
 }
+
+svg {
+  flex: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+/* ---------- Échelle typographique (classes utilitaires) ---------- */
+
+/* Chiffres de série (charge, reps) : prête pour le mode séance. */
+.text-display {
+  font-size: var(--fs-display);
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.text-title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.text-body {
+  font-size: var(--fs-body);
+  font-weight: 400;
+}
+
+.text-caption {
+  font-size: var(--fs-caption);
+  font-weight: 500;
+}
+
+/* ---------- Structure ---------- */
 
 .app {
   min-height: 100dvh;
@@ -71,7 +153,9 @@ button {
 
 .page__title {
   margin: 0 0 var(--space-3);
-  font-size: 1.5rem;
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 .muted {
@@ -81,12 +165,19 @@ button {
 .banner {
   padding: var(--space-2) var(--space-3);
   padding-top: calc(var(--space-2) + env(safe-area-inset-top, 0px));
-  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 .banner--warning {
-  background: var(--warning);
-  color: #1a1a1a;
+  border-left: 4px solid var(--text-muted);
+}
+
+.banner--danger {
+  border-left: 4px solid var(--danger);
 }
 
 .banner--dismissible {
@@ -121,23 +212,23 @@ button {
   align-items: center;
   justify-content: center;
   min-height: var(--touch);
+  border-top: 2px solid transparent;
   color: var(--text-muted);
   text-decoration: none;
-  font-size: 0.85rem;
+  font-size: var(--fs-caption);
   font-weight: 500;
+  transition: color var(--duration) var(--ease), border-color var(--duration) var(--ease);
 }
 
+/* Onglet actif : encre + graisse + trait, jamais la couleur seule. */
 .tabbar__item.active {
-  color: var(--accent);
+  border-top-color: var(--text);
+  color: var(--text);
+  font-weight: 700;
 }
 
 .app__content--fullscreen {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-3));
-}
-
-.banner--danger {
-  background: var(--danger);
-  color: #fff;
 }
 
 .visually-hidden {
@@ -170,7 +261,8 @@ button {
 
 .section-title {
   margin: 0 0 var(--space-2);
-  font-size: 1.1rem;
+  font-size: var(--fs-body);
+  font-weight: 700;
 }
 
 /* ---------- Boutons ---------- */
@@ -183,12 +275,24 @@ button {
   min-height: var(--touch);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
   color: var(--text);
+  font-size: var(--fs-body);
   font-weight: 600;
+  line-height: 1.25;
   text-align: center;
   text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    color var(--duration) var(--ease),
+    transform var(--duration) var(--ease);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .btn:disabled {
@@ -196,7 +300,9 @@ button {
   cursor: not-allowed;
 }
 
+/* Action principale de l'écran : accent, 56 px, pilule. */
 .btn--primary {
+  min-height: var(--touch-primary);
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-contrast);
@@ -205,7 +311,7 @@ button {
 .btn--danger {
   background: var(--danger);
   border-color: var(--danger);
-  color: #fff;
+  color: var(--danger-contrast);
 }
 
 .btn--danger-outline {
@@ -220,8 +326,7 @@ button {
 }
 
 .btn--lg {
-  min-height: 56px;
-  font-size: 1.1rem;
+  min-height: var(--touch-primary);
 }
 
 .btn--block {
@@ -237,10 +342,14 @@ button {
   min-height: var(--touch);
   padding: 0;
   border: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-muted);
-  font-size: 1.25rem;
+  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
+.icon-btn:active:not(:disabled) {
+  background: var(--bg);
 }
 
 .icon-btn:disabled {
@@ -252,9 +361,8 @@ button {
 }
 
 .icon-btn--small {
-  /* Cible tactile ≥ 44 px conservée ; seule l'icône est plus petite. */
+  /* Cible tactile ≥ 48 px conservée ; seule l'icône est plus petite. */
   min-width: var(--touch);
-  font-size: 1rem;
 }
 
 /* ---------- Formulaires ---------- */
@@ -268,12 +376,14 @@ button {
 
 .field__label {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 .field__error {
   color: var(--danger);
-  font-size: 0.9rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 .input {
@@ -282,8 +392,8 @@ button {
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface-2);
-  font-size: 1rem;
+  background: var(--surface);
+  font-size: var(--fs-body);
 }
 
 .input[aria-invalid="true"] {
@@ -299,7 +409,8 @@ button {
 
 .number-field__label {
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 .number-field__control {
@@ -312,34 +423,46 @@ button {
   flex: 1;
   width: 100%;
   min-width: 0;
-  min-height: 48px;
+  min-height: var(--touch);
   padding: var(--space-1) var(--space-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface-2);
-  font-size: 1.2rem;
-  font-weight: 600;
+  background: var(--surface);
+  font-size: var(--fs-title);
+  font-weight: 700;
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .number-field__input:focus,
 .input:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text);
   outline-offset: 1px;
 }
 
 .number-field__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: none;
   width: var(--touch);
+  min-height: var(--touch);
+  padding: 0;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-pill);
   background: var(--surface);
-  font-size: 1.3rem;
-  font-weight: 700;
+  color: var(--text);
+  transition: background-color var(--duration) var(--ease);
+}
+
+.number-field__btn:active {
+  background: var(--bg);
 }
 
 .number-field__suffix {
   color: var(--text-muted);
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 /* ---------- Cartes et listes ---------- */
@@ -349,6 +472,7 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .empty-state {
@@ -360,7 +484,7 @@ button {
 
 .empty-state__title {
   margin: 0 0 var(--space-2);
-  font-size: 1.15rem;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
@@ -405,13 +529,22 @@ button {
 .editor-item__name,
 .session-exercise__name {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: var(--fs-body);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.editor-item__name,
+.session-exercise__name {
+  /* Aligne le titre sur les boutons icônes de 48 px voisins. */
+  padding-top: 12px;
 }
 
 .template-card__meta,
 .template-card__preview {
   margin: var(--space-1) 0 0;
-  font-size: 0.9rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 .template-card__menu {
@@ -452,7 +585,7 @@ button {
   align-items: center;
   justify-content: center;
   padding: var(--space-3);
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--backdrop);
 }
 
 .dialog {
@@ -466,7 +599,9 @@ button {
 
 .dialog__title {
   margin: 0 0 var(--space-2);
-  font-size: 1.2rem;
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 .dialog__message {
@@ -476,11 +611,12 @@ button {
 
 .dialog__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
 .dialog__actions > * {
-  flex: 1;
+  flex: 1 1 auto;
 }
 
 .picker {
@@ -505,7 +641,8 @@ button {
 
 .picker__title {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: var(--fs-title);
+  font-weight: 700;
 }
 
 .chips {
@@ -518,18 +655,22 @@ button {
 
 .chip {
   flex: none;
+  min-width: var(--touch);
   padding: var(--space-1) var(--space-3);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface);
-  font-size: 0.9rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
 }
 
+/* Filtre actif : rempli en encre (pas d'accent : ce n'est pas la prochaine action). */
 .chip[aria-pressed="true"] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-contrast);
-  font-weight: 600;
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--surface);
+  font-weight: 700;
 }
 
 .picker__item {
@@ -537,17 +678,18 @@ button {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  min-height: 52px;
+  min-height: 56px;
   padding: var(--space-2) var(--space-1);
   border: none;
   border-bottom: 1px solid var(--border);
   background: transparent;
-  font-size: 1.05rem;
+  font-size: var(--fs-body);
   text-align: left;
 }
 
 .picker__group {
-  font-size: 0.85rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 .picker__empty {
@@ -561,15 +703,17 @@ button {
 
 /* ---------- Séance en cours ---------- */
 
+/* Bannière de reprise : surface + filet d'accent (et non plus un aplat d'accent). */
 .resume-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  min-height: var(--touch);
+  min-height: var(--touch-primary);
   padding: var(--space-2) var(--space-3);
-  background: var(--accent);
-  color: var(--accent-contrast);
+  border-bottom: 2px solid var(--accent);
+  background: var(--surface);
+  color: var(--text);
   font-weight: 600;
   text-decoration: none;
 }
@@ -581,13 +725,13 @@ button {
 .resume-banner__action {
   flex: none;
   padding: var(--space-1) var(--space-3);
-  border-radius: 999px;
-  background: var(--accent-contrast);
-  color: var(--accent);
+  border-radius: var(--radius-pill);
+  background: var(--text);
+  color: var(--surface);
 }
 
 .session--with-timer {
-  padding-bottom: 140px;
+  padding-bottom: 176px;
 }
 
 .session__header {
@@ -607,14 +751,17 @@ button {
 
 .session__name {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: 1.25;
 }
 
+/* Chrono : information, pas action → texte secondaire. */
 .session__clock {
   margin: 0;
-  color: var(--accent);
-  font-size: 1.4rem;
-  font-weight: 700;
+  color: var(--text-muted);
+  font-size: var(--fs-body);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -627,7 +774,8 @@ button {
 
 .session-exercise__last {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 .set-table {
@@ -638,7 +786,7 @@ button {
 
 .set-row {
   display: grid;
-  /* À 360 px : 24 + 52 + 44 + 4 gaps = 152 px, il reste ~72 px par champ. */
+  /* À 360 px : 24 + 52 + 48 + 4 gaps = 156 px, il reste ~70 px par champ. */
   grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) 52px var(--touch);
   align-items: center;
   gap: var(--space-2);
@@ -646,7 +794,8 @@ button {
 
 .set-row--head {
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
   text-align: center;
 }
 
@@ -656,25 +805,47 @@ button {
   text-align: center;
 }
 
-.set-row--done .number-field__input {
-  border-color: var(--success);
+.set-row--done .set-row__num {
+  color: var(--text);
 }
 
 .check-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 52px;
-  min-height: 48px;
+  min-height: var(--touch);
+  padding: 0;
   border: 2px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--text-muted);
-  font-size: 1.4rem;
-  font-weight: 700;
+  transition:
+    background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    color var(--duration) var(--ease);
 }
 
+/* Série faite : remplie en encre + coche (pas de vert : le vert est réservé aux records). */
 .check-btn[aria-pressed="true"] {
-  background: var(--success);
-  border-color: var(--success);
-  color: #fff;
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--surface);
+}
+
+.check-btn[aria-pressed="true"] svg {
+  animation: check-in 180ms var(--ease);
+}
+
+@keyframes check-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .rest-timer {
@@ -686,25 +857,28 @@ button {
   gap: var(--space-2);
   padding: var(--space-3);
   padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
-  border-top: 2px solid var(--accent);
+  border-top: 1px solid var(--border);
   background: var(--surface);
-}
-
-.rest-timer--done {
-  border-top-color: var(--success);
+  box-shadow: 0 -2px 8px rgba(17, 20, 24, 0.06);
 }
 
 .rest-timer__time {
   margin: 0;
-  font-size: 2rem;
-  font-weight: 800;
+  font-size: var(--fs-display);
+  font-weight: 700;
+  line-height: 1.1;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
+.rest-timer--done .rest-timer__time {
+  font-size: var(--fs-title);
+  line-height: 1.25;
+}
+
 .rest-timer__label {
   color: var(--text-muted);
-  font-size: 1rem;
+  font-size: var(--fs-body);
   font-weight: 600;
 }
 
@@ -728,6 +902,7 @@ button {
 
 .stat {
   padding: var(--space-3) var(--space-2);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
   text-align: center;
@@ -735,15 +910,18 @@ button {
 
 .stat__label {
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 .stat__value {
   margin: var(--space-1) 0 0;
-  font-size: 1.2rem;
+  font-size: var(--fs-title);
   font-weight: 700;
+  line-height: 1.25;
 }
 
+/* Records : seul usage du vert (succès). */
 .records {
   margin-bottom: var(--space-3);
   border-color: var(--success);
@@ -786,10 +964,11 @@ button {
   min-height: var(--touch);
   color: var(--text);
   text-decoration: none;
+  transition: background-color var(--duration) var(--ease);
 }
 
 .history-item:active {
-  background: var(--surface-2);
+  background: var(--bg);
 }
 
 .history-item__head {
@@ -801,13 +980,14 @@ button {
 }
 
 .history-item__name {
-  font-size: 1.1rem;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 
 .history-item__date,
 .history-item__meta {
-  font-size: 0.9rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 .empty-state .btn {
@@ -817,9 +997,10 @@ button {
 .back-link {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-1);
   min-height: var(--touch);
   margin-bottom: var(--space-1);
-  color: var(--accent);
+  color: var(--text);
   text-decoration: none;
   font-weight: 600;
 }
@@ -840,7 +1021,8 @@ button {
 
 .detail-exercise__name {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: var(--fs-body);
+  font-weight: 700;
 }
 
 .detail-sets__item {
@@ -869,23 +1051,26 @@ button {
   gap: var(--space-1);
   margin-bottom: var(--space-3);
   padding: var(--space-1);
-  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
   background: var(--surface);
 }
 
 .segmented__btn {
   padding: var(--space-1);
   border: none;
-  border-radius: calc(var(--radius) - 4px);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: var(--fs-caption);
   font-weight: 600;
+  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
 }
 
+/* Métrique choisie : encre, pas d'accent (choix secondaire). */
 .segmented__btn[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--accent-contrast);
+  background: var(--text);
+  color: var(--surface);
 }
 
 .chart-card {
@@ -908,9 +1093,11 @@ button {
   stroke-width: 1;
 }
 
+/* Unités du viewBox (340) : à 390 px de large, 14 → ≈ 13,5 px affichés (plancher de 13 px). */
 .chart__tick {
   fill: var(--text-muted);
-  font-size: 11px;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .chart__tick--y {
@@ -922,27 +1109,28 @@ button {
   text-anchor: middle;
 }
 
+/* Courbe en encre : l'accent reste réservé à la prochaine action. */
 .chart__line {
   fill: none;
-  stroke: var(--accent);
-  stroke-width: 2.5;
+  stroke: var(--text);
+  stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
 
 .chart__point {
   fill: var(--surface);
-  stroke: var(--accent);
+  stroke: var(--text);
   stroke-width: 2;
 }
 
 .chart__point--last {
-  fill: var(--accent);
+  fill: var(--text);
 }
 
 .chart__last-label {
   fill: var(--text);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -950,7 +1138,8 @@ button {
 .chart-card__hint {
   margin: var(--space-2);
   text-align: center;
-  font-size: 0.9rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 .pr-list {
@@ -971,7 +1160,8 @@ button {
 }
 
 .pr-list__date {
-  font-size: 0.85rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 /* ---------- Réglages ---------- */
@@ -989,18 +1179,19 @@ button {
 
 .settings-section__text {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 .code-area {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
   resize: vertical;
 }
 
 .file-input:focus-visible + .btn {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 
 .custom-list__item {
@@ -1029,11 +1220,26 @@ button {
 }
 
 .custom-list__group {
-  font-size: 0.85rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 .settings-footer {
   margin: var(--space-3) 0 0;
-  font-size: 0.85rem;
+  font-size: var(--fs-caption);
+  font-weight: 500;
   text-align: center;
+}
+
+/* ---------- Mouvement réduit ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

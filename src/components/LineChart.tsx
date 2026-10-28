@@ -13,7 +13,8 @@ export interface LineChartProps {
 const DIMS: ChartDimensions = {
   width: 340,
   height: 200,
-  padding: { top: 28, right: 20, bottom: 26, left: 40 },
+  // Marges dimensionnées pour des graduations de 14 unités (≥ 13 px affichés à 390 px de large).
+  padding: { top: 28, right: 28, bottom: 30, left: 44 },
 };
 
 /** Courbe SVG faite main, responsive (viewBox + largeur 100 %). */

@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -30,7 +31,8 @@ export default function SessionDetailPage() {
   return (
     <section className="page">
       <Link to="/historique" className="back-link">
-        ← Historique
+        <ArrowLeft size={20} aria-hidden="true" />
+        Historique
       </Link>
       <h1 className="page__title">{session.name}</h1>
       <p className="muted">{formatDate(session.startedAt)}</p>

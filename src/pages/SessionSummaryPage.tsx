@@ -93,8 +93,8 @@ export default function SessionSummaryPage() {
               Mettre à jour la séance type avec ces poids
             </button>
           ))}
-        <button type="button" className="btn btn--primary btn--lg btn--block" onClick={() => navigate('/historique')}>
-          Terminé
+        <button type="button" className="btn btn--primary btn--lg btn--block" onClick={() => navigate('/progres')}>
+          Voir mes progrès
         </button>
       </div>
     </section>

@@ -48,17 +48,17 @@ describe('parcours séance', () => {
     const { saved } = renderApp();
 
     // État vide accueillant
-    expect(screen.getByText('Aucune séance type pour l’instant')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('link', { name: '+ Nouvelle séance type' }));
+    expect(screen.getByText('Aucune séance pour l’instant.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('link', { name: 'Créer une séance' }));
     expect(screen.getByRole('heading', { name: 'Nouvelle séance type' })).toBeInTheDocument();
 
     // Nom obligatoire
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Donnez un nom à la séance.');
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer la séance' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Donne un nom à la séance.');
     fireEvent.change(screen.getByRole('textbox', { name: 'Nom' }), { target: { value: 'Push' } });
 
     // Ajout d'un exercice : recherche insensible aux accents
-    fireEvent.click(screen.getByRole('button', { name: '+ Ajouter un exercice' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter un exercice' }));
     fireEvent.change(dialog().getByRole('searchbox', { name: 'Rechercher un exercice' }), {
       target: { value: 'developpe couche' },
     });
@@ -70,7 +70,7 @@ describe('parcours séance', () => {
     fireEvent.change(screen.getByLabelText('Séries'), { target: { value: '2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Repos (s) : moins 15' }));
     fireEvent.click(screen.getByRole('button', { name: 'Repos (s) : moins 15' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer la séance' }));
 
     // Liste des séances types
     expect(screen.getByRole('heading', { name: 'Push' })).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe('parcours séance', () => {
     expect(saved().templates[0].exercises[0]).toMatchObject({ targetSets: 2, restSeconds: 60 });
 
     // Démarrer : écran plein, sans barre d'onglets
-    fireEvent.click(screen.getByRole('button', { name: 'Démarrer Push' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Push' }));
     expect(screen.getByRole('heading', { name: 'Push' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /^Valider la série/ })).toHaveLength(2);
@@ -92,8 +92,8 @@ describe('parcours séance', () => {
     expect(saved().activeSession?.exercises[0].sets[0]).toEqual({ weight: 62.5, reps: 8, done: true });
 
     // Terminer → résumé
-    fireEvent.click(screen.getByRole('button', { name: 'Terminer' }));
-    fireEvent.click(dialog().getByRole('button', { name: 'Terminer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer la séance' }));
+    fireEvent.click(dialog().getByRole('button', { name: 'Terminer la séance' }));
     expect(screen.getByRole('heading', { name: 'Séance terminée' })).toBeInTheDocument();
     expect(screen.getByText('500 kg')).toBeInTheDocument();
     expect(saved().sessions).toHaveLength(1);
@@ -105,8 +105,8 @@ describe('parcours séance', () => {
     expect(screen.getByRole('status')).toHaveTextContent('mise à jour');
     expect(saved().templates[0].exercises[0].targetWeight).toBe(62.5);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Terminé' }));
-    expect(screen.getByRole('heading', { name: 'Historique' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Voir mes progrès' }));
+    expect(screen.getByRole('heading', { name: 'Progrès' })).toBeInTheDocument();
   });
 
   it('affiche les nouveaux records dans le résumé', () => {
@@ -120,21 +120,21 @@ describe('parcours séance', () => {
       exercises: [{ exerciseId: 'squat', sets: [{ weight: 100, reps: 5, done: true }] }],
     });
     renderApp(initial);
-    fireEvent.click(screen.getByRole('button', { name: 'Démarrer Jambes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Jambes' }));
     // Pré-rempli avec la dernière fois
     expect(screen.getByText('Dernière fois : 1×5 @ 100 kg')).toBeInTheDocument();
     expect(screen.getByLabelText('Poids série 1 – Squat')).toHaveValue('100');
     fireEvent.change(screen.getByLabelText('Poids série 1 – Squat'), { target: { value: '110' } });
     fireEvent.click(screen.getByRole('button', { name: 'Valider la série 1' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Terminer' }));
-    fireEvent.click(dialog().getByRole('button', { name: 'Terminer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer la séance' }));
+    fireEvent.click(dialog().getByRole('button', { name: 'Terminer la séance' }));
     expect(screen.getByRole('heading', { name: 'Nouveaux records' })).toBeInTheDocument();
     expect(screen.getByText(/Poids max : 110 kg/)).toBeInTheDocument();
   });
 
   it('abandon : rien n’est enregistré', () => {
     const { saved } = renderApp(stateWithTemplate());
-    fireEvent.click(screen.getByRole('button', { name: 'Démarrer Jambes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Jambes' }));
     fireEvent.click(screen.getByRole('button', { name: 'Valider la série 1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Abandonner la séance' }));
     fireEvent.click(dialog().getByRole('button', { name: 'Abandonner' }));
@@ -150,16 +150,16 @@ describe('parcours séance', () => {
     expect(screen.getByRole('heading', { name: 'Séance libre' })).toBeInTheDocument();
 
     // Ajout d'un exercice à la volée, sans valider de série
-    fireEvent.click(screen.getByRole('button', { name: '+ Ajouter un exercice' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter un exercice' }));
     fireEvent.click(dialog().getByText('Squat', { selector: 'span' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Terminer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer la séance' }));
     expect(dialog().getByRole('heading', { name: 'Aucune série validée' })).toBeInTheDocument();
 
     // « Continuer » : la séance reste en cours
     fireEvent.click(dialog().getByRole('button', { name: 'Continuer' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Terminer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer la séance' }));
     fireEvent.click(dialog().getByRole('button', { name: 'Abandonner la séance' }));
     expect(screen.getByRole('heading', { name: 'Séances' })).toBeInTheDocument();
     expect(saved().sessions).toEqual([]);
@@ -168,9 +168,9 @@ describe('parcours séance', () => {
 
   it('retire un exercice et gère les séries', () => {
     const { saved } = renderApp(stateWithTemplate());
-    fireEvent.click(screen.getByRole('button', { name: 'Démarrer Jambes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Jambes' }));
     expect(screen.getAllByRole('button', { name: /^Valider la série/ })).toHaveLength(3);
-    fireEvent.click(screen.getByRole('button', { name: '+ Série' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une série' }));
     expect(screen.getAllByRole('button', { name: /^Valider la série/ })).toHaveLength(4);
     fireEvent.click(screen.getByRole('button', { name: 'Supprimer la série 4' }));
     expect(screen.getAllByRole('button', { name: /^Valider la série/ })).toHaveLength(3);
@@ -202,7 +202,7 @@ describe('parcours séance', () => {
 
   it('le minuteur de repos survit à un rechargement de l’écran de séance', () => {
     const first = renderApp(stateWithTemplate());
-    fireEvent.click(screen.getByRole('button', { name: 'Démarrer Jambes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Jambes' }));
     fireEvent.click(screen.getByRole('button', { name: 'Valider la série 1' }));
     expect(screen.getByRole('region', { name: 'Minuteur de repos' })).toBeInTheDocument();
     const saved = first.saved();
@@ -241,7 +241,7 @@ describe('parcours séance', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Modifier' }));
     expect(screen.getByRole('textbox', { name: 'Nom' })).toHaveValue('Jambes');
     fireEvent.change(screen.getByRole('textbox', { name: 'Nom' }), { target: { value: 'Legs' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer la séance' }));
     expect(saved().templates[0].name).toBe('Legs');
   });
 

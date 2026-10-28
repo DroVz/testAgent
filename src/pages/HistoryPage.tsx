@@ -17,8 +17,8 @@ export default function HistoryPage() {
         <div className="empty-state">
           <p className="empty-state__title">Aucune séance enregistrée</p>
           <p className="muted">
-            Vos séances terminées apparaîtront ici, avec leur durée et le volume soulevé. Lancez votre première
-            séance depuis l’onglet « Séances » !
+            Tes séances terminées apparaîtront ici, avec leur durée et le volume soulevé. Lance ta première séance
+            depuis l’onglet « Séances ».
           </p>
           <Link to="/seances" className="btn btn--primary">
             Aller aux séances

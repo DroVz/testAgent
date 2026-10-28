@@ -259,7 +259,7 @@ describe('réglages', () => {
 
   it('import invalide : message clair, aucune donnée remplacée', () => {
     renderAt('#/reglages', stateWithHistory());
-    const area = screen.getByRole('textbox', { name: 'Ou collez le contenu exporté' });
+    const area = screen.getByRole('textbox', { name: 'Ou colle le contenu exporté' });
     expect(screen.getByRole('button', { name: 'Importer le texte' })).toBeDisabled();
 
     fireEvent.change(area, { target: { value: 'pas du json' } });
@@ -278,7 +278,7 @@ describe('réglages', () => {
     imported.templates.push(
       createTemplate({ name: 'Importée', exercises: [createTemplateExercise('squat')] }, new Date('2026-10-01T10:00:00Z'), 'ti'),
     );
-    fireEvent.change(screen.getByRole('textbox', { name: 'Ou collez le contenu exporté' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ou colle le contenu exporté' }), {
       target: { value: exportState(imported) },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Importer le texte' }));
@@ -361,7 +361,7 @@ describe('réglages', () => {
 
   it('import dont la sauvegarde échoue : message d’échec, pas de « Import réussi »', () => {
     renderAt('#/reglages', stateWithHistory(), { failWrites: true });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Ou collez le contenu exporté' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ou colle le contenu exporté' }), {
       target: { value: exportState(createDefaultState()) },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Importer le texte' }));
@@ -379,7 +379,7 @@ describe('réglages', () => {
 
     renderAt('#/reglages', 'corrompu');
     expect(screen.getByText(/illisibles/)).toBeInTheDocument();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Ou collez le contenu exporté' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ou colle le contenu exporté' }), {
       target: { value: exportState(createDefaultState()) },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Importer le texte' }));

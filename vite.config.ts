@@ -10,6 +10,10 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon.svg'],
+      workbox: {
+        // Police Inter (woff2) précachée : l'app garde sa typo hors ligne.
+        globPatterns: ['**/*.{js,css,html,woff2}'],
+      },
       manifest: {
         name: 'MuscuTrack',
         short_name: 'MuscuTrack',
@@ -19,8 +23,8 @@ export default defineConfig({
         scope: './',
         display: 'standalone',
         orientation: 'portrait',
-        theme_color: '#121212',
-        background_color: '#121212',
+        theme_color: '#F7F7F4',
+        background_color: '#F7F7F4',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },

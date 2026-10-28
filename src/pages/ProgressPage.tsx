@@ -120,8 +120,8 @@ export default function ProgressPage() {
         <div className="empty-state">
           <p className="empty-state__title">Pas encore de progression à afficher</p>
           <p className="muted">
-            Terminez une séance avec au moins une série validée : vos courbes de poids, de 1RM estimé et de volume
-            apparaîtront ici, avec vos records.
+            Termine une séance avec au moins une série validée : tes courbes de poids, de 1RM estimé et de volume
+            apparaîtront ici, avec tes records.
           </p>
           <Link to="/seances" className="btn btn--primary">
             Aller aux séances

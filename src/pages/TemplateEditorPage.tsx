@@ -1,3 +1,4 @@
+import { ArrowDown, ArrowUp, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -90,12 +91,12 @@ function Editor({ template }: { template?: Template }) {
         />
         {nameError && (
           <span id="template-name-error" className="field__error" role="alert">
-            Donnez un nom à la séance.
+            Donne un nom à la séance.
           </span>
         )}
       </div>
 
-      {exercises.length === 0 && <p className="muted">Ajoutez les exercices de cette séance.</p>}
+      {exercises.length === 0 && <p className="muted">Ajoute les exercices de cette séance.</p>}
 
       <ol className="editor-list">
         {exercises.map((te, i) => {
@@ -106,7 +107,7 @@ function Editor({ template }: { template?: Template }) {
                 <h2 className="editor-item__name">{label}</h2>
                 <div className="editor-item__tools">
                   <button type="button" className="icon-btn" aria-label={`Monter ${label}`} disabled={i === 0} onClick={() => move(i, -1)}>
-                    ↑
+                    <ArrowUp size={20} aria-hidden="true" />
                   </button>
                   <button
                     type="button"
@@ -115,7 +116,7 @@ function Editor({ template }: { template?: Template }) {
                     disabled={i === exercises.length - 1}
                     onClick={() => move(i, 1)}
                   >
-                    ↓
+                    <ArrowDown size={20} aria-hidden="true" />
                   </button>
                   <button
                     type="button"
@@ -123,7 +124,7 @@ function Editor({ template }: { template?: Template }) {
                     aria-label={`Retirer ${label}`}
                     onClick={() => setExercises((list) => list.filter((_, j) => j !== i))}
                   >
-                    ✕
+                    <X size={20} aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -146,7 +147,8 @@ function Editor({ template }: { template?: Template }) {
       </ol>
 
       <button type="button" className="btn btn--block" onClick={() => setPicking(true)}>
-        + Ajouter un exercice
+        <Plus size={20} aria-hidden="true" />
+        Ajouter un exercice
       </button>
 
       <div className="action-bar">
@@ -154,14 +156,14 @@ function Editor({ template }: { template?: Template }) {
           Annuler
         </button>
         <button type="button" className="btn btn--primary" onClick={save}>
-          Enregistrer
+          Enregistrer la séance
         </button>
       </div>
 
       <ConfirmDialog
         open={confirmLeave}
         title="Abandonner les modifications ?"
-        message="Vos modifications non enregistrées seront perdues."
+        message="Tes modifications non enregistrées seront perdues."
         confirmLabel="Abandonner"
         cancelLabel="Continuer l’édition"
         danger

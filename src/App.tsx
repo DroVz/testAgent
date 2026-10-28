@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { HashRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ResumeBanner from './components/ResumeBanner';
 import ActiveSessionPage from './pages/ActiveSessionPage';
@@ -42,14 +43,14 @@ function Shell() {
             aria-label="Fermer le message"
             onClick={actions.dismissLoadError}
           >
-            ✕
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
       )}
       {saveFailed && (
         <div className="banner banner--danger" role="alert">
-          La sauvegarde a échoué (stockage plein ou indisponible) : vos dernières modifications risquent d’être
-          perdues.
+          Impossible d’enregistrer sur l’appareil (stockage plein ou indisponible). Exporte tes données depuis
+          Réglages pour ne pas perdre tes dernières modifications.
         </div>
       )}
       {!fullscreen && <ResumeBanner />}
