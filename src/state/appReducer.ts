@@ -22,6 +22,7 @@ import {
   type TemplateInput,
 } from '../lib/templates';
 import type { AppState, Exercise, MuscleGroup, Template, WorkoutSession } from '../lib/types';
+import { restoreSnapshot, type UndoSnapshot } from '../lib/undo';
 
 /**
  * Actions du store. Les valeurs non déterministes (`now`, `id`) sont fournies dans l'action
@@ -54,6 +55,8 @@ export type AppAction =
   // Historique
   | { type: 'history/delete'; sessionId: string }
   | { type: 'history/applyToTemplate'; sessionId: string; now: Date }
+  // Annulation d'une suppression (toast « Annuler »)
+  | { type: 'undo/restore'; snapshot: UndoSnapshot }
   // Données
   | { type: 'data/replace'; state: AppState }
   | { type: 'data/reset' };
@@ -157,6 +160,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       if (!session?.templateId) return state;
       return withTemplate(state, session.templateId, (t) => applySessionToTemplate(t, session, action.now));
     }
+
+    case 'undo/restore':
+      return restoreSnapshot(state, action.snapshot);
 
     case 'data/replace':
       return action.state;

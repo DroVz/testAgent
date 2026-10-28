@@ -1,7 +1,16 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import LineChart from '../components/LineChart';
-import { DELETED_EXERCISE_NAME, exerciseName, formatDate, formatNumber, formatWeight } from '../lib/format';
+import {
+  DELETED_EXERCISE_NAME,
+  exerciseName,
+  formatDate,
+  formatNumber,
+  formatOneRepMax,
+  formatProgressSentence,
+  formatWeight,
+  roundOneRepMax,
+} from '../lib/format';
 import {
   completedSessions,
   exerciseHistory,
@@ -15,14 +24,12 @@ import { useAppStore } from '../state/AppStore';
 
 type Metric = keyof ExerciseMetrics;
 
-const METRICS: { key: Metric; label: string }[] = [
-  { key: 'maxWeight', label: 'Poids max' },
-  { key: 'bestOneRepMax', label: '1RM estimé' },
-  { key: 'volume', label: 'Volume' },
+/** 1RM estimé par défaut (une seule courbe) ; les autres métriques restent un choix secondaire. */
+const METRICS: { key: Metric; label: string; format(kg: number): string; round(kg: number): number }[] = [
+  { key: 'bestOneRepMax', label: '1RM estimé', format: formatOneRepMax, round: roundOneRepMax },
+  { key: 'maxWeight', label: 'Poids max', format: formatWeight, round: (kg) => kg },
+  { key: 'volume', label: 'Volume', format: formatWeight, round: (kg) => kg },
 ];
-
-/** Poids arrondi au dixième (le 1RM estimé a souvent beaucoup de décimales). */
-const formatKg = (kg: number) => formatWeight(Math.round(kg * 10) / 10);
 
 /** Dernier exercice consulté (préférence locale, non incluse dans l'export). */
 export const PROGRESS_EXERCISE_KEY = 'muscutrack:progres-exercice';
@@ -57,8 +64,9 @@ export default function ProgressPage() {
   const { state } = useAppStore();
   const completed = useMemo(() => completedSessions(state.sessions), [state.sessions]);
 
-  // Exercices ayant au moins une série validée, triés par nom ; le plus récemment travaillé sert de défaut.
-  const { options, mostRecent } = useMemo(() => {
+  // Exercices ayant au moins une série validée, triés par nom. Par défaut : le premier exercice de la
+  // dernière séance terminée (l'exercice principal de la séance, pas un exercice secondaire de fin).
+  const { options, defaultId } = useMemo(() => {
     const ids: string[] = [];
     for (const s of completed) {
       for (const e of s.exercises) {
@@ -77,12 +85,14 @@ export default function ProgressPage() {
       return deleted.length > 1 ? `${DELETED_EXERCISE_NAME} (${n + 1})` : DELETED_EXERCISE_NAME;
     };
     const list = ids.map((id) => ({ id, name: label(id) })).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-    return { options: list, mostRecent: ids[ids.length - 1] };
+    const last = completed[completed.length - 1];
+    const main = last?.exercises.find((e) => e.sets.some((x) => x.done))?.exerciseId;
+    return { options: list, defaultId: main ?? ids[ids.length - 1] };
   }, [completed, state.exercises]);
 
   const [chosen, setChosen] = useState<string | null>(readStoredExercise);
-  const [metric, setMetric] = useState<Metric>('maxWeight');
-  const selected = chosen !== null && options.some((o) => o.id === chosen) ? chosen : mostRecent;
+  const [metric, setMetric] = useState<Metric>('bestOneRepMax');
+  const selected = chosen !== null && options.some((o) => o.id === chosen) ? chosen : defaultId;
 
   const history = useMemo(
     () => (selected ? exerciseHistory(state.sessions, selected) : []),
@@ -95,7 +105,10 @@ export default function ProgressPage() {
   const data = useMemo(() => history.map((p) => ({ date: p.date, value: p[metric] })), [history, metric]);
 
   const selectedName = options.find((o) => o.id === selected)?.name ?? '';
-  const metricLabel = METRICS.find((m) => m.key === metric)?.label ?? '';
+  const metricInfo = METRICS.find((m) => m.key === metric) ?? METRICS[0];
+  const metricLabel = metricInfo.label;
+  // Phrase qui résume : première et dernière valeur de la période, arrondies comme à l'affichage.
+  const sentence = formatProgressSentence(data, metricInfo.format, metricInfo.round);
 
   return (
     <section className="page">
@@ -164,8 +177,19 @@ export default function ProgressPage() {
             ))}
           </div>
 
+          {sentence && (
+            <div className="progress-summary">
+              {/* Le chiffre seul en grand ; la relativisation éventuelle (baisse) dessous, discrète. */}
+              <p className="progress-sentence">
+                <span className="visually-hidden">{metricLabel} : </span>
+                {sentence.headline}
+              </p>
+              {sentence.note && <p className="muted progress-note">{sentence.note}</p>}
+            </div>
+          )}
+
           <div className="card chart-card">
-            <LineChart data={data} label={`${metricLabel} — ${selectedName}`} formatValue={formatKg} />
+            <LineChart data={data} label={`${metricLabel} — ${selectedName}`} formatValue={metricInfo.format} />
             {history.length === 1 && (
               <p className="muted chart-card__hint">Une seule séance pour l’instant : la courbe se dessinera à la suivante.</p>
             )}
@@ -174,9 +198,9 @@ export default function ProgressPage() {
           <div className="card">
             <h2 className="section-title">Records personnels</h2>
             <dl className="pr-list">
-              <RecordRow label="Meilleur poids" record={records.maxWeight} />
-              <RecordRow label="Meilleur 1RM estimé" record={records.bestOneRepMax} />
-              <RecordRow label="Meilleur volume (séance)" record={records.bestVolume} />
+              <RecordRow label="Meilleur poids" record={records.maxWeight} format={formatWeight} />
+              <RecordRow label="Meilleur 1RM estimé" record={records.bestOneRepMax} format={formatOneRepMax} />
+              <RecordRow label="Meilleur volume (séance)" record={records.bestVolume} format={formatWeight} />
             </dl>
           </div>
         </>
@@ -185,18 +209,19 @@ export default function ProgressPage() {
   );
 }
 
-function RecordRow({ label, record }: { label: string; record?: RecordValue }) {
+function RecordRow({ label, record, format }: { label: string; record?: RecordValue; format(kg: number): string }) {
   return (
+    // Même structure sur chaque ligne : libellé, puis valeur en grand, puis date.
     <div className="pr-list__row">
-      <dt className="muted">{label}</dt>
+      <dt className="muted pr-list__label">{label}</dt>
       <dd className="pr-list__value">
         {record ? (
           <>
-            <strong>{formatKg(record.value)}</strong>{' '}
+            <strong className="pr-list__number">{format(record.value)}</strong>
             <span className="muted pr-list__date">{formatDate(record.date)}</span>
           </>
         ) : (
-          <span className="muted">—</span>
+          <span className="muted pr-list__number">—</span>
         )}
       </dd>
     </div>

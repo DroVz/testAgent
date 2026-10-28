@@ -19,15 +19,23 @@ const DIMS: ChartDimensions = {
 
 /** Taille minimale des textes réellement affichés (px), avec une petite marge sur le plancher de 13 px. */
 const MIN_RENDERED_PX = 13.5;
+/**
+ * Taille maximale affichée (px) : sur un écran large, le viewBox s'agrandit et les graduations
+ * dépasseraient le corps de texte (16 px).
+ */
+const MAX_RENDERED_PX = 16;
 
 /**
- * Taille de police (unités du viewBox) pour qu'un texte s'affiche à au moins `MIN_RENDERED_PX`
- * quand le SVG fait `renderedWidth` px de large. Jamais moins que `base`.
+ * Taille de police (unités du viewBox) pour qu'un texte s'affiche entre `MIN_RENDERED_PX` et
+ * `MAX_RENDERED_PX` quand le SVG fait `renderedWidth` px de large. `base` est la taille visée
+ * (atteinte quand elle tient dans cet intervalle).
  */
 export function chartFontSize(base: number, renderedWidth: number | null): number {
   if (!renderedWidth || renderedWidth <= 0) return base;
   const unitsPerPx = DIMS.width / renderedWidth;
-  return Math.max(base, Math.ceil(MIN_RENDERED_PX * unitsPerPx * 10) / 10);
+  const min = Math.ceil(MIN_RENDERED_PX * unitsPerPx * 10) / 10;
+  const max = Math.floor(MAX_RENDERED_PX * unitsPerPx * 10) / 10;
+  return Math.max(min, Math.min(base, max));
 }
 
 /** Largeur affichée d'un élément, suivie avec ResizeObserver (null si indisponible). */

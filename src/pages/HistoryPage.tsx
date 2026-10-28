@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { formatDate, formatDuration, formatWeight } from '../lib/format';
+import { formatCount, formatDate, formatDuration, formatWeight } from '../lib/format';
 import { completedSessions, sessionDurationMs, sessionVolume } from '../lib/stats';
 import { useAppStore } from '../state/AppStore';
 
@@ -36,8 +36,8 @@ export default function HistoryPage() {
                     <span className="muted history-item__date">{formatDate(s.startedAt)}</span>
                   </span>
                   <span className="muted history-item__meta">
-                    {formatDuration(sessionDurationMs(s))} · {formatWeight(sessionVolume(s))} · {count} exercice
-                    {count > 1 ? 's' : ''}
+                    {formatDuration(sessionDurationMs(s))} · {formatWeight(sessionVolume(s))} ·{' '}
+                    {formatCount(count, 'exercice')}
                   </span>
                 </Link>
               </li>

@@ -98,3 +98,19 @@ export function moveTemplateExercise(
   [exercises[index], exercises[target]] = [exercises[target], exercises[index]];
   return { ...template, exercises, updatedAt: now.toISOString() };
 }
+
+/** Temps d'effort estimé pour une série (s), utilisé pour la durée estimée d'une séance type. */
+export const ESTIMATED_SET_SECONDS = 40;
+
+/**
+ * Durée estimée d'une séance type en minutes : Σ séries × (effort estimé + repos de l'exercice),
+ * arrondie aux 5 minutes les plus proches. 0 sans série ; au moins 5 s'il y a au moins une série.
+ */
+export function estimateTemplateMinutes(template: Pick<Template, 'exercises'>): number {
+  const seconds = template.exercises.reduce(
+    (sum, te) => sum + Math.max(0, te.targetSets) * (ESTIMATED_SET_SECONDS + Math.max(0, te.restSeconds)),
+    0,
+  );
+  if (seconds <= 0) return 0;
+  return Math.max(5, Math.round(seconds / 60 / 5) * 5);
+}

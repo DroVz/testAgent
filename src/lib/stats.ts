@@ -227,3 +227,28 @@ export function sessionsThisMonth(sessions: WorkoutSession[], now: Date = new Da
   const to = new Date(from.getFullYear(), from.getMonth() + 1, 1);
   return countBetween(sessions, from, to);
 }
+
+/** Date ISO de la dernière séance terminée issue de la séance type, ou undefined si jamais faite. */
+export function templateLastDoneAt(sessions: WorkoutSession[], templateId: string): string | undefined {
+  let best: string | undefined;
+  for (const s of sessions) {
+    if (s.templateId !== templateId || s.endedAt === undefined) continue;
+    if (best === undefined || Date.parse(s.startedAt) > Date.parse(best)) best = s.startedAt;
+  }
+  return best;
+}
+
+/**
+ * Séance type la plus probable pour aujourd'hui : parmi celles déjà faites, celle qui n'a pas été
+ * faite depuis le plus longtemps ; si aucune n'a été faite, la première. undefined si la liste est vide.
+ */
+export function suggestedTemplateId(templates: { id: string }[], sessions: WorkoutSession[]): string | undefined {
+  let pick: { id: string; at: number } | undefined;
+  for (const t of templates) {
+    const last = templateLastDoneAt(sessions, t.id);
+    if (last === undefined) continue;
+    const at = Date.parse(last);
+    if (pick === undefined || at < pick.at) pick = { id: t.id, at };
+  }
+  return pick?.id ?? templates[0]?.id;
+}

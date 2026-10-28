@@ -1,6 +1,6 @@
 import { BellRing } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { formatClock } from '../lib/format';
+import { NBSP, formatClock } from '../lib/format';
 
 export interface RestTimerProps {
   /** Timestamp (ms) de fin du repos : le décompte reste juste même si l'écran s'est mis en veille. */
@@ -67,10 +67,10 @@ export default function RestTimer({ endsAt, onAdjust, onDismiss, now = Date.now 
         {!finished && (
           <>
             <button type="button" className="btn" onClick={() => onAdjust(-15)} aria-label="Retirer 15 secondes">
-              −15 s
+              {`−15${NBSP}s`}
             </button>
             <button type="button" className="btn" onClick={() => onAdjust(15)} aria-label="Ajouter 15 secondes">
-              +15 s
+              {`+15${NBSP}s`}
             </button>
           </>
         )}

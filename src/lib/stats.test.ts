@@ -10,6 +10,8 @@ import {
   personalRecords,
   sessionDurationMs,
   sessionVolume,
+  suggestedTemplateId,
+  templateLastDoneAt,
   sessionsThisMonth,
   sessionsThisWeek,
   startOfWeek,
@@ -240,5 +242,48 @@ describe('strongestRecords', () => {
       strongestRecords([r('squat', 'bestVolume'), r('squat', 'maxWeight'), r('squat', 'bestOneRepMax'), r('dips', 'bestVolume'), r('rowing', 'bestOneRepMax'), r('rowing', 'bestVolume')]),
     ).toEqual([r('squat', 'maxWeight'), r('dips', 'bestVolume'), r('rowing', 'bestOneRepMax')]);
     expect(strongestRecords([])).toEqual([]);
+  });
+});
+
+describe('séance type : dernier passage et suggestion', () => {
+  const done = (id: string, templateId: string | undefined, startedAt: string, ended = true): WorkoutSession => ({
+    id,
+    templateId,
+    name: id,
+    startedAt,
+    ...(ended && { endedAt: startedAt }),
+    exercises: [],
+  });
+  const templates = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+
+  it('templateLastDoneAt : séance terminée la plus récente de cette séance type', () => {
+    const sessions = [
+      done('1', 'a', '2026-10-01T10:00:00.000Z'),
+      done('2', 'a', '2026-10-20T10:00:00.000Z'),
+      done('3', 'a', '2026-10-25T10:00:00.000Z', false),
+      done('4', 'b', '2026-10-22T10:00:00.000Z'),
+    ];
+    expect(templateLastDoneAt(sessions, 'a')).toBe('2026-10-20T10:00:00.000Z');
+    expect(templateLastDoneAt(sessions, 'c')).toBeUndefined();
+  });
+
+  it('suggestedTemplateId : la moins récemment faite parmi celles déjà faites', () => {
+    const sessions = [
+      done('1', 'a', '2026-10-25T10:00:00.000Z'),
+      done('2', 'b', '2026-10-20T10:00:00.000Z'),
+      done('3', 'b', '2026-10-10T10:00:00.000Z'),
+    ];
+    // a : 25 oct., b : 20 oct. (c jamais faite, ignorée) → b
+    expect(suggestedTemplateId(templates, sessions)).toBe('b');
+  });
+
+  it('aucune faite → la première ; liste vide → undefined', () => {
+    expect(suggestedTemplateId(templates, [done('x', undefined, '2026-10-25T10:00:00.000Z')])).toBe('a');
+    expect(suggestedTemplateId([], [])).toBeUndefined();
+  });
+
+  it('séance en cours (non terminée) ignorée', () => {
+    const sessions = [done('1', 'c', '2026-10-01T10:00:00.000Z', false), done('2', 'b', '2026-10-25T10:00:00.000Z')];
+    expect(suggestedTemplateId(templates, sessions)).toBe('b');
   });
 });

@@ -158,6 +158,24 @@ svg {
   line-height: 1.25;
 }
 
+/* En-tête d'onglet : titre à gauche, action nommée (ex. « Réglages ») à droite. */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.page-header .page__title {
+  margin: 0;
+}
+
+.page-header__action {
+  flex: none;
+  padding-inline: var(--space-2);
+}
+
 .muted {
   color: var(--text-muted);
 }
@@ -200,7 +218,9 @@ svg {
   position: fixed;
   inset: auto 0 0 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
+  /* Onglets alignés sur la colonne de contenu (640 px − marges) ; le fond reste pleine largeur. */
+  padding-inline: max(0px, calc((100% - 640px) / 2 + var(--space-3)));
   height: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
   background: var(--surface);
@@ -556,10 +576,28 @@ svg {
   font-weight: 500;
 }
 
+.template-card__badge {
+  margin: 0 0 var(--space-1);
+  color: var(--text);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+/* Carte suggérée : filet d'encre (l'aplat d'accent est réservé à son bouton « Démarrer la séance »). */
+.template-card--featured {
+  border-color: var(--text);
+}
+
 .template-card__menu {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* minmax(0, 1fr) : les colonnes peuvent rétrécir sous la largeur du libellé (rien ne déborde). */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
+}
+
+.template-card__menu .btn {
+  min-width: 0;
+  padding-inline: var(--space-2);
 }
 
 .editor-item__tools {
@@ -574,12 +612,113 @@ svg {
   margin-top: var(--space-2);
 }
 
-/* Constructeur : action principale pleine largeur en premier, « Annuler » dessous. */
-.action-bar {
+/*
+ * Constructeur plein écran : colonne de la hauteur de l'écran, « Annuler » en lien en haut à gauche,
+ * « Enregistrer la séance » dans une barre collée en bas (comme le bas d'écran de la séance).
+ */
+.editor {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--space-3) - var(--space-3) - env(safe-area-inset-bottom, 0px));
+}
+
+.editor__cancel {
+  align-self: flex-start;
+  padding: 0 var(--space-2) 0 0;
+  border: none;
+  background: transparent;
+}
+
+.editor-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin-top: var(--space-4);
+  margin: auto calc(-1 * var(--space-3)) calc(-1 * (var(--space-3) + env(safe-area-inset-bottom, 0px)));
+  padding: var(--space-2) var(--space-3);
+  padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+/* Laisse respirer le dernier élément du formulaire au-dessus de la barre. */
+.editor__add {
+  margin-bottom: var(--space-3);
+}
+
+/* ---------- Toast « Annuler » ---------- */
+
+/* Rempli en encre (pas d'accent : l'accent reste à l'action principale de l'écran). */
+.toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--text);
+  color: var(--surface);
+  font-weight: 600;
+  animation: toast-in 180ms var(--ease);
+}
+
+/* Zone toujours présente (role="status") ; vide, elle ne prend ni place ni taps. */
+.toast-region {
+  pointer-events: none;
+}
+
+.toast-region .toast {
+  pointer-events: auto;
+}
+
+/* Vide dans un bas d'écran : on compense l'écart de la colonne pour ne rien décaler. */
+.toast-region--inline:empty {
+  margin-bottom: calc(-1 * var(--space-2));
+}
+
+/* Hors séance et constructeur : fixé en bas, au-dessus de la zone sûre (et de la barre d'onglets). */
+.toast-region--floating {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-3));
+  z-index: 25;
+  width: calc(100% - 2 * var(--space-3));
+  max-width: calc(640px - 2 * var(--space-3));
+  transform: translateX(-50%);
+}
+
+.toast-region--above-tabbar {
+  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--space-2));
+}
+
+.toast__message {
+  min-width: 0;
+}
+
+.toast__undo {
+  flex: none;
+  min-width: var(--touch);
+  min-height: var(--touch);
+  padding: 0 var(--space-3);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ---------- Modales ---------- */
@@ -1318,10 +1457,30 @@ svg {
   transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
 }
 
-/* Métrique choisie : encre, pas d'accent (choix secondaire). */
+/* Métrique choisie : contour d'encre + gras, pas d'aplat ni d'accent (choix secondaire, discret). */
 .segmented__btn[aria-pressed="true"] {
-  background: var(--text);
-  color: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--text);
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* Phrase qui résume la progression, au-dessus du graphique : le chiffre est le héros. */
+.progress-summary {
+  margin-bottom: var(--space-2);
+}
+
+.progress-sentence {
+  margin: 0;
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+/* Relativisation d'une baisse : texte secondaire, corps de texte (une baisse n'est pas mise en scène). */
+.progress-note {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-body);
+  font-weight: 400;
 }
 
 .chart-card {
@@ -1399,15 +1558,27 @@ svg {
 
 .pr-list__row {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0 var(--space-2);
+  flex-direction: column;
+  gap: var(--space-1);
   padding: var(--space-2) 0;
   border-top: 1px solid var(--border);
 }
 
+.pr-list__label {
+  font-size: var(--fs-body);
+}
+
+/* Libellé, puis valeur (24 px / 700), puis date (13 px) : même structure sur chaque ligne. */
 .pr-list__value {
+  display: flex;
+  flex-direction: column;
   margin: 0;
+}
+
+.pr-list__number {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 .pr-list__date {

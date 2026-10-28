@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { HashRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ResumeBanner from './components/ResumeBanner';
+import { ToastHost, ToastProvider } from './components/Toast';
 import ActiveSessionPage from './pages/ActiveSessionPage';
 import HistoryPage from './pages/HistoryPage';
 import ProgressPage from './pages/ProgressPage';
@@ -11,17 +12,19 @@ import TemplateEditorPage from './pages/TemplateEditorPage';
 import TemplatesPage from './pages/TemplatesPage';
 import { useAppStore } from './state/AppStore';
 
+/** 3 onglets (identity.md §1). Les Réglages s'ouvrent depuis l'en-tête de l'onglet Séances. */
 const TABS = [
   { to: '/seances', label: 'Séances' },
   { to: '/historique', label: 'Historique' },
   { to: '/progres', label: 'Progrès' },
-  { to: '/reglages', label: 'Réglages' },
 ] as const;
 
 export default function App() {
   return (
     <HashRouter>
-      <Shell />
+      <ToastProvider>
+        <Shell />
+      </ToastProvider>
     </HashRouter>
   );
 }
@@ -30,7 +33,13 @@ function Shell() {
   const { loadError, saveFailed, actions } = useAppStore();
   const { pathname } = useLocation();
   // La séance en cours est un écran plein : pas de barre d'onglets ni de bannière de reprise.
-  const fullscreen = pathname === '/seance';
+  const isSession = pathname === '/seance';
+  // Constructeur (/seances/nouvelle, /seances/:id) : plein écran avec sa barre d'action fixe.
+  const isEditor = /^\/seances\/[^/]+$/.test(pathname);
+  // Réglages : page plein écran ouverte depuis Séances, avec retour « ‹ Séances ».
+  const fullscreen = isSession || isEditor || pathname === '/reglages';
+  // Séance et constructeur affichent le toast dans leur propre bas d'écran, au-dessus du bouton principal.
+  const ownToastHost = isSession || isEditor;
 
   return (
     <div className="app">
@@ -53,7 +62,7 @@ function Shell() {
           Réglages pour ne pas perdre tes dernières modifications.
         </div>
       )}
-      {!fullscreen && <ResumeBanner />}
+      {!isSession && <ResumeBanner />}
       <main className={`app__content${fullscreen ? ' app__content--fullscreen' : ''}`}>
         <Routes>
           <Route path="/seances" element={<TemplatesPage />} />
@@ -68,6 +77,7 @@ function Shell() {
           <Route path="*" element={<Navigate to="/seances" replace />} />
         </Routes>
       </main>
+      {!ownToastHost && <ToastHost placement="floating" aboveTabbar={!fullscreen} />}
       {!fullscreen && (
         <nav className="tabbar" aria-label="Navigation principale">
           {TABS.map((tab) => (

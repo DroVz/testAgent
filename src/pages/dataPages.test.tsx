@@ -35,6 +35,19 @@ function renderAt(hash: string, initial?: AppState | string, options?: { failWri
 }
 
 const dialog = () => within(screen.getByRole('dialog'));
+/** Zones `role="status"` de la page, hors zone du toast (toujours présente, vide sans toast). */
+const pageStatus = () => {
+  const list = screen.getAllByRole('status').filter((el) => !el.classList.contains('toast-region'));
+  if (list.length !== 1) throw new Error(`${list.length} zones status hors toast`);
+  return list[0];
+};
+/** Zone du toast. */
+const toastRegion = () => {
+  const el = document.querySelector<HTMLElement>('.toast-region');
+  if (!el) throw new Error('Pas de zone de toast');
+  return el;
+};
+
 
 function session(id: string, name: string, day: number, exercises: WorkoutSession['exercises'], notes?: string): WorkoutSession {
   const s: WorkoutSession = {
@@ -95,27 +108,34 @@ describe('historique', () => {
     expect(items[1]).toHaveTextContent('1 h 05 · 1 060 kg · 2 exercices');
   });
 
-  it('détail d’une séance puis suppression avec confirmation', () => {
+  it('détail d’une séance puis suppression immédiate, annulable par le toast', () => {
     const { saved } = renderAt('#/historique', stateWithHistory());
     fireEvent.click(screen.getByRole('link', { name: /Jambes/ }));
     expect(screen.getByRole('heading', { name: 'Jambes' })).toBeInTheDocument();
     const sets = screen.getByRole('list', { name: 'Séries de Squat' });
+    // Espace insécable entre le nombre et l'unité
     expect(within(sets).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'Série 1110 kg × 5',
-      'Série 2100 kg × 8',
+      'Série 1110\u00a0kg × 5',
+      'Série 2100\u00a0kg × 8',
     ]);
     expect(screen.getByText('Bonne forme')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Supprimer la séance' }));
-    // Annuler ne supprime rien
-    fireEvent.click(dialog().getByRole('button', { name: 'Annuler' }));
-    expect(screen.getByRole('heading', { name: 'Jambes' })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Supprimer la séance' }));
-    fireEvent.click(dialog().getByRole('button', { name: 'Supprimer' }));
+    // Plus de modale : suppression immédiate, retour à la liste, toast « Annuler »
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Historique' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Jambes/ })).not.toBeInTheDocument();
     expect(saved().sessions.map((s) => s.id)).toEqual(['s-old']);
+    const toast = toastRegion();
+    expect(toast).toHaveAttribute('role', 'status');
+    expect(toast).toHaveTextContent('Séance supprimée : Jambes.');
+    const undo = within(toast).getByRole('button', { name: 'Annuler la suppression' });
+    expect(undo).toHaveTextContent('Annuler');
+    fireEvent.click(undo);
+    expect(saved().sessions.map((s) => s.id)).toEqual(['s-old', 's-new']);
+    expect(screen.getByRole('link', { name: /Jambes/ })).toBeInTheDocument();
+    // Zone toujours présente, vide une fois le toast fermé
+    expect(toastRegion()).toBeEmptyDOMElement();
   });
 
   it('identifiant inexistant : message et retour', () => {
@@ -151,24 +171,29 @@ describe('progrès', () => {
     expect(select).toHaveValue('squat');
     expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['Développé couché', 'Squat']);
 
-    expect(screen.getByRole('img')).toHaveAccessibleName(/^Poids max — Squat : 2 séances, dernière valeur 110 kg/);
+    // 1RM estimé par défaut, arrondi à 0,5 kg : 110 × (1 + 5/30) = 128,33 → 128,5 kg
+    expect(screen.getByRole('img')).toHaveAccessibleName(/^1RM estimé — Squat : 2 séances, dernière valeur 128,5\skg/);
     const prs = screen.getByRole('heading', { name: 'Records personnels' }).parentElement!;
     expect(within(prs).getByText('Meilleur poids').nextElementSibling).toHaveTextContent('110 kg');
-    // 1RM : max(110 × (1 + 5/30), 100 × (1 + 8/30)) = 128,33 → arrondi au dixième
-    expect(within(prs).getByText('Meilleur 1RM estimé').nextElementSibling).toHaveTextContent('128,3 kg');
+    // 1RM : max(110 × (1 + 5/30), 100 × (1 + 8/30)) = 128,33 → arrondi à 0,5 kg
+    expect(within(prs).getByText('Meilleur 1RM estimé').nextElementSibling).toHaveTextContent('128,5 kg');
     expect(within(prs).getByText('Meilleur volume (séance)').nextElementSibling).toHaveTextContent('1 350 kg');
   });
 
   it('bascule de métrique et sélection d’exercice mémorisée', () => {
     const { unmount } = renderAt('#/progres', stateWithHistory());
     const metric = within(screen.getByRole('group', { name: 'Métrique' }));
+    // 1RM estimé par défaut ; choix secondaire sans accent
+    expect(metric.getByRole('button', { name: '1RM estimé' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(metric.getByRole('button', { name: 'Volume' }));
     expect(metric.getByRole('button', { name: 'Volume' })).toHaveAttribute('aria-pressed', 'true');
     expect(metric.getByRole('button', { name: 'Poids max' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByRole('img')).toHaveAccessibleName(/^Volume — Squat : .*1\s350 kg/);
+    expect(screen.getByRole('img')).toHaveAccessibleName(/^Volume — Squat : .*1\s350\skg/);
 
+    fireEvent.click(metric.getByRole('button', { name: 'Poids max' }));
+    expect(screen.getByRole('img')).toHaveAccessibleName(/^Poids max — Squat : .*110\skg/);
     fireEvent.click(metric.getByRole('button', { name: '1RM estimé' }));
-    expect(screen.getByRole('img')).toHaveAccessibleName(/^1RM estimé — Squat : .*128,3 kg/);
+    expect(screen.getByRole('img')).toHaveAccessibleName(/^1RM estimé — Squat : .*128,5\skg/);
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Exercice' }), { target: { value: 'developpe-couche' } });
     // Un seul point : graphique quand même, avec une indication
@@ -179,6 +204,57 @@ describe('progrès', () => {
     unmount();
     renderAt('#/progres', stateWithHistory());
     expect(screen.getByRole('combobox', { name: 'Exercice' })).toHaveValue('developpe-couche');
+  });
+
+  it('phrase qui résume au-dessus du graphique (première vs dernière valeur)', () => {
+    renderAt('#/progres', stateWithHistory());
+    // 1RM squat : 5 oct. 100 × (1 + 5/30) = 116,67 → 116,5 ; 26 oct. 128,33 → 128,5 : +12 kg en 3 semaines
+    const sentence = document.querySelector('.progress-sentence');
+    expect(sentence).toHaveTextContent('1RM estimé : +12 kg en 3 semaines');
+    expect(sentence!.compareDocumentPosition(screen.getByRole('img')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const metric = within(screen.getByRole('group', { name: 'Métrique' }));
+    fireEvent.click(metric.getByRole('button', { name: 'Poids max' }));
+    expect(document.querySelector('.progress-sentence')).toHaveTextContent('+10 kg en 3 semaines');
+    // Un seul point
+    fireEvent.change(screen.getByRole('combobox', { name: 'Exercice' }), { target: { value: 'developpe-couche' } });
+    expect(document.querySelector('.progress-sentence')).toHaveTextContent('Première séance enregistrée');
+  });
+
+  it('baisse : le chiffre seul en 24 px, la relativisation dessous en texte secondaire', () => {
+    const s = stateWithHistory();
+    // Squat : 26 oct. 1RM 128,5 → ajout d'une séance le 27 oct. à 90 × 5 (1RM 105) : baisse
+    s.sessions.push(session('s-down', 'Jambes', 27, [{ exerciseId: 'squat', sets: [{ weight: 90, reps: 5, done: true }] }]));
+    renderAt('#/progres', s);
+    const headline = document.querySelector('.progress-sentence');
+    // 5 oct. 116,5 → 27 oct. 105 : −11,5 kg en 3 semaines
+    expect(headline).toHaveTextContent(/^1RM estimé : −11,5 kg en 3 semaines$/);
+    const note = document.querySelector('.progress-note');
+    expect(note).toHaveTextContent('Ça arrive, la prochaine séance compte.');
+    expect(note).toHaveClass('muted');
+    expect(headline).not.toContainElement(note as HTMLElement);
+  });
+
+  it('records : même structure sur chaque ligne (libellé, valeur, date)', () => {
+    renderAt('#/progres', stateWithHistory());
+    const rows = document.querySelectorAll('.pr-list__row');
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      expect(row.querySelector('.pr-list__label')).not.toBeNull();
+      expect(row.querySelector('.pr-list__number')).not.toBeNull();
+      expect(row.querySelector('.pr-list__date')).not.toBeNull();
+    }
+  });
+
+  it('première visite : exercice principal de la dernière séance (le premier), pas un exercice secondaire', () => {
+    const s = stateWithHistory();
+    s.sessions.push(
+      session('s-last', 'Dos', 27, [
+        { exerciseId: 'tractions', sets: [{ weight: 0, reps: 8, done: true }] },
+        { exerciseId: 'curl-barre', sets: [{ weight: 12, reps: 10, done: true }] },
+      ]),
+    );
+    renderAt('#/progres', s);
+    expect(screen.getByRole('combobox', { name: 'Exercice' })).toHaveValue('tractions');
   });
 
   it('plusieurs exercices supprimés : distingués dans le sélecteur', () => {
@@ -251,7 +327,7 @@ describe('réglages', () => {
     vi.stubGlobal('navigator', { ...navigator, clipboard: undefined });
     renderAt('#/reglages');
     fireEvent.click(screen.getByRole('button', { name: 'Exporter mes données' }));
-    expect(screen.getByRole('status')).toHaveTextContent('Téléchargement indisponible');
+    expect(pageStatus()).toHaveTextContent('Téléchargement indisponible');
     fireEvent.click(screen.getByRole('button', { name: 'Copier' }));
     expect(await screen.findByText(/le texte est sélectionné/)).toBeInTheDocument();
     expect(screen.getByLabelText('Données exportées (JSON)')).toHaveFocus();
@@ -292,7 +368,7 @@ describe('réglages', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Importer le texte' }));
     fireEvent.click(dialog().getByRole('button', { name: 'Remplacer' }));
     expect(saved()).toEqual(imported);
-    expect(screen.getByRole('status')).toHaveTextContent('Import réussi');
+    expect(pageStatus()).toHaveTextContent('Import réussi');
   });
 
   it('import par fichier ; une séance en cours est signalée dans la confirmation', async () => {
@@ -334,6 +410,41 @@ describe('réglages', () => {
     fireEvent.click(dialog().getByRole('button', { name: 'Supprimer' }));
     expect(saved().exercises.some((e) => e.id === 'custom-1')).toBe(false);
     expect(screen.getByText(/Aucun exercice personnalisé/)).toBeInTheDocument();
+  });
+
+  it('import pendant un toast « Annuler » : le toast est fermé, rien n’est réinjecté', () => {
+    const initial = stateWithHistory();
+    initial.templates.push(
+      createTemplate({ name: 'Push', exercises: [createTemplateExercise('squat')] }, new Date('2026-10-01T10:00:00Z'), 'tp'),
+    );
+    const { saved } = renderAt('#/seances', initial);
+    fireEvent.click(screen.getByRole('button', { name: 'Options de Push' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }));
+    // Le toast suit vers Réglages
+    fireEvent.click(screen.getByRole('link', { name: 'Réglages' }));
+    expect(toastRegion()).toHaveTextContent('Séance supprimée : Push.');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ou colle le contenu exporté' }), {
+      target: { value: exportState(createDefaultState()) },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Importer le texte' }));
+    fireEvent.click(dialog().getByRole('button', { name: 'Remplacer' }));
+    expect(toastRegion()).toBeEmptyDOMElement();
+    expect(saved().templates).toEqual([]);
+  });
+
+  it('réinitialisation pendant un toast « Annuler » : le toast est fermé', () => {
+    const initial = stateWithHistory();
+    initial.templates.push(
+      createTemplate({ name: 'Push', exercises: [createTemplateExercise('squat')] }, new Date('2026-10-01T10:00:00Z'), 'tp'),
+    );
+    const { saved } = renderAt('#/seances', initial);
+    fireEvent.click(screen.getByRole('button', { name: 'Options de Push' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Réglages' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Réinitialiser toutes les données' }));
+    fireEvent.click(dialog().getByRole('button', { name: 'Tout effacer' }));
+    expect(toastRegion()).toBeEmptyDOMElement();
+    expect(saved()).toEqual(createDefaultState());
   });
 
   it('réinitialisation avec confirmation', () => {
@@ -384,7 +495,7 @@ describe('réglages', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Importer le texte' }));
     fireEvent.click(dialog().getByRole('button', { name: 'Remplacer' }));
-    expect(screen.getByRole('status')).toHaveTextContent('Import réussi');
+    expect(pageStatus()).toHaveTextContent('Import réussi');
     expect(screen.queryByText(/illisibles/)).not.toBeInTheDocument();
   });
 

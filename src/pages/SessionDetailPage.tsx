@@ -1,8 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
-import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import ConfirmDialog from '../components/ConfirmDialog';
-import { exerciseName, formatDate, formatDuration, formatNumber, formatWeight } from '../lib/format';
+import { useToast } from '../components/Toast';
+import { exerciseName, formatCount, formatDate, formatDuration, formatNumber, formatWeight } from '../lib/format';
 import { countDoneSets, doneSets, exerciseVolume, sessionDurationMs, sessionVolume } from '../lib/stats';
 import { useAppStore } from '../state/AppStore';
 
@@ -11,7 +10,7 @@ export default function SessionDetailPage() {
   const { id } = useParams();
   const { state, actions } = useAppStore();
   const navigate = useNavigate();
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const toast = useToast();
   const session = state.sessions.find((s) => s.id === id && s.endedAt !== undefined);
 
   if (!session) {
@@ -68,7 +67,7 @@ export default function SessionDetailPage() {
                   <li key={j} className="detail-sets__item">
                     <span className="muted">Série {j + 1}</span>
                     <span>
-                      {s.weight > 0 ? `${formatWeight(s.weight)} × ${s.reps}` : `${s.reps} reps (poids du corps)`}
+                      {s.weight > 0 ? `${formatWeight(s.weight)} × ${s.reps}` : `${formatCount(s.reps, 'rep')} (poids du corps)`}
                     </span>
                   </li>
                 ))}
@@ -86,24 +85,19 @@ export default function SessionDetailPage() {
       )}
 
       <div className="stack">
-        <button type="button" className="btn btn--block btn--danger-outline" onClick={() => setConfirmDelete(true)}>
+        {/* Suppression immédiate, annulable 5 s par le toast (qui suit vers l'historique). */}
+        <button
+          type="button"
+          className="btn btn--block btn--danger-outline"
+          onClick={() => {
+            const snapshot = actions.deleteSession(session.id);
+            navigate('/historique', { replace: true });
+            toast.show({ message: `Séance supprimée : ${session.name}.`, onUndo: snapshot && (() => actions.restore(snapshot)) });
+          }}
+        >
           Supprimer la séance
         </button>
       </div>
-
-      <ConfirmDialog
-        open={confirmDelete}
-        title="Supprimer la séance ?"
-        message={`« ${session.name} » du ${formatDate(session.startedAt)} sera définitivement supprimée de l’historique et des statistiques.`}
-        confirmLabel="Supprimer"
-        danger
-        onCancel={() => setConfirmDelete(false)}
-        onConfirm={() => {
-          setConfirmDelete(false);
-          actions.deleteSession(session.id);
-          navigate('/historique', { replace: true });
-        }}
-      />
     </section>
   );
 }

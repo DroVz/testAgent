@@ -1,7 +1,9 @@
-import { Trash } from 'lucide-react';
+import { ChevronLeft, Trash } from 'lucide-react';
 import { useRef, useState, type ChangeEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { version } from '../../package.json';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { useToast } from '../components/Toast';
 import { saveRestEndsAt } from '../lib/restTimer';
 import { exportFileName, exportState, validateImport } from '../lib/storage';
 import { MUSCLE_GROUPS, type AppState, type Exercise, type MuscleGroup } from '../lib/types';
@@ -47,6 +49,9 @@ type Dialog =
 /** Réglages : export / import, exercices personnalisés, réinitialisation (/reglages). */
 export default function SettingsPage() {
   const { state, actions } = useAppStore();
+  // Import et réinitialisation remplacent toutes les données : un toast « Annuler » encore affiché
+  // n'a plus d'objet (le store refuse aussi de restaurer un instantané antérieur).
+  const { dismiss: dismissToast } = useToast();
   const [exported, setExported] = useState<string | null>(null);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [pasted, setPasted] = useState('');
@@ -123,6 +128,11 @@ export default function SettingsPage() {
 
   return (
     <section className="page">
+      {/* Page plein écran ouverte depuis l'onglet Séances : retour explicite. */}
+      <Link to="/seances" className="back-link">
+        <ChevronLeft size={20} aria-hidden="true" />
+        Séances
+      </Link>
       <h1 className="page__title">Réglages</h1>
 
       <div className="card settings-section">
@@ -248,6 +258,7 @@ export default function SettingsPage() {
         onCancel={() => setDialog(null)}
         onConfirm={() => {
           if (dialog?.kind === 'import') {
+            dismissToast();
             if (actions.replaceState(dialog.state)) {
               setImportError(null);
               setImportDone(`Import réussi : ${describeState(dialog.state)}.`);
@@ -283,6 +294,7 @@ export default function SettingsPage() {
         danger
         onCancel={() => setDialog(null)}
         onConfirm={() => {
+          dismissToast();
           const ok = actions.resetState();
           clearStoredExercise();
           saveRestEndsAt(undefined, null);

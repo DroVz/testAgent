@@ -5,17 +5,29 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import ExercisePicker from '../components/ExercisePicker';
 import NumberField from '../components/NumberField';
 import RestTimer from '../components/RestTimer';
-import { exerciseName, formatClock, formatCount, formatSetValues, inSentence, restSecondsFor } from '../lib/format';
-import { MAX_REPS, MAX_WEIGHT, currentExerciseIndex, currentSetIndex, pendingSetCount } from '../lib/session';
+import { ToastHost, useToast } from '../components/Toast';
+import {
+  exerciseName,
+  formatClock,
+  formatCount,
+  formatSeconds,
+  formatSetValues,
+  inSentence,
+  restSecondsFor,
+} from '../lib/format';
+import {
+  MAX_REPS,
+  MAX_WEIGHT,
+  currentExerciseIndex,
+  currentSetIndex,
+  nextExerciseIndex,
+  pendingSetCount,
+} from '../lib/session';
 import { loadRestEndsAt, saveRestEndsAt } from '../lib/restTimer';
 import { countDoneSets, lastPerformance, sessionDurationMs, type LastPerformance } from '../lib/stats';
 import { useAppStore } from '../state/AppStore';
 
-type Dialog =
-  | { kind: 'finish'; remaining: number }
-  | { kind: 'empty' }
-  | { kind: 'abandon' }
-  | { kind: 'removeExercise'; index: number; name: string };
+type Dialog = { kind: 'finish'; remaining: number } | { kind: 'empty' } | { kind: 'abandon' };
 
 /** Pas des boutons −/+ de la série en cours (identity.md §4.6). */
 const WEIGHT_STEP = 2.5;
@@ -25,6 +37,7 @@ const REPS_STEP = 1;
 export default function ActiveSessionPage() {
   const { state, actions } = useAppStore();
   const navigate = useNavigate();
+  const toast = useToast();
   const session = state.activeSession;
   const [now, setNow] = useState(() => Date.now());
   // Le repos en cours est persisté (stockage de session) : il survit à un rechargement ou à un détour.
@@ -46,6 +59,17 @@ export default function ActiveSessionPage() {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(interval);
   }, []);
+
+  // Toast d'annulation propre à la séance : il disparaît quand on quitte l'écran (fin, abandon),
+  // pour ne pas masquer l'action principale de l'écran suivant. La suppression reste effective.
+  const toastId = useRef<number | null>(null);
+  const dismissToast = toast.dismiss;
+  useEffect(
+    () => () => {
+      if (toastId.current !== null) dismissToast(toastId.current);
+    },
+    [dismissToast],
+  );
 
   const sessionId = session?.id;
   useEffect(() => {
@@ -134,7 +158,7 @@ export default function ActiveSessionPage() {
     const exerciseFinished = exercise.sets.filter((s) => !s.done).length === 1;
     actions.validateSet(exIdx, setIdx);
     setRestEndsAt(rest > 0 ? Date.now() + rest * 1000 : null);
-    const restText = rest > 0 ? ` Repos : ${rest} s.` : '';
+    const restText = rest > 0 ? ` Repos : ${formatSeconds(rest)}.` : '';
     // Exercice fini : l'écran passe au suivant, on ne cite donc pas un numéro de série.
     const text = exerciseFinished ? `Exercice terminé : ${inSentence(name)}.${restText}` : `Série ${n} validée.${restText}`;
     setFeedback({ text, exIdx, setIdx });
@@ -144,6 +168,12 @@ export default function ActiveSessionPage() {
   const saveCorrection = () => {
     setEditing(null);
     setFeedback({ text: `Série ${correcting + 1} corrigée.` });
+  };
+
+  /** Suppression immédiate (série ou exercice), annulable 5 s par le toast. */
+  const notifyRemoval = (message: string, snapshot: ReturnType<typeof actions.removeSet>) => {
+    setFeedback(null);
+    toastId.current = toast.show({ message, onUndo: snapshot && (() => actions.restore(snapshot)) });
   };
 
   const goTo = (index: number) => {
@@ -189,7 +219,8 @@ export default function ActiveSessionPage() {
           ? { label: 'Valider la série', onClick: validate }
           : isLastExercise
             ? { label: 'Terminer la séance', onClick: askFinish }
-            : { label: 'Exercice suivant', onClick: () => goTo(exIdx + 1) };
+            : // Comme le passage automatique : le prochain exercice qui a encore des séries à faire.
+              { label: 'Exercice suivant', onClick: () => goTo(nextExerciseIndex(session, exIdx)) };
 
   const neighbourName = (i: number) => {
     const ex = session.exercises[i];
@@ -268,8 +299,8 @@ export default function ActiveSessionPage() {
                   className="btn btn--block"
                   disabled={exercise.sets.length === 0}
                   onClick={menuAction(() => {
-                    actions.removeSet(exIdx, exercise.sets.length - 1);
-                    setFeedback(null);
+                    const last = exercise.sets.length - 1;
+                    notifyRemoval(`Série ${last + 1} supprimée.`, actions.removeSet(exIdx, last));
                   })}
                 >
                   Supprimer la dernière série
@@ -280,7 +311,9 @@ export default function ActiveSessionPage() {
                 <button
                   type="button"
                   className="btn btn--block btn--danger-outline"
-                  onClick={menuAction(() => setDialog({ kind: 'removeExercise', index: exIdx, name }))}
+                  onClick={menuAction(() =>
+                    notifyRemoval(`Exercice retiré : ${inSentence(name)}.`, actions.removeSessionExercise(exIdx)),
+                  )}
                 >
                   Retirer cet exercice
                 </button>
@@ -406,6 +439,8 @@ export default function ActiveSessionPage() {
 
       {/* Bas d'écran : retour d'action, minuteur de repos discret, action principale. */}
       <div className="session-dock">
+        {/* Toast « Annuler » : au-dessus du bouton principal, jamais par-dessus. */}
+        <ToastHost placement="inline" />
         {/* Zone annoncée toujours présente dans l'arbre (masquée visuellement quand elle est vide). */}
         <p className={feedback ? 'session-dock__feedback' : 'visually-hidden'} role="status">
           {feedback?.text}
@@ -464,19 +499,6 @@ export default function ActiveSessionPage() {
         danger
         onCancel={() => setDialog(null)}
         onConfirm={abandon}
-      />
-      <ConfirmDialog
-        open={dialog?.kind === 'removeExercise'}
-        title="Retirer l’exercice ?"
-        message={dialog?.kind === 'removeExercise' && `« ${dialog.name} » et ses séries seront retirés de la séance.`}
-        confirmLabel="Retirer"
-        danger
-        onCancel={() => setDialog(null)}
-        onConfirm={() => {
-          if (dialog?.kind === 'removeExercise') actions.removeSessionExercise(dialog.index);
-          setDialog(null);
-          setFeedback(null);
-        }}
       />
     </section>
   );

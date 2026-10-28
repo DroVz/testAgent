@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { TOAST_DURATION_MS } from '../components/Toast';
 import App from '../App';
 import { MAX_WEIGHT } from '../lib/session';
 import { STORAGE_KEY, createDefaultState, type StorageLike } from '../lib/storage';
@@ -38,6 +39,26 @@ function stateWithTemplate(): AppState {
 }
 
 const dialog = () => within(screen.getByRole('dialog'));
+/** Zones `role="status"` de la page, hors zone du toast (toujours présente, vide sans toast). */
+const pageStatus = () => {
+  const list = screen.getAllByRole('status').filter((el) => !el.classList.contains('toast-region'));
+  if (list.length !== 1) throw new Error(`${list.length} zones status hors toast`);
+  return list[0];
+};
+/** Zone du toast. */
+const toastRegion = () => {
+  const el = document.querySelector<HTMLElement>('.toast-region');
+  if (!el) throw new Error('Pas de zone de toast');
+  return el;
+};
+
+/** Toast « Annuler » (un seul à la fois). */
+const toastEl = () => {
+  const el = document.querySelector<HTMLElement>('.toast');
+  if (!el) throw new Error('Aucun toast');
+  return el;
+};
+const undo = () => fireEvent.click(within(toastEl()).getByRole('button', { name: 'Annuler la suppression' }));
 /** Lignes de séries de l'exercice affiché. */
 const seriesOf = (name: string) => within(screen.getByRole('list', { name: `Séries de ${name}` })).getAllByRole('listitem');
 /** Série en cours (mise en avant). */
@@ -102,7 +123,8 @@ describe('parcours séance', () => {
 
     // Liste des séances types
     expect(screen.getByRole('heading', { name: 'Push' })).toBeInTheDocument();
-    expect(screen.getByText('1 exercice')).toBeInTheDocument();
+    expect(screen.getByText(/^1 exercice · ≈ 5 min$/)).toBeInTheDocument();
+    expect(screen.getByText('Jamais faite')).toBeInTheDocument();
     expect(saved().templates[0].exercises[0]).toMatchObject({ targetSets: 2, restSeconds: 60 });
 
     // Démarrer : écran plein, sans barre d'onglets, un seul exercice affiché
@@ -121,7 +143,7 @@ describe('parcours séance', () => {
     fireEvent.change(screen.getByLabelText('Charge (kg)'), { target: { value: '62,5' } });
     fireEvent.change(screen.getByLabelText('Reps'), { target: { value: '8' } });
     fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
-    expect(screen.getByRole('button', { name: 'Corriger la série 1 : 62,5 kg × 8, faite' })).toHaveTextContent('Faite');
+    expect(screen.getByRole('button', { name: /^Corriger la série 1 : 62,5\skg × 8, faite$/ })).toHaveTextContent('Faite');
     expect(screen.getByText('Série 1 validée. Repos : 60 s.')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Minuteur de repos' })).toHaveTextContent('01:00');
     expect(currentSet()).toHaveTextContent('Série 2 sur 2');
@@ -150,7 +172,7 @@ describe('parcours séance', () => {
     expect(update).not.toHaveClass('btn--primary');
     expect(update.closest('.summary-dock')).toBeNull();
     fireEvent.click(update);
-    expect(screen.getByRole('status')).toHaveTextContent('mise à jour');
+    expect(pageStatus()).toHaveTextContent('mise à jour');
     expect(saved().templates[0].exercises[0].targetWeight).toBe(62.5);
 
     fireEvent.click(screen.getByRole('button', { name: 'Voir mes progrès' }));
@@ -180,6 +202,27 @@ describe('parcours séance', () => {
     // Poids max, 1RM et volume battus : une seule ligne (le poids max), un seul « ! »
     expect(screen.getAllByText(/^Nouveau record/)).toHaveLength(1);
     expect(screen.getByText(/^Nouveau record en squat : 110 kg !/)).toBeInTheDocument();
+  });
+
+  it('récap : record de 1RM arrondi à 0,5 kg, comme dans Progrès', () => {
+    const initial = stateWithTemplate();
+    initial.sessions.push({
+      id: 'old',
+      templateId: 't1',
+      name: 'Jambes',
+      startedAt: '2026-10-01T10:00:00.000Z',
+      endedAt: '2026-10-01T11:00:00.000Z',
+      exercises: [{ exerciseId: 'squat', sets: [{ weight: 100, reps: 5, done: true }] }],
+    });
+    renderApp(initial);
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Jambes' }));
+    // Même charge, une rep de plus : seul le 1RM (et le volume) progresse
+    fireEvent.change(screen.getByLabelText('Reps'), { target: { value: '7' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer la séance' }));
+    fireEvent.click(dialog().getByRole('button', { name: 'Terminer la séance' }));
+    // 100 × (1 + 7/30) = 123,33 → 123,5 ; avant 100 × (1 + 5/30) = 116,67 → 116,5
+    expect(screen.getByText(/^Nouveau record de 1RM estimé en squat : 123,5 kg !/)).toHaveTextContent('(avant 116,5 kg)');
   });
 
   it('abandon : rien n’est enregistré', () => {
@@ -243,6 +286,9 @@ describe('parcours séance', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Supprimer la dernière série' }));
     expect(seriesOf('Squat')).toHaveLength(3);
     expect(saved().activeSession?.exercises[0].sets).toHaveLength(3);
+    // Suppression immédiate, sans modale, annoncée par un toast
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(toastEl()).toHaveTextContent('Série 4 supprimée.');
 
     // Ajouter un exercice depuis le menu → il devient l'exercice affiché
     fireEvent.click(screen.getByRole('button', { name: 'Options de Squat' }));
@@ -251,18 +297,21 @@ describe('parcours séance', () => {
     expect(screen.getByText('Exercice 2 sur 2')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Dips' })).toBeInTheDocument();
 
-    // Retirer cet exercice : confirmation conservée (l'annulation par toast viendra au lot 3)
+    // Retirer cet exercice : immédiat (plus de modale), toast « Annuler »
     fireEvent.click(screen.getByRole('button', { name: 'Options de Dips' }));
     fireEvent.click(screen.getByRole('button', { name: 'Retirer cet exercice' }));
-    fireEvent.click(dialog().getByRole('button', { name: 'Retirer' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Dips' })).not.toBeInTheDocument();
     expect(screen.getByText('Exercice 1 sur 1')).toBeInTheDocument();
+    expect(toastEl()).toHaveTextContent('Exercice retiré : dips.');
 
     fireEvent.click(screen.getByRole('button', { name: 'Options de Squat' }));
     fireEvent.click(screen.getByRole('button', { name: 'Retirer cet exercice' }));
-    fireEvent.click(dialog().getByRole('button', { name: 'Retirer' }));
     expect(screen.queryByRole('heading', { name: 'Squat' })).not.toBeInTheDocument();
     expect(saved().activeSession?.exercises).toEqual([]);
+    // Un seul toast : le nouveau remplace l'ancien
+    expect(document.querySelectorAll('.toast')).toHaveLength(1);
+    expect(toastEl()).toHaveTextContent('Exercice retiré : squat.');
   });
 
   it('bannière de reprise et redirection sans séance active', () => {
@@ -524,9 +573,12 @@ describe('parcours séance', () => {
   it('séance libre vide : abandon accessible sans menu, zone de retour présente dans l’arbre', () => {
     renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Séance libre' }));
-    const status = screen.getByRole('status');
+    const status = pageStatus();
     expect(status).toBeEmptyDOMElement();
     expect(status).toHaveClass('visually-hidden');
+    // Zone du toast présente et vide, dans le bas d'écran
+    expect(toastRegion()).toBeEmptyDOMElement();
+    expect(toastRegion().closest('.session-dock')).not.toBeNull();
     const abandonButton = screen.getByRole('button', { name: 'Abandonner la séance' });
     expect(abandonButton).toHaveClass('btn--danger-ghost');
     fireEvent.click(abandonButton);
@@ -583,17 +635,28 @@ describe('parcours séance', () => {
     expect(screen.getByRole('heading', { name: 'Séances' })).toBeInTheDocument();
   });
 
-  it('menu d’une séance type : dupliquer et supprimer avec confirmation', () => {
+  it('menu d’une séance type : dupliquer, supprimer (immédiat) puis annuler', () => {
     const { saved } = renderApp(stateWithTemplate());
     fireEvent.click(screen.getByRole('button', { name: 'Options de Jambes' }));
     fireEvent.click(screen.getByRole('button', { name: 'Dupliquer' }));
     expect(screen.getByRole('heading', { name: 'Jambes (copie)' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Options de Jambes (copie)' }));
+    // Supprimer la première : plus de modale, toast « Séance supprimée : Jambes. »
+    const before = saved();
+    fireEvent.click(screen.getByRole('button', { name: 'Options de Jambes' }));
     fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }));
-    fireEvent.click(dialog().getByRole('button', { name: 'Supprimer' }));
-    expect(screen.queryByRole('heading', { name: 'Jambes (copie)' })).not.toBeInTheDocument();
-    expect(saved().templates.map((t) => t.name)).toEqual(['Jambes']);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Jambes' })).not.toBeInTheDocument();
+    expect(saved().templates.map((t) => t.name)).toEqual(['Jambes (copie)']);
+    expect(toastRegion()).toHaveAttribute('role', 'status');
+    expect(toastRegion()).toContainElement(toastEl());
+    expect(toastEl()).toHaveTextContent('Séance supprimée : Jambes.');
+
+    // Annuler : elle revient à sa place, état strictement identique
+    undo();
+    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Jambes', 'Jambes (copie)']);
+    expect(saved()).toEqual(before);
+    expect(document.querySelector('.toast')).toBeNull();
   });
 
   it('modifie une séance type existante', () => {
@@ -601,12 +664,16 @@ describe('parcours séance', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Options de Jambes' }));
     fireEvent.click(screen.getByRole('button', { name: 'Modifier' }));
     expect(screen.getByRole('textbox', { name: 'Nom' })).toHaveValue('Jambes');
-    // Boutons empilés : « Enregistrer la séance » pleine largeur en premier, « Annuler » dessous.
+    // Constructeur plein écran : pas de barre d'onglets ; « Annuler » en lien en haut à gauche ;
+    // « Enregistrer la séance » (56 px, accent, pleine largeur) dans la barre fixe du bas.
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
     const save = screen.getByRole('button', { name: 'Enregistrer la séance' });
     const cancel = screen.getByRole('button', { name: 'Annuler' });
-    expect(save).toHaveClass('btn--primary', 'btn--block');
-    expect(cancel).toHaveClass('btn--block');
-    expect(save.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(save).toHaveClass('btn--primary', 'btn--lg', 'btn--block');
+    expect(save.closest('.editor-dock')).not.toBeNull();
+    expect(cancel).toHaveClass('back-link');
+    expect(cancel.closest('.editor-dock')).toBeNull();
+    expect(cancel.compareDocumentPosition(screen.getByRole('heading', { level: 1 })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     fireEvent.change(screen.getByRole('textbox', { name: 'Nom' }), { target: { value: 'Legs' } });
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer la séance' }));
     expect(saved().templates[0].name).toBe('Legs');
@@ -635,5 +702,259 @@ describe('parcours séance', () => {
     fireEvent.click(dialog().getByRole('button', { name: 'Abandonner' }));
     expect(screen.getByRole('heading', { name: 'Séances' })).toBeInTheDocument();
     expect(saved().templates[0].exercises[0].targetSets).toBe(3);
+  });
+});
+
+describe('toast « Annuler » (lot 3)', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('séance : « Supprimer la dernière série » puis Annuler restaure la série et ses valeurs', () => {
+    const { saved } = renderApp(stateWithTwoExercises());
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Haut' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Charge (kg) : plus 2,5' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
+    // Retour sur l'exercice 1 (2 séries faites), dont on supprime la dernière
+    fireEvent.click(screen.getByRole('button', { name: /^Exercice précédent/ }));
+    const before = saved().activeSession;
+    fireEvent.click(screen.getByRole('button', { name: 'Options de Développé couché' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer la dernière série' }));
+    expect(seriesOf('Développé couché')).toHaveLength(1);
+    expect(toastEl()).toHaveTextContent('Série 2 supprimée.');
+    // Toast dans le bas d'écran, au-dessus du bouton principal (jamais par-dessus)
+    const dock = document.querySelector('.session-dock')!;
+    const primary = within(dock as HTMLElement).getByRole('button', { name: 'Exercice suivant' });
+    expect(dock.contains(toastEl())).toBe(true);
+    expect(toastEl().compareDocumentPosition(primary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    undo();
+    expect(seriesOf('Développé couché')).toHaveLength(2);
+    expect(saved().activeSession).toEqual(before);
+    expect(screen.getByRole('button', { name: /^Corriger la série 2 : 60\skg × 10, faite$/ })).toBeInTheDocument();
+  });
+
+  it('séance : « Retirer cet exercice » puis Annuler restaure sa position et l’exercice affiché', () => {
+    const { saved } = renderApp(stateWithTwoExercises());
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Haut' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Exercice suivant/ }));
+    const before = saved().activeSession;
+    expect(before?.currentExerciseIndex).toBe(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Options de Tractions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer cet exercice' }));
+    expect(screen.getByText('Exercice 1 sur 1')).toBeInTheDocument();
+    expect(toastEl()).toHaveTextContent('Exercice retiré : tractions.');
+
+    undo();
+    expect(screen.getByText('Exercice 2 sur 2')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Tractions' })).toBeInTheDocument();
+    expect(saved().activeSession).toEqual(before);
+  });
+
+  it('historique : suppression depuis le détail, le toast suit vers la liste, Annuler restaure', () => {
+    const initial = stateWithTemplate();
+    initial.sessions.push(
+      { id: 'h1', templateId: 't1', name: 'Jambes', startedAt: '2026-10-01T10:00:00.000Z', endedAt: '2026-10-01T11:00:00.000Z', exercises: [{ exerciseId: 'squat', sets: [{ weight: 100, reps: 5, done: true }] }] },
+      { id: 'h2', name: 'Libre', startedAt: '2026-10-02T10:00:00.000Z', endedAt: '2026-10-02T11:00:00.000Z', exercises: [{ exerciseId: 'dips', sets: [{ weight: 0, reps: 10, done: true }] }] },
+    );
+    window.location.hash = '#/historique/h1';
+    const { saved } = renderApp(initial);
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer la séance' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Historique' })).toBeInTheDocument();
+    expect(saved().sessions.map((x) => x.id)).toEqual(['h2']);
+    expect(toastEl()).toHaveTextContent('Séance supprimée : Jambes.');
+    // Toast flottant au-dessus de la barre d'onglets
+    expect(toastRegion()).toHaveClass('toast-region--floating', 'toast-region--above-tabbar');
+
+    undo();
+    expect(saved()).toEqual(initial);
+    expect(screen.getByRole('link', { name: /Jambes/ })).toBeInTheDocument();
+  });
+
+  it('constructeur : retirer un exercice puis Annuler le remet à sa place avec ses objectifs', () => {
+    const initial = createDefaultState();
+    initial.templates.push(
+      createTemplate(
+        {
+          name: 'Haut',
+          exercises: [
+            { ...createTemplateExercise('developpe-couche'), targetSets: 5 },
+            { ...createTemplateExercise('tractions'), targetReps: 6 },
+            createTemplateExercise('dips'),
+          ],
+        },
+        new Date('2026-10-01T10:00:00Z'),
+        't1',
+      ),
+    );
+    window.location.hash = '#/seances/t1';
+    renderApp(initial);
+    const names = () => screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer Tractions' }));
+    expect(names()).toEqual(['Développé couché', 'Dips']);
+    expect(toastEl()).toHaveTextContent('Exercice retiré : tractions.');
+    // Toast dans la barre fixe, au-dessus de « Enregistrer la séance »
+    expect(toastEl().closest('.editor-dock')).not.toBeNull();
+
+    undo();
+    expect(names()).toEqual(['Développé couché', 'Tractions', 'Dips']);
+    expect(screen.getAllByLabelText('Reps').map((el) => (el as HTMLInputElement).value)).toEqual(['10', '6', '10']);
+    // Rien n'a changé : « Annuler » (quitter) ne demande pas de confirmation
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+    expect(screen.getByRole('heading', { name: 'Séances' })).toBeInTheDocument();
+  });
+
+  it('se ferme seul après 5 s ; la suppression reste effective', () => {
+    vi.useFakeTimers();
+    const { saved } = renderApp(stateWithTemplate());
+    fireEvent.click(screen.getByRole('button', { name: 'Options de Jambes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }));
+    expect(toastEl()).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(TOAST_DURATION_MS - 100);
+    });
+    expect(document.querySelector('.toast')).not.toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(document.querySelector('.toast')).toBeNull();
+    expect(saved().templates).toEqual([]);
+  });
+
+  it('naviguer ailleurs pendant le toast : la suppression reste effective', () => {
+    const { saved } = renderApp(stateWithTemplate());
+    fireEvent.click(screen.getByRole('button', { name: 'Options de Jambes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Historique' }));
+    expect(screen.getByRole('heading', { name: 'Historique' })).toBeInTheDocument();
+    expect(saved().templates).toEqual([]);
+  });
+
+  it('séance : le toast disparaît quand on quitte l’écran (fin de séance), la suppression reste', () => {
+    const { saved } = renderApp(stateWithTwoExercises());
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Haut' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Options de Développé couché' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer la dernière série' }));
+    expect(toastEl()).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer la séance' }));
+    fireEvent.click(dialog().getByRole('button', { name: 'Terminer la séance' }));
+    expect(screen.getByRole('button', { name: 'Voir mes progrès' })).toBeInTheDocument();
+    expect(document.querySelector('.toast')).toBeNull();
+    expect(saved().sessions[0].exercises[0].sets).toHaveLength(1);
+  });
+});
+
+describe('restes des revues', () => {
+  it('« Exercice suivant » (bouton principal) saute un exercice déjà terminé, comme le passage auto', () => {
+    const initial = stateWithTwoExercises();
+    initial.activeSession = {
+      id: 'a',
+      templateId: 't2',
+      name: 'Haut',
+      startedAt: new Date().toISOString(),
+      currentExerciseIndex: 0,
+      exercises: [
+        { exerciseId: 'developpe-couche', sets: [{ weight: 60, reps: 10, done: true }] },
+        { exerciseId: 'tractions', sets: [{ weight: 0, reps: 8, done: true }] },
+        { exerciseId: 'dips', sets: [{ weight: 0, reps: 10, done: false }] },
+      ],
+    };
+    window.location.hash = '#/seance';
+    renderApp(initial);
+    const primary = screen.getByRole('button', { name: 'Exercice suivant' });
+    expect(primary).toHaveClass('btn--primary');
+    fireEvent.click(primary);
+    expect(screen.getByText('Exercice 3 sur 3')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Dips' })).toBeInTheDocument();
+  });
+
+  it('correction en cours puis action du menu ⋯ : la correction est abandonnée', () => {
+    const { saved } = renderApp(stateWithTwoExercises());
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Haut' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Corriger la série 1/ }));
+    expect(currentSet()).toHaveTextContent('En correction');
+    fireEvent.click(screen.getByRole('button', { name: 'Options de Développé couché' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une série' }));
+    // Retour à la série en cours ; la série 1 reste faite, avec ses valeurs
+    expect(currentSet()).toHaveTextContent('Série 2 sur 3');
+    expect(currentSet()).toHaveTextContent('En cours');
+    expect(screen.getByRole('button', { name: 'Valider la série' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Enregistrer la correction' })).not.toBeInTheDocument();
+    expect(saved().activeSession?.exercises[0].sets[0]).toEqual({ weight: 60, reps: 10, done: true });
+  });
+});
+
+describe('onglet Séances (lot 4)', () => {
+  afterEach(() => vi.useRealTimers());
+
+  function stateWithThreeTemplates(): AppState {
+    const s = createDefaultState();
+    const at = new Date('2026-10-01T10:00:00Z');
+    s.templates.push(
+      createTemplate({ name: 'Push', exercises: [{ ...createTemplateExercise('developpe-couche'), targetSets: 4 }] }, at, 'ta'),
+      createTemplate({ name: 'Pull', exercises: [createTemplateExercise('tractions'), createTemplateExercise('rowing-barre')] }, at, 'tb'),
+      createTemplate({ name: 'Jambes', exercises: [createTemplateExercise('squat')] }, at, 'tc'),
+    );
+    const done = (id: string, templateId: string, day: number) => ({
+      id,
+      templateId,
+      name: id,
+      startedAt: new Date(2026, 9, day, 18).toISOString(),
+      endedAt: new Date(2026, 9, day, 19).toISOString(),
+      exercises: [{ exerciseId: 'squat', sets: [{ weight: 100, reps: 5, done: true }] }],
+    });
+    // Push faite il y a 3 jours, Pull il y a 7 jours, Jambes jamais
+    s.sessions.push(done('s1', 'ta', 25), done('s2', 'tb', 21));
+    return s;
+  }
+
+  it('cartes : nombre d’exercices, durée estimée, dernier passage ; un seul bouton accent', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 28, 12, 0));
+    renderApp(stateWithThreeTemplates());
+    const cards = screen.getAllByRole('listitem');
+    // La carte suggérée (Pull) passe en tête ; les autres gardent leur ordre (Push, Jambes)
+    expect(cards.map((c) => within(c).getByRole('heading').textContent)).toEqual(['Pull', 'Push', 'Jambes']);
+    expect(cards[0]).toHaveTextContent(/2 exercices · ≈ 15 min/);
+    expect(cards[0]).toHaveTextContent('Faite il y a 7 jours');
+    expect(cards[1]).toHaveTextContent(/1 exercice · ≈ 10 min/);
+    expect(cards[1]).toHaveTextContent('Faite il y a 3 jours');
+    expect(cards[2]).toHaveTextContent('Jamais faite');
+
+    // Accent unique : la séance faite il y a le plus longtemps (Pull)
+    const accents = document.querySelectorAll('.btn--primary');
+    expect(accents).toHaveLength(1);
+    expect(accents[0]).toHaveAccessibleName('Démarrer la séance Pull');
+    expect(accents[0]).toHaveTextContent('Démarrer la séance');
+    expect(within(cards[0]).getByText('Suggérée')).toBeInTheDocument();
+    for (const name of ['Push', 'Jambes']) {
+      const btn = screen.getByRole('button', { name: `Démarrer la séance ${name}` });
+      expect(btn).toHaveTextContent(/^Démarrer$/);
+      expect(btn).not.toHaveClass('btn--primary');
+    }
+    // « Créer une séance » en contour quand des séances existent
+    expect(screen.getByRole('link', { name: 'Créer une séance' })).not.toHaveClass('btn--primary');
+  });
+
+  it('état vide : « Créer une séance » est l’unique accent', () => {
+    renderApp();
+    const accents = document.querySelectorAll('.btn--primary');
+    expect(accents).toHaveLength(1);
+    expect(accents[0]).toHaveTextContent('Créer une séance');
+  });
+
+  it('Réglages : bouton nommé dans l’en-tête, page plein écran, retour « Séances » ; export en 2 taps', () => {
+    renderApp(stateWithTemplate());
+    const settings = screen.getByRole('link', { name: 'Réglages' });
+    expect(settings.closest('.page-header')).not.toBeNull();
+    expect(settings.querySelector('svg')).not.toBeNull();
+    fireEvent.click(settings); // tap 1
+    expect(screen.getByRole('heading', { name: 'Réglages' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Exporter mes données' })).toBeInTheDocument(); // tap 2
+    fireEvent.click(screen.getByRole('link', { name: 'Séances' }));
+    expect(screen.getByRole('heading', { name: 'Séances' })).toBeInTheDocument();
   });
 });

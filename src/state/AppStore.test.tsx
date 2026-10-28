@@ -84,6 +84,44 @@ describe('AppStoreProvider', () => {
     expect(store.current!.loadError).toBeDefined();
   });
 
+  it('Annuler après un import ou une réinitialisation : rien n’est réinjecté', () => {
+    const { store } = setup();
+    let id = '';
+    act(() => {
+      id = store.current!.actions.createTemplate({ name: 'Push' });
+      store.current!.actions.createTemplate({ name: 'Pull' });
+    });
+    // Sans remplacement, l'annulation fonctionne
+    let snap = store.current!.actions.deleteTemplate(id);
+    act(() => store.current!.actions.restore(snap!));
+    expect(store.current!.state.templates.map((t) => t.name)).toEqual(['Push', 'Pull']);
+
+    // Suppression, puis import : l'instantané est périmé
+    act(() => {
+      snap = store.current!.actions.deleteTemplate(id);
+    });
+    const imported = { ...store.current!.state, templates: [] };
+    act(() => {
+      store.current!.actions.replaceState(imported);
+    });
+    act(() => store.current!.actions.restore(snap!));
+    expect(store.current!.state.templates).toEqual([]);
+
+    // Idem après une réinitialisation
+    act(() => {
+      store.current!.actions.createTemplate({ name: 'Legs' });
+    });
+    const legs = store.current!.state.templates[0].id;
+    act(() => {
+      snap = store.current!.actions.deleteTemplate(legs);
+    });
+    act(() => {
+      store.current!.actions.resetState();
+    });
+    act(() => store.current!.actions.restore(snap!));
+    expect(store.current!.state.templates).toEqual([]);
+  });
+
   it('dismissLoadError masque l’erreur de chargement', () => {
     const { store } = setup({ [STORAGE_KEY]: 'corrompu' });
     act(() => store.current!.actions.dismissLoadError());

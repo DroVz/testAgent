@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createDefaultState } from '../lib/storage';
 import { createTemplate, createTemplateExercise } from '../lib/templates';
 import type { AppState } from '../lib/types';
+import { captureUndo, type DeletionTarget } from '../lib/undo';
 import { appReducer, type AppAction } from './appReducer';
 
 const T0 = new Date('2026-03-01T10:00:00.000Z');
@@ -164,5 +165,168 @@ describe('appReducer — historique et données', () => {
     const other = withTemplate();
     expect(appReducer(createDefaultState(), { type: 'data/replace', state: other })).toBe(other);
     expect(appReducer(other, { type: 'data/reset' })).toEqual(createDefaultState());
+  });
+});
+
+describe('appReducer — annulation d’une suppression (toast « Annuler »)', () => {
+  /** Supprime puis annule : l'état doit redevenir strictement identique. */
+  function deleteThenUndo(before: AppState, target: DeletionTarget, action: AppAction): { deleted: AppState; restored: AppState } {
+    const snapshot = captureUndo(before, target);
+    expect(snapshot).toBeDefined();
+    const deleted = appReducer(before, action);
+    expect(deleted).not.toEqual(before);
+    const restored = appReducer(deleted, { type: 'undo/restore', snapshot: snapshot! });
+    return { deleted, restored };
+  }
+
+  /** 3 séances types, 3 séances passées, une séance en cours de 3 exercices (le 2e affiché). */
+  function richState(): AppState {
+    let s = createDefaultState();
+    for (const [id, name] of [['t1', 'Push'], ['t2', 'Pull'], ['t3', 'Jambes']]) {
+      s.templates.push(createTemplate({ name, exercises: [createTemplateExercise('squat')] }, T0, id));
+    }
+    for (const id of ['h1', 'h2', 'h3']) {
+      s = run(s, { type: 'session/startFree', sessionId: id, now: T0 }, { type: 'session/finish', now: T1 });
+    }
+    s = run(
+      s,
+      { type: 'session/startFromTemplate', templateId: 't1', sessionId: 'live', now: T0 },
+      { type: 'session/addExercise', exerciseId: 'dips' },
+      { type: 'session/addExercise', exerciseId: 'tractions' },
+      { type: 'session/goToExercise', exerciseIndex: 1 },
+      // Série faite sur un exercice non affiché : pas de passage automatique.
+      { type: 'session/validateSet', exerciseIndex: 0, setIndex: 0 },
+    );
+    return s;
+  }
+
+  it('séance type : revient à sa position exacte', () => {
+    const before = richState();
+    const { deleted, restored } = deleteThenUndo(before, { kind: 'template', id: 't2' }, { type: 'template/delete', id: 't2' });
+    expect(deleted.templates.map((t) => t.id)).toEqual(['t1', 't3']);
+    expect(restored).toStrictEqual(before);
+  });
+
+  it('séance de l’historique : revient à sa position exacte', () => {
+    const before = richState();
+    const { restored } = deleteThenUndo(before, { kind: 'historySession', id: 'h2' }, { type: 'history/delete', sessionId: 'h2' });
+    expect(restored).toStrictEqual(before);
+  });
+
+  it('série en séance (la dernière, et une du milieu) : valeurs et état « faite » restaurés', () => {
+    const before = richState();
+    const last = before.activeSession!.exercises[0].sets.length - 1;
+    expect(
+      deleteThenUndo(before, { kind: 'sessionSet', exerciseIndex: 0, setIndex: last }, { type: 'session/removeSet', exerciseIndex: 0, setIndex: last })
+        .restored,
+    ).toStrictEqual(before);
+    expect(
+      deleteThenUndo(before, { kind: 'sessionSet', exerciseIndex: 1, setIndex: 0 }, { type: 'session/removeSet', exerciseIndex: 1, setIndex: 0 })
+        .restored,
+    ).toStrictEqual(before);
+  });
+
+  it('exercice en séance : position et currentExerciseIndex restaurés', () => {
+    const before = richState();
+    expect(before.activeSession?.currentExerciseIndex).toBe(1);
+    for (const exerciseIndex of [0, 1, 2]) {
+      const { deleted, restored } = deleteThenUndo(
+        before,
+        { kind: 'sessionExercise', exerciseIndex },
+        { type: 'session/removeExercise', exerciseIndex },
+      );
+      expect(deleted.activeSession?.exercises).toHaveLength(2);
+      expect(restored).toStrictEqual(before);
+    }
+  });
+
+  it('exercice en séance sans currentExerciseIndex (séance ancienne) : le champ reste absent', () => {
+    const before = richState();
+    const { currentExerciseIndex: _drop, ...legacy } = before.activeSession!;
+    before.activeSession = legacy;
+    const { restored } = deleteThenUndo(before, { kind: 'sessionExercise', exerciseIndex: 0 }, { type: 'session/removeExercise', exerciseIndex: 0 });
+    expect(restored).toStrictEqual(before);
+    expect(restored.activeSession).not.toHaveProperty('currentExerciseIndex');
+  });
+
+  it('les autres modifications faites entre-temps sont conservées', () => {
+    const before = richState();
+    const snapshot = captureUndo(before, { kind: 'template', id: 't1' })!;
+    const s = run(
+      before,
+      { type: 'template/delete', id: 't1' },
+      { type: 'template/update', id: 't3', patch: { name: 'Legs' }, now: T1 },
+      { type: 'undo/restore', snapshot },
+    );
+    expect(s.templates.map((t) => t.name)).toEqual(['Push', 'Pull', 'Legs']);
+  });
+
+  it('annulation sans objet → état inchangé (déjà restauré, séance terminée, exercice déplacé)', () => {
+    const before = richState();
+    const tpl = captureUndo(before, { kind: 'template', id: 't1' })!;
+    expect(appReducer(before, { type: 'undo/restore', snapshot: tpl })).toBe(before);
+
+    const set = captureUndo(before, { kind: 'sessionSet', exerciseIndex: 0, setIndex: 0 })!;
+    const finished = run(before, { type: 'session/removeSet', exerciseIndex: 0, setIndex: 0 }, { type: 'session/finish', now: T1 });
+    expect(appReducer(finished, { type: 'undo/restore', snapshot: set })).toBe(finished);
+
+    const ex = captureUndo(before, { kind: 'sessionExercise', exerciseIndex: 2 })!;
+    const other = run(before, { type: 'session/abandon' }, { type: 'session/startFree', sessionId: 'autre', now: T1 });
+    expect(appReducer(other, { type: 'undo/restore', snapshot: ex })).toBe(other);
+
+    // L'exercice à cette position a changé : on ne réinsère pas la série au mauvais endroit.
+    const moved = run(before, { type: 'session/removeSet', exerciseIndex: 0, setIndex: 0 }, { type: 'session/removeExercise', exerciseIndex: 0 });
+    expect(appReducer(moved, { type: 'undo/restore', snapshot: set })).toBe(moved);
+  });
+
+  it('idempotent : appliquer deux fois la même annulation ne crée pas de doublon', () => {
+    const before = richState();
+    const cases: [DeletionTarget, AppAction][] = [
+      [{ kind: 'sessionSet', exerciseIndex: 0, setIndex: 1 }, { type: 'session/removeSet', exerciseIndex: 0, setIndex: 1 }],
+      [{ kind: 'sessionExercise', exerciseIndex: 1 }, { type: 'session/removeExercise', exerciseIndex: 1 }],
+      [{ kind: 'template', id: 't2' }, { type: 'template/delete', id: 't2' }],
+      [{ kind: 'historySession', id: 'h2' }, { type: 'history/delete', sessionId: 'h2' }],
+    ];
+    for (const [target, action] of cases) {
+      const snapshot = captureUndo(before, target)!;
+      const once = run(before, action, { type: 'undo/restore', snapshot });
+      const twice = appReducer(once, { type: 'undo/restore', snapshot });
+      expect(twice, target.kind).toBe(once);
+      expect(twice, target.kind).toStrictEqual(before);
+    }
+  });
+
+  it('série supprimée, autre série du même exercice validée entre-temps, puis Annuler : les deux sont conservées', () => {
+    const before = richState();
+    // Exercice 0 : 3 séries (la 1re faite) + 1 ajoutée = 4 séries.
+    const start = run(before, { type: 'session/addSet', exerciseIndex: 0 });
+    const sets = start.activeSession!.exercises[0].sets;
+    expect(sets.map((x) => x.done)).toEqual([true, false, false, false]);
+    const snapshot = captureUndo(start, { kind: 'sessionSet', exerciseIndex: 0, setIndex: 2 })!;
+    const s = run(
+      start,
+      { type: 'session/removeSet', exerciseIndex: 0, setIndex: 2 },
+      // Validation d'une autre série du même exercice pendant le toast
+      { type: 'session/updateSet', exerciseIndex: 0, setIndex: 1, weight: 72.5 },
+      { type: 'session/validateSet', exerciseIndex: 0, setIndex: 1 },
+      { type: 'undo/restore', snapshot },
+    );
+    const after = s.activeSession!.exercises[0].sets;
+    expect(after).toHaveLength(4);
+    // La validation faite entre-temps est conservée…
+    expect(after[1]).toEqual({ ...sets[1], weight: 72.5, done: true });
+    // …et la série supprimée revient à son index, avec ses valeurs.
+    expect(after[2]).toBe(sets[2]);
+    expect(after[0]).toBe(sets[0]);
+    expect(after[3]).toBe(sets[3]);
+    expect(s.activeSession!.currentExerciseIndex).toBe(start.activeSession!.currentExerciseIndex);
+  });
+
+  it('cible introuvable → pas d’instantané', () => {
+    const s = richState();
+    expect(captureUndo(s, { kind: 'template', id: 'x' })).toBeUndefined();
+    expect(captureUndo(s, { kind: 'historySession', id: 'x' })).toBeUndefined();
+    expect(captureUndo(s, { kind: 'sessionSet', exerciseIndex: 0, setIndex: 99 })).toBeUndefined();
+    expect(captureUndo(createDefaultState(), { kind: 'sessionExercise', exerciseIndex: 0 })).toBeUndefined();
   });
 });

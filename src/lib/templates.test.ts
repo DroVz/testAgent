@@ -5,6 +5,7 @@ import {
   createTemplateExercise,
   deleteTemplate,
   duplicateTemplate,
+  estimateTemplateMinutes,
   moveTemplateExercise,
   updateTemplate,
   upsertTemplate,
@@ -119,5 +120,25 @@ describe('moveTemplateExercise', () => {
     expect(moveTemplateExercise(t, 0, 'up', T1)).toBe(t);
     expect(moveTemplateExercise(t, 2, 'down', T1)).toBe(t);
     expect(moveTemplateExercise(t, 7, 'up', T1)).toBe(t);
+  });
+});
+
+describe('estimateTemplateMinutes', () => {
+  const t = (exercises: { targetSets: number; restSeconds: number }[]) => ({
+    exercises: exercises.map((e) => ({ ...createTemplateExercise('squat'), ...e })),
+  });
+
+  it('séries × (40 s d’effort + repos de l’exercice), arrondi aux 5 min', () => {
+    // 3 × (40 + 90) = 390 s = 6,5 min → 5 ; + 4 × (40 + 120) = 640 s → 1 030 s = 17,2 min → 15
+    expect(estimateTemplateMinutes(t([{ targetSets: 3, restSeconds: 90 }]))).toBe(5);
+    expect(estimateTemplateMinutes(t([{ targetSets: 3, restSeconds: 90 }, { targetSets: 4, restSeconds: 120 }]))).toBe(15);
+    // 5 exercices × 4 séries × (40 + 90) = 2 600 s = 43,3 min → 45
+    expect(estimateTemplateMinutes(t(Array.from({ length: 5 }, () => ({ targetSets: 4, restSeconds: 90 }))))).toBe(45);
+  });
+
+  it('jamais 0 dès qu’il y a une série ; 0 sans exercice', () => {
+    expect(estimateTemplateMinutes(t([{ targetSets: 1, restSeconds: 0 }]))).toBe(5);
+    expect(estimateTemplateMinutes(t([]))).toBe(0);
+    expect(estimateTemplateMinutes(t([{ targetSets: 0, restSeconds: 90 }]))).toBe(0);
   });
 });

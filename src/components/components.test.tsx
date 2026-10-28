@@ -7,6 +7,7 @@ import ExercisePicker from './ExercisePicker';
 import LineChart, { chartFontSize } from './LineChart';
 import NumberField from './NumberField';
 import RestTimer from './RestTimer';
+import { TOAST_DURATION_MS, ToastHost, ToastProvider, useToast } from './Toast';
 
 describe('ConfirmDialog', () => {
   it('rien si fermée ; sinon dialogue accessible, focus sur Annuler, Échap = annuler', () => {
@@ -155,6 +156,21 @@ describe('RestTimer', () => {
     }
   });
 
+  it('pas de vibration tant que l’utilisateur n’a pas interagi avec la page (userActivation)', () => {
+    const vibrate = vi.fn();
+    vi.stubGlobal('navigator', { ...navigator, vibrate, userActivation: { hasBeenActive: false } });
+    render(<RestTimer endsAt={5_000} now={() => 10_000} onAdjust={() => {}} onDismiss={() => {}} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Repos terminé.');
+    expect(vibrate).not.toHaveBeenCalled();
+  });
+
+  it('vibre si la page a déjà reçu un geste (userActivation.hasBeenActive)', () => {
+    const vibrate = vi.fn();
+    vi.stubGlobal('navigator', { ...navigator, vibrate, userActivation: { hasBeenActive: true } });
+    render(<RestTimer endsAt={5_000} now={() => 10_000} onAdjust={() => {}} onDismiss={() => {}} />);
+    expect(vibrate).toHaveBeenCalledTimes(1);
+  });
+
   it('sans API de vibration : pas d’erreur', () => {
     vi.stubGlobal('navigator', { ...navigator, vibrate: undefined });
     render(<RestTimer endsAt={0} now={() => 1} onAdjust={() => {}} onDismiss={() => {}} />);
@@ -219,12 +235,21 @@ describe('LineChart', () => {
 
   it('chartFontSize : graduations ≥ 13 px affichés, même à 360 px de large', () => {
     // À 360 px d'écran, le SVG fait ≈ 310 px pour un viewBox de 340 unités.
-    for (const width of [250, 310, 358, 600]) {
+    for (const width of [250, 310, 358, 600, 1200]) {
       const size = chartFontSize(14, width);
       expect(size * (width / 340), String(width)).toBeGreaterThanOrEqual(13);
-      expect(size).toBeGreaterThanOrEqual(14);
     }
+    // Sur mobile, la taille visée (14) est conservée dès qu'elle tient.
+    expect(chartFontSize(14, 358)).toBe(14);
     expect(chartFontSize(14, null)).toBe(14);
+  });
+
+  it('chartFontSize : sur écran large, les graduations ne dépassent pas 16 px affichés', () => {
+    for (const width of [590, 800, 1200]) {
+      const rendered = chartFontSize(14, width) * (width / 340);
+      expect(rendered, String(width)).toBeLessThanOrEqual(16);
+      expect(rendered, String(width)).toBeGreaterThanOrEqual(13);
+    }
   });
 
   it('applique la taille calculée selon la largeur réelle du SVG', () => {
@@ -279,5 +304,82 @@ describe('LineChart', () => {
     expect(container.querySelector('.chart__line')?.getAttribute('d')).not.toMatch(/NaN|Infinity/);
     container.querySelectorAll('circle').forEach((c) => expect(Number(c.getAttribute('cy'))).not.toBeNaN());
     expect(container.querySelectorAll('.chart__tick--x').length).toBeGreaterThan(0);
+  });
+});
+
+describe('Toast', () => {
+  afterEach(() => vi.useRealTimers());
+
+  function Demo({ onUndo }: { onUndo(label: string): void }) {
+    const toast = useToast();
+    return (
+      <>
+        <button type="button" onClick={() => toast.show({ message: 'Série 3 supprimée.', onUndo: () => onUndo('a') })}>
+          A
+        </button>
+        <button type="button" onClick={() => toast.show({ message: 'Séance supprimée.', onUndo: () => onUndo('b') })}>
+          B
+        </button>
+        <ToastHost placement="floating" aboveTabbar />
+      </>
+    );
+  }
+
+  it('role="status", bouton « Annuler » (≥ 48 px via .toast__undo), un seul à la fois, se ferme seul après 5 s', () => {
+    vi.useFakeTimers();
+    const onUndo = vi.fn();
+    render(
+      <ToastProvider>
+        <Demo onUndo={onUndo} />
+      </ToastProvider>,
+    );
+    // Zone role="status" toujours présente, vide sans toast
+    const region = screen.getByRole('status');
+    expect(region).toBeEmptyDOMElement();
+    fireEvent.click(screen.getByRole('button', { name: 'A' }));
+    expect(screen.getByRole('status')).toBe(region);
+    expect(region).toHaveTextContent('Série 3 supprimée.');
+    expect(screen.getByRole('button', { name: 'Annuler la suppression' })).toHaveClass('toast__undo');
+
+    // Un nouveau toast remplace l'ancien (dont l'action reste validée) et relance le délai
+    act(() => {
+      vi.advanceTimersByTime(4000);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+    expect(region.querySelectorAll('.toast')).toHaveLength(1);
+    expect(region).toHaveTextContent('Séance supprimée.');
+    act(() => {
+      vi.advanceTimersByTime(TOAST_DURATION_MS - 1);
+    });
+    expect(region).not.toBeEmptyDOMElement();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(region).toBeEmptyDOMElement();
+    expect(onUndo).not.toHaveBeenCalled();
+  });
+
+  it('« Annuler » appelle l’annulation du toast affiché et le ferme', () => {
+    const onUndo = vi.fn();
+    render(
+      <ToastProvider>
+        <Demo onUndo={onUndo} />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'A' }));
+    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler la suppression' }));
+    expect(onUndo.mock.calls).toEqual([['b']]);
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+  });
+
+  it('les cibles tactiles du toast respectent 48 px (CSS)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const css = readFileSync(`${process.cwd()}/src/styles.css`, 'utf-8');
+    const rule = /\.toast__undo \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(rule).toContain('min-height: var(--touch)');
+    expect(rule).toContain('min-width: var(--touch)');
+    // Jamais l'accent : il reste réservé à l'action principale de l'écran
+    expect(/\.toast \{([^}]*)\}/.exec(css)?.[1]).not.toContain('--accent');
   });
 });

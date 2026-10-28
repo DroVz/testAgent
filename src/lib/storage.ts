@@ -1,3 +1,4 @@
+import { NBSP } from './format';
 import { DEFAULT_EXERCISES } from './defaultExercises';
 import { MAX_REPS, MAX_WEIGHT, clampExerciseIndex } from './session';
 import {
@@ -84,7 +85,7 @@ function nonNegInt(v: unknown, path: string): number {
 
 function weight(v: unknown, path: string): number {
   const n = nonNegNumber(v, path);
-  if (n > MAX_WEIGHT) fail(path, `poids ≤ ${MAX_WEIGHT} kg`);
+  if (n > MAX_WEIGHT) fail(path, `poids ≤ ${MAX_WEIGHT}${NBSP}kg`);
   return n;
 }
 

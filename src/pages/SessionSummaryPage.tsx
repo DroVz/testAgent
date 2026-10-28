@@ -4,6 +4,7 @@ import {
   exerciseName,
   formatDuration,
   formatNumber,
+  formatOneRepMax,
   formatRecordSentence,
   formatSessionSummary,
   formatSetsSummary,
@@ -79,12 +80,16 @@ export default function SessionSummaryPage() {
         <div className="card records">
           <h2 className="section-title">Nouveaux records</h2>
           <ul className="records__list">
-            {records.map((r) => (
-              <li key={`${r.exerciseId}-${r.type}`} className="records__item">
-                {formatRecordSentence(exerciseName(state.exercises, r.exerciseId), r.value, RECORD_KINDS[r.type])}{' '}
-                <span className="muted">(avant {formatWeight(r.previous)})</span>
-              </li>
-            ))}
+            {records.map((r) => {
+              // 1RM : même arrondi à 0,5 kg que dans Progrès (une seule fonction de formatage).
+              const format = r.type === 'bestOneRepMax' ? formatOneRepMax : formatWeight;
+              return (
+                <li key={`${r.exerciseId}-${r.type}`} className="records__item">
+                  {formatRecordSentence(exerciseName(state.exercises, r.exerciseId), format(r.value), RECORD_KINDS[r.type])}{' '}
+                  <span className="muted">(avant {format(r.previous)})</span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
