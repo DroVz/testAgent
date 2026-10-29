@@ -5,7 +5,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import ExercisePicker from '../components/ExercisePicker';
 import NumberField from '../components/NumberField';
 import { ToastHost, useToast } from '../components/Toast';
-import { exerciseName, inSentence } from '../lib/format';
+import { COLON, exerciseName, inSentence } from '../lib/format';
 import { MAX_REPS, MAX_WEIGHT } from '../lib/session';
 import { createTemplateExercise } from '../lib/templates';
 import type { Template, TemplateExercise } from '../lib/types';
@@ -60,7 +60,7 @@ function Editor({ template }: { template?: Template }) {
     if (!removed) return;
     setExercises((list) => list.filter((_, j) => j !== index));
     toastId.current = toast.show({
-      message: `Exercice retiré : ${inSentence(label)}.`,
+      message: `Exercice retiré${COLON} ${inSentence(label)}.`,
       onUndo: () => setExercises((list) => insertAt(list, index, removed)),
     });
   };

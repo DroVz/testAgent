@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useS
 import { createId } from '../lib/id';
 import { createDefaultState, loadState, saveState, type StorageLike } from '../lib/storage';
 import { createTemplate, type TemplateInput } from '../lib/templates';
-import type { AppState, LoadSuggestion, MuscleGroup } from '../lib/types';
+import type { AppState, LoadSuggestion, MuscleGroup, SessionExercise } from '../lib/types';
 import { captureUndo, type DeletionTarget, type UndoSnapshot } from '../lib/undo';
 import { appReducer } from './appReducer';
 
@@ -35,7 +35,7 @@ export interface AppActions {
   /** « Rester à 80 kg » : séries non validées aux valeurs de la dernière fois, note retirée. */
   keepLastLoad(exerciseIndex: number): void;
   /** « Annuler » après « Rester à … » : remet la note et les valeurs proposées. */
-  reapplySuggestion(exerciseIndex: number, exerciseId: string, suggestion: LoadSuggestion): void;
+  reapplySuggestion(exercise: SessionExercise, suggestion: LoadSuggestion): void;
   finishSession(): void;
   abandonSession(): void;
 
@@ -152,8 +152,7 @@ export function AppStoreProvider({ children, storage }: { children: ReactNode; s
       validateSet: (exerciseIndex, setIndex) => dispatch({ type: 'session/validateSet', exerciseIndex, setIndex }),
       goToExercise: (exerciseIndex) => dispatch({ type: 'session/goToExercise', exerciseIndex }),
       keepLastLoad: (exerciseIndex) => dispatch({ type: 'session/keepLastLoad', exerciseIndex }),
-      reapplySuggestion: (exerciseIndex, exerciseId, suggestion) =>
-        dispatch({ type: 'session/reapplySuggestion', exerciseIndex, exerciseId, suggestion }),
+      reapplySuggestion: (exercise, suggestion) => dispatch({ type: 'session/reapplySuggestion', exercise, suggestion }),
       finishSession: () => dispatch({ type: 'session/finish', now: now() }),
       abandonSession: () => dispatch({ type: 'session/abandon' }),
 

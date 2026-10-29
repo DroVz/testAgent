@@ -133,7 +133,7 @@ export default function ProgressPage() {
         <div className="empty-state">
           <p className="empty-state__title">Pas encore de progression à afficher</p>
           <p className="muted">
-            Termine une séance avec au moins une série validée : tes courbes de poids, de 1RM estimé et de volume
+            Termine une séance avec au moins une série validée&nbsp;: tes courbes de poids, de 1RM estimé et de volume
             apparaîtront ici, avec tes records.
           </p>
           <Link to="/seances" className="btn btn--primary">
@@ -191,7 +191,7 @@ export default function ProgressPage() {
           <div className="card chart-card">
             <LineChart data={data} label={`${metricLabel} — ${selectedName}`} formatValue={metricInfo.format} />
             {history.length === 1 && (
-              <p className="muted chart-card__hint">Une seule séance pour l’instant : la courbe se dessinera à la suivante.</p>
+              <p className="muted chart-card__hint">Une seule séance pour l’instant&nbsp;: la courbe se dessinera à la suivante.</p>
             )}
           </div>
 

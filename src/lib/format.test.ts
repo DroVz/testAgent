@@ -157,21 +157,36 @@ describe('phrases de séance', () => {
   });
 
   it('formatSessionSummary : pluriels et milliers à la française', () => {
-    expect(formatSessionSummary(5, 18, 6240)).toMatch(/^Séance terminée : 5\u00a0exercices, 18\u00a0séries, 6\u202f240\u00a0kg soulevés\.$/);
+    expect(formatSessionSummary(5, 18, 6240)).toMatch(/^Séance terminée : 5\u00a0exercices, 18\u00a0séries, 6\u202f240\u00a0kg soulevés\.$/);
     expect(fr(formatSessionSummary(5, 18, 6240))).toBe('Séance terminée : 5 exercices, 18 séries, 6 240 kg soulevés.');
-    expect(formatSessionSummary(1, 1, 500)).toBe(u('Séance terminée : 1~exercice, 1~série, 500~kg soulevés.'));
-    expect(formatSessionSummary(1, 1, 0)).toBe(u('Séance terminée : 1~exercice, 1~série, 0~kg soulevé.'));
+    expect(formatSessionSummary(1, 1, 500)).toBe(u('Séance terminée~: 1~exercice, 1~série, 500~kg soulevés.'));
+    expect(formatSessionSummary(1, 1, 0)).toBe(u('Séance terminée~: 1~exercice, 1~série, 0~kg soulevé.'));
   });
 
   it('formatRecordSentence : seul « ! » autorisé, nom en minuscule dans la phrase', () => {
-    expect(formatRecordSentence('Développé couché', 82.5)).toBe(u('Nouveau record en développé couché : 82,5~kg !'));
+    expect(formatRecordSentence('Développé couché', 82.5)).toBe(u('Nouveau record en développé couché~: 82,5~kg\u202f!'));
     // Valeur déjà formatée (1RM arrondi à 0,5 kg)
     expect(formatRecordSentence('Squat', formatOneRepMax(128.33), '1RM estimé')).toBe(
-      u('Nouveau record de 1RM estimé en squat : 128,5~kg !'),
+      u('Nouveau record de 1RM estimé en squat~: 128,5~kg\u202f!'),
     );
     // Un sigle en tête garde ses capitales
-    expect(formatRecordSentence('RDL roumain', 100)).toBe(u('Nouveau record en RDL roumain : 100~kg !'));
+    expect(formatRecordSentence('RDL roumain', 100)).toBe(u('Nouveau record en RDL roumain~: 100~kg\u202f!'));
     expect(fr(formatRecordSentence('Squat', 1650, 'volume'))).toBe('Nouveau record de volume en squat : 1 650 kg !');
+  });
+
+  it('« : » et « ! » jamais seuls en début de ligne : espaces insécables devant (U+00A0, fine U+202F)', () => {
+    const sentences = [
+      formatRecordSentence('Rowing barre', 62.5),
+      formatRecordSentence('Squat', formatOneRepMax(128.33), '1RM estimé'),
+      formatSessionSummary(5, 18, 6240),
+    ];
+    for (const text of sentences) {
+      // Aucune espace sécable (coupure possible) juste avant « : » ou « ! ».
+      expect(text).not.toMatch(/[ \t\n][:!]/);
+      // Les points de coupure (espaces simples) ne laissent jamais une ligne commencer par « : » ou « ! ».
+      for (const line of text.split(' ').slice(1)) expect(line).not.toMatch(/^[:!]/);
+    }
+    expect(formatRecordSentence('Rowing barre', 62.5)).toMatch(/\u00a0: 62,5\u00a0kg\u202f!$/);
   });
 
   it('formatSetValues : « 72,5 kg × 8 », « 8 reps » au poids du corps', () => {

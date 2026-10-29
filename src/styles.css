@@ -1131,9 +1131,9 @@ svg {
   font-weight: 500;
 }
 
-/* Bouton fantôme, aligné sur le texte de la note (la cible tactile de 48 px est conservée). */
+/* « Rester à … » : bouton secondaire à contour (classe .btn par défaut), largeur au contenu, sans accent. */
 .load-note__keep {
-  margin-left: calc(-1 * var(--space-3));
+  margin-top: var(--space-2);
 }
 
 .set-list {

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { AppStoreProvider } from './state/AppStore';
 
@@ -31,5 +31,22 @@ describe('App', () => {
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('link', { name: 'Séances' }));
     expect(screen.getByRole('heading', { name: 'Séances' })).toBeInTheDocument();
+  });
+
+  it('remet la page en haut à chaque changement de route', () => {
+    window.location.hash = '';
+    const scrollTo = vi.mocked(window.scrollTo);
+    render(
+      <AppStoreProvider storage={{ getItem: () => null, setItem: () => {} }}>
+        <App />
+      </AppStoreProvider>,
+    );
+    scrollTo.mockClear();
+    const nav = within(screen.getByRole('navigation', { name: 'Navigation principale' }));
+    fireEvent.click(nav.getByRole('link', { name: 'Historique' }));
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 0);
+    fireEvent.click(nav.getByRole('link', { name: 'Progrès' }));
+    expect(scrollTo).toHaveBeenCalledTimes(2);
   });
 });

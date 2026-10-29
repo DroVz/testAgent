@@ -24,7 +24,7 @@ import {
   upsertTemplate,
   type TemplateInput,
 } from '../lib/templates';
-import type { AppState, Exercise, LoadSuggestion, MuscleGroup, Template, WorkoutSession } from '../lib/types';
+import type { AppState, Exercise, LoadSuggestion, MuscleGroup, SessionExercise, Template, WorkoutSession } from '../lib/types';
 import { restoreSnapshot, type UndoSnapshot } from '../lib/undo';
 
 /**
@@ -54,7 +54,7 @@ export type AppAction =
   | { type: 'session/validateSet'; exerciseIndex: number; setIndex: number }
   | { type: 'session/goToExercise'; exerciseIndex: number }
   | { type: 'session/keepLastLoad'; exerciseIndex: number }
-  | { type: 'session/reapplySuggestion'; exerciseIndex: number; exerciseId: string; suggestion: LoadSuggestion }
+  | { type: 'session/reapplySuggestion'; exercise: SessionExercise; suggestion: LoadSuggestion }
   | { type: 'session/finish'; now: Date }
   | { type: 'session/abandon' }
   // Historique
@@ -62,9 +62,9 @@ export type AppAction =
   | { type: 'history/applyToTemplate'; sessionId: string; now: Date }
   // Annulation d'une suppression (toast « Annuler »)
   | { type: 'undo/restore'; snapshot: UndoSnapshot }
-  // Données
   // Réglages
   | { type: 'settings/setSuggestLoad'; enabled: boolean }
+  // Données
   | { type: 'data/replace'; state: AppState }
   | { type: 'data/reset' };
 
@@ -161,7 +161,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'session/keepLastLoad':
       return withActive(state, (s) => keepLastLoad(s, action.exerciseIndex, state.sessions));
     case 'session/reapplySuggestion':
-      return withActive(state, (s) => reapplySuggestion(s, action.exerciseIndex, action.exerciseId, action.suggestion));
+      return withActive(state, (s) => reapplySuggestion(s, action.exercise, action.suggestion));
     case 'session/finish': {
       if (!state.activeSession) return state;
       const finished = finishSession(state.activeSession, action.now);

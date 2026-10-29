@@ -136,16 +136,54 @@ describe('charge proposée (lot 1)', () => {
     s = keepLastLoad(s, 0, success);
     expect(s.exercises[0]).not.toHaveProperty('suggestion');
     expect(s.exercises[0].sets).toEqual([set(80, 10), set(80, 9), set(80, 8)]);
-    s = reapplySuggestion(s, 0, 'developpe-couche', suggestion);
+    s = reapplySuggestion(s, s.exercises[0], suggestion);
     expect(s.exercises[0].suggestion).toEqual(suggestion);
     expect(s.exercises[0].sets).toEqual([set(82.5, 8), set(82.5, 8), set(82.5, 8)]);
     // Séries déjà validées : jamais touchées
     s = setSetDone(updateSet(s, 0, 0, { weight: 85 }), 0, 0, true);
     expect(keepLastLoad(s, 0, success).exercises[0].sets[0]).toEqual(set(85, 8, true));
-    // Mauvais exercice à cet index : sans effet ; sans suggestion : sans effet
+    // Sans suggestion : sans effet
     const kept = keepLastLoad(s, 0, success);
-    expect(reapplySuggestion(kept, 0, 'squat', suggestion)).toBe(kept);
     expect(keepLastLoad(kept, 0, success)).toBe(kept);
+  });
+
+  it('reapplySuggestion retrouve l’exercice par référence, pas par index', () => {
+    const t = {
+      ...t38,
+      exercises: [{ ...t38.exercises[0], exerciseId: 'squat' }, t38.exercises[0]],
+    };
+    const history = [{ ...success[0], exercises: [...success[0].exercises, { exerciseId: 'squat', sets: [set(100, 5, true)] }] }];
+    let s = createSessionFromTemplate(t, history, NOW, 'x');
+    const suggestion = s.exercises[1].suggestion!;
+    s = keepLastLoad(s, 1, history);
+    const target = s.exercises[1];
+    // Un exercice placé avant est retiré : l'index change, la référence retrouve le bon exercice.
+    s = removeExercise(s, 0);
+    s = reapplySuggestion(s, target, suggestion);
+    expect(s.exercises).toHaveLength(1);
+    expect(s.exercises[0].suggestion).toEqual(suggestion);
+    expect(s.exercises[0].sets.map((x) => x.weight)).toEqual([82.5, 82.5, 82.5]);
+  });
+
+  it('reapplySuggestion sans effet si l’exercice a changé ou n’est plus dans la séance', () => {
+    let s = createSessionFromTemplate(t38, success, NOW, 'x');
+    const suggestion = s.exercises[0].suggestion!;
+    s = keepLastLoad(s, 0, success);
+    const target = s.exercises[0];
+    const validated = validateSet(s, 0, 0);
+    expect(reapplySuggestion(validated, target, suggestion)).toBe(validated);
+    const removed = removeExercise(s, 0);
+    expect(reapplySuggestion(removed, target, suggestion)).toBe(removed);
+  });
+
+  it('longue pause : dernière fois il y a plus de 28 jours, pas de proposition, valeurs de la dernière fois', () => {
+    const old = [{ ...success[0], startedAt: '2026-01-31T09:00:00.000Z', endedAt: '2026-01-31T10:00:00.000Z' }];
+    const s = createSessionFromTemplate(t38, old, NOW, 'x');
+    expect(s.exercises[0]).not.toHaveProperty('suggestion');
+    expect(s.exercises[0].sets).toEqual([set(80, 10), set(80, 9), set(80, 8)]);
+    // 28 jours pile : encore proposée.
+    const recent = [{ ...success[0], startedAt: '2026-02-01T10:00:00.000Z', endedAt: '2026-02-01T11:00:00.000Z' }];
+    expect(createSessionFromTemplate(t38, recent, NOW, 'x').exercises[0].suggestion?.toWeight).toBe(82.5);
   });
 
   it('finishSession retire la suggestion', () => {

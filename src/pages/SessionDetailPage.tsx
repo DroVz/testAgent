@@ -1,7 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../components/Toast';
-import { exerciseName, formatCount, formatDate, formatDuration, formatNumber, formatWeight } from '../lib/format';
+import { COLON, exerciseName, formatCount, formatDate, formatDuration, formatNumber, formatWeight } from '../lib/format';
 import { countDoneSets, doneSets, exerciseVolume, sessionDurationMs, sessionVolume } from '../lib/stats';
 import { useAppStore } from '../state/AppStore';
 
@@ -92,7 +92,7 @@ export default function SessionDetailPage() {
           onClick={() => {
             const snapshot = actions.deleteSession(session.id);
             navigate('/historique', { replace: true });
-            toast.show({ message: `Séance supprimée : ${session.name}.`, onUndo: snapshot && (() => actions.restore(snapshot)) });
+            toast.show({ message: `Séance supprimée${COLON} ${session.name}.`, onUndo: snapshot && (() => actions.restore(snapshot)) });
           }}
         >
           Supprimer la séance

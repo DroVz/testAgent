@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, Ellipsis, Pencil, TrendingUp } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Ellipsis, Pencil, TrendingUp, Undo2 } from 'lucide-react';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -7,6 +7,7 @@ import NumberField from '../components/NumberField';
 import RestTimer from '../components/RestTimer';
 import { ToastHost, useToast } from '../components/Toast';
 import {
+  COLON,
   exerciseName,
   formatClock,
   formatCount,
@@ -26,6 +27,7 @@ import {
 import { keepLabel, keepToast, suggestionDetail, suggestionTitle } from '../lib/progression';
 import { loadRestEndsAt, saveRestEndsAt } from '../lib/restTimer';
 import { countDoneSets, lastPerformance, sessionDurationMs, type LastPerformance } from '../lib/stats';
+import type { SessionExercise } from '../lib/types';
 import { useAppStore } from '../state/AppStore';
 
 type Dialog = { kind: 'finish'; remaining: number } | { kind: 'empty' } | { kind: 'abandon' };
@@ -71,6 +73,26 @@ export default function ActiveSessionPage() {
     },
     [dismissToast],
   );
+
+  /**
+   * Toast « Charge remise à … » : l'exercice visé, retrouvé par référence (l'objet de la séance juste
+   * après « Rester à … ») pour « Annuler ». Dès que cet exercice change (série validée, valeur
+   * modifiée) ou quitte la séance, le toast se ferme : « Annuler » n'aurait plus de sens.
+   */
+  const kept = useRef<{ toastId: number; index: number; exercise?: SessionExercise } | null>(null);
+  useEffect(() => {
+    const k = kept.current;
+    if (!k || !session) return;
+    if (!k.exercise) {
+      // Premier rendu après « Rester à … » : l'exercice est encore à la même place.
+      k.exercise = session.exercises[k.index];
+      return;
+    }
+    if (!session.exercises.includes(k.exercise)) {
+      dismissToast(k.toastId);
+      kept.current = null;
+    }
+  }, [session, dismissToast]);
 
   const sessionId = session?.id;
   useEffect(() => {
@@ -132,6 +154,8 @@ export default function ActiveSessionPage() {
   // Série en cours = première série non validée de l'exercice affiché.
   const setIdx = currentSetIndex(exercise);
   const isLastExercise = exIdx === total - 1;
+  // Au moins une série de l'exercice affiché est validée : la note est masquée.
+  const started = exercise?.sets.some((s) => s.done) ?? false;
   const pending = pendingSetCount(session);
   // Correction valide seulement si la série existe toujours, est faite et appartient à l'exercice affiché.
   const correcting =
@@ -145,12 +169,12 @@ export default function ActiveSessionPage() {
     const last = lastByExercise.get(exercise.exerciseId);
     if (last) {
       // Série au-delà de la dernière fois : on ne réutilise pas la valeur d'une autre série.
-      if (i >= last.sets.length) return `Série en plus : ${formatCount(last.sets.length, 'série')} la dernière fois.`;
-      return `Dernière fois : ${formatSetValues(last.sets[i].weight, last.sets[i].reps)}`;
+      if (i >= last.sets.length) return `Série en plus${COLON} ${formatCount(last.sets.length, 'série')} la dernière fois.`;
+      return `Dernière fois${COLON} ${formatSetValues(last.sets[i].weight, last.sets[i].reps)}`;
     }
     const template = session.templateId ? state.templates.find((t) => t.id === session.templateId) : undefined;
     const target = template?.exercises.find((te) => te.exerciseId === exercise.exerciseId);
-    return target ? `Objectif : ${formatSetValues(target.targetWeight ?? 0, target.targetReps)}` : null;
+    return target ? `Objectif${COLON} ${formatSetValues(target.targetWeight ?? 0, target.targetReps)}` : null;
   };
 
   const validate = () => {
@@ -161,9 +185,11 @@ export default function ActiveSessionPage() {
     const exerciseFinished = exercise.sets.filter((s) => !s.done).length === 1;
     actions.validateSet(exIdx, setIdx);
     setRestEndsAt(rest > 0 ? Date.now() + rest * 1000 : null);
-    const restText = rest > 0 ? ` Repos : ${formatSeconds(rest)}.` : '';
+    const restText = rest > 0 ? ` Repos${COLON} ${formatSeconds(rest)}.` : '';
     // Exercice fini : l'écran passe au suivant, on ne cite donc pas un numéro de série.
-    const text = exerciseFinished ? `Exercice terminé : ${inSentence(name)}.${restText}` : `Série ${n} validée.${restText}`;
+    const text = exerciseFinished
+      ? `Exercice terminé${COLON} ${inSentence(name)}.${restText}`
+      : `Série ${n} validée.${restText}`;
     setFeedback({ text, exIdx, setIdx });
   };
 
@@ -183,15 +209,18 @@ export default function ActiveSessionPage() {
   const keepLast = () => {
     const suggestion = exercise?.suggestion;
     if (!suggestion) return;
-    const { exerciseId } = exercise;
-    const index = exIdx;
-    actions.keepLastLoad(index);
+    actions.keepLastLoad(exIdx);
     setFeedback(null);
-    toastId.current = toast.show({
+    const target: NonNullable<typeof kept.current> = { toastId: 0, index: exIdx };
+    target.toastId = toast.show({
       message: keepToast(suggestion),
-      onUndo: () => actions.reapplySuggestion(index, exerciseId, suggestion),
+      onUndo: () => {
+        if (target.exercise) actions.reapplySuggestion(target.exercise, suggestion);
+      },
       undoLabel: 'Annuler : remettre la proposition',
     });
+    kept.current = target;
+    toastId.current = target.toastId;
   };
 
   const goTo = (index: number) => {
@@ -331,7 +360,7 @@ export default function ActiveSessionPage() {
                   type="button"
                   className="btn btn--block btn--danger-outline"
                   onClick={menuAction(() =>
-                    notifyRemoval(`Exercice retiré : ${inSentence(name)}.`, actions.removeSessionExercise(exIdx)),
+                    notifyRemoval(`Exercice retiré${COLON} ${inSentence(name)}.`, actions.removeSessionExercise(exIdx)),
                   )}
                 >
                   Retirer cet exercice
@@ -348,19 +377,19 @@ export default function ActiveSessionPage() {
             )}
 
             {/* Charge proposée : note de coach en encre, lue avant la liste des séries ; sans accent ni vert. */}
-            {exercise.suggestion && (
+            {/* Avant la première série validée seulement : ensuite, la référence « Dernière fois » de la
+                carte suffit, et la place compte pendant le repos (iPhone SE). */}
+            {exercise.suggestion && !started && (
               <div className="load-note">
                 <p className="load-note__title">
                   <TrendingUp size={20} aria-hidden="true" />
                   {suggestionTitle(exercise.suggestion)}
                 </p>
                 <p className="load-note__detail">{suggestionDetail(exercise.suggestion)}</p>
-                {/* Revenir à la dernière fois n'a de sens qu'avant la première série validée. */}
-                {!exercise.sets.some((s) => s.done) && (
-                  <button type="button" className="btn btn--ghost load-note__keep" onClick={keepLast}>
-                    {keepLabel(exercise.suggestion)}
-                  </button>
-                )}
+                <button type="button" className="btn load-note__keep" onClick={keepLast}>
+                  <Undo2 size={20} aria-hidden="true" />
+                  {keepLabel(exercise.suggestion)}
+                </button>
               </div>
             )}
 

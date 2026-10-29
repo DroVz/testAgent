@@ -1,9 +1,13 @@
-import { formatCount, formatSetValues, formatWeight } from './format';
+import { COLON, formatCount, formatSetValues, formatWeight } from './format';
 import { MAX_REPS, MAX_WEIGHT } from './session';
 import type { AppState, LoadSuggestion, SetEntry, TemplateExercise } from './types';
 
 /** Pas de progression en charge (le même que les boutons −/+ de la série en cours). */
 export const LOAD_STEP_KG = 2.5;
+
+/** Au-delà de 28 jours depuis la dernière fois (longue pause), pas de proposition de montée. */
+export const MAX_SUGGESTION_AGE_DAYS = 28;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface SuggestionInput {
   /** Objectif de la séance type ; absent = séance libre ou exercice ajouté à la volée. */
@@ -12,6 +16,17 @@ export interface SuggestionInput {
   last?: SetEntry[];
   /** Réglage « Suggérer la charge suivante » (activé par défaut). */
   enabled?: boolean;
+  /** Début de la séance de référence (`lastPerformance(...).date`, ISO) ; absent = pas de contrôle d'ancienneté. */
+  lastStartedAt?: string;
+  /** Date courante (début de la nouvelle séance), pour le contrôle d'ancienneté. */
+  now?: Date;
+}
+
+/** La dernière fois a commencé il y a plus de `MAX_SUGGESTION_AGE_DAYS` jours. */
+function isLongBreak(lastStartedAt: string | undefined, now: Date | undefined): boolean {
+  if (!lastStartedAt || !now) return false;
+  const started = new Date(lastStartedAt).getTime();
+  return Number.isFinite(started) && now.getTime() - started > MAX_SUGGESTION_AGE_DAYS * DAY_MS;
 }
 
 /** Réglage « Suggérer la charge suivante » : absent = activé. */
@@ -23,10 +38,12 @@ export function isSuggestLoadEnabled(state: Pick<AppState, 'settings'>): boolean
  * Double progression simple (docs/product/vision-et-roadmap.md, lot 1) : si toutes les séries de la
  * dernière fois (au moins `targetSets`) ont atteint `targetReps` à la même charge W, on propose
  * W + 2,5 kg × `targetReps` ; au poids du corps (W = 0), 1 rep de plus que le minimum de la dernière fois.
- * Sinon, pas de suggestion.
+ * Sinon, pas de suggestion. Pas de suggestion non plus après une longue pause : la séance de référence
+ * a commencé il y a plus de 28 jours (on reprend alors simplement les valeurs de la dernière fois).
  */
-export function suggestLoad({ target, last, enabled = true }: SuggestionInput): LoadSuggestion | undefined {
+export function suggestLoad({ target, last, enabled = true, lastStartedAt, now }: SuggestionInput): LoadSuggestion | undefined {
   if (!enabled || !target || !last || last.length === 0) return undefined;
+  if (isLongBreak(lastStartedAt, now)) return undefined;
   const { targetSets, targetReps } = target;
   if (targetReps < 1 || targetSets < 1 || last.length < targetSets) return undefined;
   const weight = last[0].weight;
@@ -47,17 +64,18 @@ const isBodyweight = (s: LoadSuggestion) => s.fromWeight === 0;
 /** Ligne 1 de la note : « Charge proposée : 82,5 kg » ou « Reps proposées : 11 reps ». */
 export function suggestionTitle(s: LoadSuggestion): string {
   return isBodyweight(s)
-    ? `Reps proposées : ${formatCount(s.toReps, 'rep')}`
-    : `Charge proposée : ${formatWeight(s.toWeight)}`;
+    ? `Reps proposées${COLON} ${formatCount(s.toReps, 'rep')}`
+    : `Charge proposée${COLON} ${formatWeight(s.toWeight)}`;
 }
 
-/** Ligne 2 : ce qui a été fait la dernière fois, sur toutes les séries. */
+/** Ligne 2 : ce qui a été fait la dernière fois, à chaque série. */
 export function suggestionDetail(s: LoadSuggestion): string {
-  if (s.sameReps) return `La dernière fois : ${formatSetValues(s.fromWeight, s.fromReps)} sur toutes les séries.`;
+  const lead = `La dernière fois${COLON}`;
+  if (s.sameReps) return `${lead} ${formatSetValues(s.fromWeight, s.fromReps)} à chaque série.`;
   const reps = `${formatCount(s.fromReps, 'rep')} ou plus`;
   return isBodyweight(s)
-    ? `La dernière fois : ${reps} sur toutes les séries.`
-    : `La dernière fois : ${formatWeight(s.fromWeight)}, ${reps} sur toutes les séries.`;
+    ? `${lead} ${reps} à chaque série.`
+    : `${lead} ${formatWeight(s.fromWeight)}, ${reps} à chaque série.`;
 }
 
 /** Valeur de la dernière fois : « 80 kg » ou « 10 reps ». */

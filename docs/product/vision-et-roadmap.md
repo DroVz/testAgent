@@ -37,7 +37,7 @@ Ce qui manque pour l'engagement : l'app **mesure** bien la progression, mais ell
 
 - **Strong** : carnet très sobre, « dernière fois » visible. On garde la sobriété. Sa limite : il ne suggère rien, c'est à l'utilisateur de décider de progresser.
 - **Hevy** : la suggestion de charge (« Hevy Trainer ») est payante. L'app est aussi très sociale (fil, likes). On garde la suggestion de charge, on refuse le social.
-- **Fitbod** : charges générées par algorithme, avec beaucoup de réglages et peu d'explications. Ça va contre la clarté, car on ne sait pas d'où vient le chiffre. Chez nous, chaque suggestion dit **pourquoi** : « La dernière fois : 80 kg × 8 sur toutes les séries. »
+- **Fitbod** : charges générées par algorithme, avec beaucoup de réglages et peu d'explications. Ça va contre la clarté, car on ne sait pas d'où vient le chiffre. Chez nous, chaque suggestion dit **pourquoi** : « La dernière fois : 80 kg × 8 à chaque série. »
 - **Jefit** : badges, points, classements. C'est exactement ce que `identity.md` §2 interdit.
 
 ---
@@ -86,6 +86,7 @@ La suggestion existe **seulement si toutes** les conditions suivantes sont vraie
 5. Le nombre de séries validées la dernière fois est ≥ `targetSets` (et `targetSets ≥ 1`).
 6. Toutes ces séries validées ont **la même charge** W. Une pyramide ou des séries dégressives ne déclenchent pas de suggestion.
 7. Toutes ces séries ont `reps ≥ targetReps`.
+8. La séance de référence (la dernière fois) a commencé il y a **28 jours ou moins**. Après une pause plus longue, pas de proposition : le pré-remplissage reprend simplement les valeurs de la dernière fois, sans note. *(Révisé le 29/10 après revue design.)*
 
 Résultat :
 - **Si W > 0** : charge proposée = W + 2,5 kg et reps proposées = `targetReps`. Si W + 2,5 > `MAX_WEIGHT` (1 000 kg), pas de suggestion.
@@ -104,6 +105,7 @@ Exemples (à reprendre tels quels comme cas de test) :
 | 3 × 8 | aucune séance passée | pas de suggestion (l'objectif s'affiche comme aujourd'hui) |
 | 3 × 8 | 80 × 8 × 3, mais en séance libre | pas de suggestion |
 | 3 × 0 | 80 × 8 × 3 | pas de suggestion |
+| 3 × 8 | 80 × 8 × 3, il y a 29 jours | pas de suggestion (longue pause), valeurs de la dernière fois |
 
 Si un exercice figure deux fois dans la même séance type, chaque occurrence est calculée de la même façon, avec son propre objectif.
 
@@ -115,13 +117,13 @@ Si un exercice figure deux fois dans la même séance type, chaque occurrence es
     - charge : « Charge proposée : 82,5 kg »
     - poids du corps : « Reps proposées : 11 reps »
   - ligne 2, en texte secondaire 13 px :
-    - si toutes les séries de la dernière fois ont le même nombre de reps R : « La dernière fois : 80 kg × 8 sur toutes les séries. » (au poids du corps : « La dernière fois : 10 reps sur toutes les séries. »)
-    - sinon : « La dernière fois : 80 kg, 8 reps ou plus sur toutes les séries. » (au poids du corps : « La dernière fois : 10 reps ou plus sur toutes les séries. »)
-  - Les nombres et les unités passent par les fonctions existantes (`formatWeight`, `formatCount`, `formatSetValues`), avec un espace insécable et la virgule décimale.
-- **Bouton « Rester à 80 kg »** (au poids du corps : « Rester à 10 reps ») : bouton fantôme (secondaire, sans accent) de 48 px de haut, sous la note.
-  - Au tap : toutes les séries **non validées** de l'exercice reprennent les valeurs de la dernière fois, série par série, exactement comme le pré-remplissage actuel. La note disparaît. Un toast « Charge remise à 80 kg. » (« Reps remises à 10 reps. » au poids du corps) s'affiche avec « Annuler » pendant 5 s. « Annuler » remet les valeurs proposées et la note.
-  - Le bouton disparaît dès qu'une série de l'exercice est validée. La ligne 1 et la ligne 2 restent affichées jusqu'à la fin de l'exercice.
-  - Si l'utilisateur modifie la charge avec −/+, la note reste. Elle explique la proposition, pas la valeur actuelle.
+    - si toutes les séries de la dernière fois ont le même nombre de reps R : « La dernière fois : 80 kg × 8 à chaque série. » (au poids du corps : « La dernière fois : 10 reps à chaque série. »)
+    - sinon : « La dernière fois : 80 kg, 8 reps ou plus à chaque série. » (au poids du corps : « La dernière fois : 10 reps ou plus à chaque série. »)
+  - Les nombres et les unités passent par les fonctions existantes (`formatWeight`, `formatCount`, `formatSetValues`), avec un espace insécable et la virgule décimale. Espace insécable avant « : ».
+- **Bouton « Rester à 80 kg »** (au poids du corps : « Rester à 10 reps ») : bouton secondaire à contour (classe `btn` par défaut : bordure `--border`, rayon 999 px, 48 px de haut, largeur au contenu, sans accent), avec l'icône Lucide `Undo2` (`aria-hidden`) avant le libellé, sous la note. *(Révisé le 29/10 après revue design : le bouton fantôme se lisait comme du texte.)*
+  - Au tap : toutes les séries **non validées** de l'exercice reprennent les valeurs de la dernière fois, série par série, exactement comme le pré-remplissage actuel. La note disparaît. Un toast « Charge remise à 80 kg. » (« Reps remises à 10 reps. » au poids du corps) s'affiche avec « Annuler » pendant 5 s. « Annuler » remet les valeurs proposées et la note. Le toast se ferme dès qu'une série de cet exercice est validée ; « Annuler » retrouve l'exercice par référence, pas par sa position dans la séance.
+  - Toute la note (lignes 1 et 2, bouton) disparaît dès qu'une série de l'exercice est validée : la carte affiche déjà « Dernière fois : 80 kg × 8 », et la place compte pendant le repos sur iPhone SE. *(Révisé le 29/10 après revue design.)*
+  - Si l'utilisateur modifie la charge avec −/+ avant de valider, la note reste. Elle explique la proposition, pas la valeur actuelle.
 - **Rien d'autre ne change** :
   - la ligne par série « Dernière fois : 80 kg × 8 » reste (règle §4.4) ;
   - « Valider la série » reste la seule action accent ;
@@ -144,20 +146,24 @@ Si un exercice figure deux fois dans la même séance type, chaque occurrence es
 
 #### Critères d'acceptation (testables)
 
-1. Avec une séance type « Haut du corps » (développé couché 3 × 8), et une séance terminée hier à 80 × 8, 80 × 8, 80 × 8 : « Démarrer la séance » affiche les 3 séries à **82,5 kg et 8 reps**, « Charge proposée : 82,5 kg » et « La dernière fois : 80 kg × 8 sur toutes les séries. »
-2. Les 9 lignes du tableau d'exemples sont couvertes par des tests unitaires de la fonction pure et donnent exactement le résultat indiqué.
-3. Dernière fois 80 × 10, 80 × 9, 80 × 8 (objectif 3 × 8) : la ligne 2 est « La dernière fois : 80 kg, 8 reps ou plus sur toutes les séries. »
+*Révisé le 29/10 après revue design : critères 1, 2, 3, 5, 6, 7 et 8 modifiés, critères 15 et 16 ajoutés.*
+
+1. Avec une séance type « Haut du corps » (développé couché 3 × 8), et une séance terminée hier à 80 × 8, 80 × 8, 80 × 8 : « Démarrer la séance » affiche les 3 séries à **82,5 kg et 8 reps**, « Charge proposée : 82,5 kg » et « La dernière fois : 80 kg × 8 à chaque série. »
+2. Les 10 lignes du tableau d'exemples (dont la longue pause de plus de 28 jours) sont couvertes par des tests unitaires de la fonction pure et donnent exactement le résultat indiqué. La date de la séance de référence et la date courante sont passées en paramètres.
+3. Dernière fois 80 × 10, 80 × 9, 80 × 8 (objectif 3 × 8) : la ligne 2 est « La dernière fois : 80 kg, 8 reps ou plus à chaque série. »
 4. Sans suggestion (cas « 80 × 7 » par exemple), l'écran est identique à aujourd'hui : pas de note, pas de bouton « Rester à », valeurs de la dernière fois.
-5. « Rester à 80 kg » : les séries non validées passent à 80 kg et reprennent les reps de la dernière fois. La note disparaît. Le toast « Charge remise à 80 kg. » propose « Annuler » pendant 5 s, et « Annuler » rétablit 82,5 kg × 8 et la note.
-6. Après la validation de la série 1, le bouton « Rester à 80 kg » n'est plus dans le DOM. Les deux lignes de la note restent.
-7. Rechargement de la page au milieu de l'exercice : même note, même charge, même état du bouton.
-8. Tractions (3 × 10, dernière fois 10, 12, 10 reps au poids du corps) : séries pré-remplies à 11 reps ; « Reps proposées : 11 reps » ; « La dernière fois : 10 reps ou plus sur toutes les séries. » ; bouton « Rester à 10 reps ».
+5. « Rester à 80 kg » est un bouton secondaire à contour (bordure visible, rayon 999 px, 48 px de haut, largeur au contenu), précédé de l'icône `Undo2` en `aria-hidden` ; l'écran garde un seul aplat accent. Au tap, les séries non validées passent à 80 kg et reprennent les reps de la dernière fois. La note disparaît. Le toast « Charge remise à 80 kg. » propose « Annuler » pendant 5 s, et « Annuler » rétablit 82,5 kg × 8 et la note. Le toast se ferme dès qu'une série de l'exercice est validée.
+6. Après la validation de la série 1, toute la note (« Charge proposée : 82,5 kg », ligne 2 et bouton « Rester à 80 kg ») n'est plus dans le DOM ; la référence « Dernière fois : 80 kg × 8 » reste dans la carte. À 375 × 667, pendant le repos après la série 1 (4 séries), le bas de la carte en cours est au-dessus du haut du bloc du minuteur.
+7. Rechargement de la page au milieu de l'exercice : même charge, même état de la note et du bouton (masqués après la série 1).
+8. Tractions (3 × 10, dernière fois 10, 12, 10 reps au poids du corps) : séries pré-remplies à 11 reps ; « Reps proposées : 11 reps » ; « La dernière fois : 10 reps ou plus à chaque série. » ; bouton « Rester à 10 reps ».
 9. Séance libre ou exercice ajouté à la volée : jamais de note.
 10. Réglage coupé dans Réglages, puis nouvelle séance : aucune suggestion, pré-remplissage identique à aujourd'hui. Le réglage survit à un rechargement et à un export puis un import.
 11. Un export JSON fait **avant** ce lot s'importe sans erreur. Le réglage vaut alors « activé ».
 12. Contrôles de la revue design, à 390 × 844, en clair et en sombre : au plus un aplat accent (« Valider la série ») ; aucune cible < 48 px ; aucun texte < 13 px ; « Valider la série » reste visible sans défiler avec la note affichée, et avec 4 séries.
 13. Lecteur d'écran : la note est lue avant la liste des séries. L'icône est ignorée (`aria-hidden`).
 14. `npm test`, `npm run typecheck` et `npm run build` passent.
+15. Longue pause : la dernière séance « Haut du corps » a commencé il y a 30 jours (80 × 8 × 3). « Démarrer la séance » affiche les séries à 80 kg × 8, sans note ni bouton « Rester à ».
+16. De bout en bout : « Rester à 80 kg », valider les séries puis terminer enregistre 80 kg dans l'historique ; proposition acceptée, valider puis terminer enregistre 82,5 kg.
 
 ---
 

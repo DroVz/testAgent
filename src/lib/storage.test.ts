@@ -318,7 +318,7 @@ describe('charge proposée et réglages (lot 1)', () => {
   it('valeurs invalides rejetées avec un message clair', () => {
     const bad = withSuggestion() as unknown as { settings: unknown; activeSession: { exercises: { suggestion: unknown }[] } };
     bad.settings = { suggestLoad: 'oui' };
-    expect(parseAppState(bad)).toEqual({ ok: false, error: 'settings.suggestLoad : booléen attendu' });
+    expect(parseAppState(bad)).toEqual({ ok: false, error: 'settings.suggestLoad\u00a0: booléen attendu' });
     const bad2 = withSuggestion() as unknown as { activeSession: { exercises: { suggestion: Record<string, unknown> }[] } };
     bad2.activeSession.exercises[0].suggestion.toWeight = -1;
     expect(parseAppState(bad2)).toMatchObject({ ok: false, error: expect.stringContaining('suggestion.toWeight') });

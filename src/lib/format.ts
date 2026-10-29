@@ -5,6 +5,15 @@ export const DELETED_EXERCISE_NAME = 'Exercice supprimé';
 /** Espace insécable entre un nombre et son unité (« 80 kg », « 90 s ») : jamais coupés en fin de ligne. */
 export const NBSP = String.fromCharCode(0xa0);
 
+/** Espace fine insécable (U+202F), avant « ! » : le point d'exclamation ne part jamais seul à la ligne. */
+export const NNBSP = String.fromCharCode(0x202f);
+
+/** Deux-points précédé d’une espace insécable (« Repos : 90 s ») : jamais de « : » seul en début de ligne. */
+export const COLON = `${NBSP}:`;
+
+/** Point d'exclamation précédé d'une espace fine insécable. */
+export const BANG = `${NNBSP}!`;
+
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
 function wholeSeconds(ms: number): number {
@@ -90,7 +99,7 @@ export function formatSeconds(seconds: number): string {
 /** Phrase de fin : « Séance terminée : 5 exercices, 18 séries, 6 240 kg soulevés. » */
 export function formatSessionSummary(exercises: number, sets: number, volumeKg: number): string {
   return (
-    `Séance terminée : ${formatCount(exercises, 'exercice')}, ${formatCount(sets, 'série')}, ` +
+    `Séance terminée${COLON} ${formatCount(exercises, 'exercice')}, ${formatCount(sets, 'série')}, ` +
     `${formatWeight(volumeKg)} ${Math.abs(volumeKg) >= 2 ? 'soulevés' : 'soulevé'}.`
   );
 }
@@ -114,7 +123,7 @@ export function inSentence(name: string): string {
  */
 export function formatRecordSentence(exercise: string, value: number | string, kind?: string): string {
   const text = typeof value === 'string' ? value : formatWeight(value);
-  return `Nouveau record${kind ? ` de ${kind}` : ''} en ${inSentence(exercise)} : ${text} !`;
+  return `Nouveau record${kind ? ` de ${kind}` : ''} en ${inSentence(exercise)}${COLON} ${text}${BANG}`;
 }
 
 /**

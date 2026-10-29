@@ -1011,7 +1011,7 @@ describe('marque (B · Améthyste)', () => {
 
 describe('charge proposée (lot 1)', () => {
   /** Séance type « Haut du corps » : développé couché 3 × 8 et tractions 3 × 10 ; séance d'hier terminée. */
-  function stateWithLastTime(bench: [number, number][], pullups: number[] = [6, 5, 5]): AppState {
+  function stateWithLastTime(bench: [number, number][], pullups: number[] = [6, 5, 5], daysAgo = 1): AppState {
     const s = createDefaultState();
     s.templates.push(
       createTemplate(
@@ -1026,7 +1026,7 @@ describe('charge proposée (lot 1)', () => {
         'th',
       ),
     );
-    const yesterday = new Date(Date.now() - 24 * 3600 * 1000);
+    const yesterday = new Date(Date.now() - daysAgo * 24 * 3600 * 1000);
     s.sessions.push({
       id: 'hier',
       templateId: 'th',
@@ -1065,7 +1065,7 @@ describe('charge proposée (lot 1)', () => {
     ]);
 
     expect(screen.getByText('Charge proposée : 82,5 kg')).toBeInTheDocument();
-    expect(screen.getByText('La dernière fois : 80 kg × 8 sur toutes les séries.')).toBeInTheDocument();
+    expect(screen.getByText('La dernière fois : 80 kg × 8 à chaque série.')).toBeInTheDocument();
     const list = screen.getByRole('list', { name: 'Séries de Développé couché' });
     expect(note()!.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(note()!.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
@@ -1078,7 +1078,7 @@ describe('charge proposée (lot 1)', () => {
   it('critère 3 : reps différentes la dernière fois → « 8 reps ou plus »', () => {
     renderApp(stateWithLastTime([[80, 10], [80, 9], [80, 8]]));
     start();
-    expect(screen.getByText('La dernière fois : 80 kg, 8 reps ou plus sur toutes les séries.')).toBeInTheDocument();
+    expect(screen.getByText('La dernière fois : 80 kg, 8 reps ou plus à chaque série.')).toBeInTheDocument();
   });
 
   it('critère 4 : sans suggestion, écran identique (pas de note, valeurs de la dernière fois)', () => {
@@ -1125,7 +1125,77 @@ describe('charge proposée (lot 1)', () => {
     }
   });
 
-  it('critères 6 et 7 : après la série 1, plus de bouton mais la note reste ; identique après rechargement', () => {
+  it('« Rester à 80 kg » : bouton secondaire à contour, icône Undo2 ignorée avant le libellé', () => {
+    renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 8]]));
+    start();
+    const keep = screen.getByRole('button', { name: keepName('80 kg') });
+    expect(keep).toHaveClass('btn', 'load-note__keep');
+    expect(keep).not.toHaveClass('btn--ghost');
+    expect(keep).not.toHaveClass('btn--primary');
+    expect(keep).not.toHaveClass('btn--block');
+    const icon = keep.firstElementChild;
+    expect(icon?.tagName.toLowerCase()).toBe('svg');
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+    expect(icon).toHaveClass('lucide-undo-2');
+  });
+
+  it('toast « Charge remise à … » fermé dès qu’une série de l’exercice est validée', () => {
+    renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 8]]));
+    start();
+    fireEvent.click(screen.getByRole('button', { name: keepName('80 kg') }));
+    expect(toastEl()).toHaveTextContent('Charge remise à 80 kg.');
+    fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
+    expect(document.querySelector('.toast')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Annuler : remettre la proposition' })).not.toBeInTheDocument();
+  });
+
+  it('longue pause : dernière fois il y a 30 jours → pas de note, valeurs de la dernière fois', () => {
+    renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 8]], [6, 5, 5], 30));
+    start();
+    expect(note()).toBeNull();
+    expect(weightInput()).toHaveValue('80');
+    expect(repsInput()).toHaveValue('8');
+    expect(todoValues()).toEqual(['80 kg × 8', '80 kg × 8']);
+  });
+
+  /** Valide les 3 séries du développé couché puis termine la séance (confirmation : tractions non faites). */
+  const doBenchAndFinish = () => {
+    for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer la séance' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Terminer la séance' }));
+  };
+  const benchInHistory = (state: AppState) =>
+    state.sessions[state.sessions.length - 1].exercises
+      .find((e) => e.exerciseId === 'developpe-couche')
+      ?.sets.map((x) => [x.weight, x.reps]);
+
+  it('de bout en bout : « Rester à 80 kg » → valider → terminer enregistre 80 kg dans l’historique', () => {
+    const { saved } = renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 8]]));
+    start();
+    fireEvent.click(screen.getByRole('button', { name: keepName('80 kg') }));
+    doBenchAndFinish();
+    expect(saved().activeSession).toBeUndefined();
+    expect(benchInHistory(saved())).toEqual([
+      [80, 8],
+      [80, 8],
+      [80, 8],
+    ]);
+    expect(saved().sessions[saved().sessions.length - 1].exercises[0]).not.toHaveProperty('suggestion');
+  });
+
+  it('de bout en bout : proposition acceptée → valider → terminer enregistre 82,5 kg dans l’historique', () => {
+    const { saved } = renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 8]]));
+    start();
+    doBenchAndFinish();
+    expect(saved().activeSession).toBeUndefined();
+    expect(benchInHistory(saved())).toEqual([
+      [82.5, 8],
+      [82.5, 8],
+      [82.5, 8],
+    ]);
+  });
+
+  it('critères 6 et 7 : après la série 1, toute la note est masquée, la référence reste ; identique après rechargement', () => {
     const first = renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 8]]));
     start();
     // −/+ ne fait pas disparaître la note : elle explique la proposition, pas la valeur actuelle
@@ -1135,8 +1205,10 @@ describe('charge proposée (lot 1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
     const check = () => {
       expect(screen.queryByRole('button', { name: keepName('80 kg') })).not.toBeInTheDocument();
-      expect(screen.getByText('Charge proposée : 82,5 kg')).toBeInTheDocument();
-      expect(screen.getByText('La dernière fois : 80 kg × 8 sur toutes les séries.')).toBeInTheDocument();
+      // Note entière masquée : la carte dit déjà « Dernière fois : 80 kg × 8 », la place compte pendant le repos.
+      expect(note()).toBeNull();
+      expect(screen.queryByText('Charge proposée : 82,5 kg')).not.toBeInTheDocument();
+      expect(currentSet()).toHaveTextContent('Dernière fois : 80 kg × 8');
       expect(currentSet()).toHaveTextContent('Série 2 sur 3');
       expect(weightInput()).toHaveValue('82,5');
     };
@@ -1167,7 +1239,7 @@ describe('charge proposée (lot 1)', () => {
     expect(repsInput()).toHaveValue('11');
     expect(todoValues()).toEqual(['11 reps', '11 reps']);
     expect(screen.getByText('Reps proposées : 11 reps')).toBeInTheDocument();
-    expect(screen.getByText('La dernière fois : 10 reps ou plus sur toutes les séries.')).toBeInTheDocument();
+    expect(screen.getByText('La dernière fois : 10 reps ou plus à chaque série.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: keepName('10 reps') }));
     expect(toastEl()).toHaveTextContent('Reps remises à 10 reps.');
     expect(repsInput()).toHaveValue('10');

@@ -35,10 +35,18 @@ function prefillExercise(
   history: WorkoutSession[],
   target: { sets: number; reps: number; weight?: number },
   suggest: boolean,
+  now: Date,
 ): SessionExercise {
   const count = Math.max(1, target.sets);
-  const last = lastPerformance(history, exerciseId)?.sets;
-  const suggestion = suggestLoad({ target: { targetSets: target.sets, targetReps: target.reps }, last, enabled: suggest });
+  const performance = lastPerformance(history, exerciseId);
+  const last = performance?.sets;
+  const suggestion = suggestLoad({
+    target: { targetSets: target.sets, targetReps: target.reps },
+    last,
+    enabled: suggest,
+    lastStartedAt: performance?.date,
+    now,
+  });
   const sets = Array.from({ length: count }, (_, i): SetEntry => {
     if (suggestion) return { weight: suggestion.toWeight, reps: suggestion.toReps, done: false };
     if (last) return { ...lastValuesAt(last, i), done: false };
@@ -69,6 +77,7 @@ export function createSessionFromTemplate(
         history,
         { sets: te.targetSets, reps: te.targetReps, weight: te.targetWeight },
         suggestLoadEnabled,
+        now,
       ),
     ),
   };
@@ -206,16 +215,17 @@ export function keepLastLoad(session: WorkoutSession, exerciseIndex: number, his
 
 /**
  * « Annuler » après « Rester à … » : remet la note et les valeurs proposées sur les séries non validées.
- * Sans effet si l'exercice à cet index n'est plus le même.
+ * L'exercice est retrouvé par référence (l'objet de la séance juste après « Rester à … »), pas par
+ * index : il reste trouvé si un autre exercice a été retiré ou ajouté entre-temps. Sans effet s'il a
+ * changé depuis (série validée ou modifiée) ou s'il n'est plus dans la séance.
  */
 export function reapplySuggestion(
   session: WorkoutSession,
-  exerciseIndex: number,
-  exerciseId: string,
+  exercise: SessionExercise,
   suggestion: LoadSuggestion,
 ): WorkoutSession {
-  const ex = session.exercises[exerciseIndex];
-  if (!ex || ex.exerciseId !== exerciseId) return session;
+  const exerciseIndex = session.exercises.indexOf(exercise);
+  if (exerciseIndex === -1) return session;
   return mapExercise(session, exerciseIndex, (e) => ({
     ...e,
     suggestion,

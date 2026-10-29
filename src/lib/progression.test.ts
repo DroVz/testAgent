@@ -15,6 +15,10 @@ const done = (weight: number, reps: number): SetEntry => ({ weight, reps, done: 
 const target = (targetSets: number, targetReps: number) => ({ targetSets, targetReps });
 /** Remplace l'espace insécable par une espace simple, pour des attentes lisibles. */
 const plain = (text: string) => text.replaceAll(NBSP, ' ');
+const NOW = new Date('2026-03-01T10:00:00.000Z');
+/** Début de la séance de référence, `n` jours avant NOW (ISO). */
+const DAYS_AGO = (n: number) => new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000).toISOString();
+const YESTERDAY = DAYS_AGO(1);
 
 describe('suggestLoad : tableau de cas du lot 1 (vision-et-roadmap.md)', () => {
   it.each([
@@ -27,10 +31,20 @@ describe('suggestLoad : tableau de cas du lot 1 (vision-et-roadmap.md)', () => {
     ['3 × 8, aucune séance passée → rien', target(3, 8), undefined, true, undefined],
     ['3 × 8, séance libre → rien', undefined, [done(80, 8), done(80, 8), done(80, 8)], true, undefined],
     ['3 × 0 → rien', target(3, 0), [done(80, 8), done(80, 8), done(80, 8)], true, undefined],
-  ] as const)('%s', (_label, t, last, enabled, expected) => {
-    const result = suggestLoad({ target: t, last: last as SetEntry[] | undefined, enabled });
+    ['3 × 8, 80×8 ×3 il y a 29 jours (longue pause) → rien', target(3, 8), [done(80, 8), done(80, 8), done(80, 8)], true, undefined, DAYS_AGO(29)],
+    ['3 × 8, 80×8 ×3 il y a 28 jours → 82,5 kg × 8', target(3, 8), [done(80, 8), done(80, 8), done(80, 8)], true, { toWeight: 82.5, toReps: 8 }, DAYS_AGO(28)],
+  ] as const)('%s', (_label, t, last, enabled, expected, lastStartedAt = YESTERDAY) => {
+    const result = suggestLoad({ target: t, last: last as SetEntry[] | undefined, enabled, lastStartedAt, now: NOW });
     if (expected === undefined) expect(result).toBeUndefined();
     else expect(result).toMatchObject(expected);
+  });
+
+  it('longue pause : au-delà de 28 jours (même d’une minute), pas de suggestion ; sans dates, pas de contrôle', () => {
+    const last = [done(80, 8), done(80, 8), done(80, 8)];
+    const justOver = new Date(NOW.getTime() - (28 * 24 * 60 + 1) * 60 * 1000).toISOString();
+    expect(suggestLoad({ target: target(3, 8), last, lastStartedAt: justOver, now: NOW })).toBeUndefined();
+    expect(suggestLoad({ target: target(3, 8), last, lastStartedAt: DAYS_AGO(90), now: NOW })).toBeUndefined();
+    expect(suggestLoad({ target: target(3, 8), last })).toMatchObject({ toWeight: 82.5 });
   });
 
   it('réglage coupé : jamais de suggestion', () => {
@@ -74,22 +88,26 @@ describe('textes de la note', () => {
 
   it('charge', () => {
     expect(plain(suggestionTitle(loaded))).toBe('Charge proposée : 82,5 kg');
-    expect(plain(suggestionDetail(loaded))).toBe('La dernière fois : 80 kg × 8 sur toutes les séries.');
-    expect(plain(suggestionDetail(loadedMixed))).toBe('La dernière fois : 80 kg, 8 reps ou plus sur toutes les séries.');
+    expect(plain(suggestionDetail(loaded))).toBe('La dernière fois : 80 kg × 8 à chaque série.');
+    expect(plain(suggestionDetail(loadedMixed))).toBe('La dernière fois : 80 kg, 8 reps ou plus à chaque série.');
     expect(plain(keepLabel(loaded))).toBe('Rester à 80 kg');
     expect(plain(keepToast(loaded))).toBe('Charge remise à 80 kg.');
   });
 
   it('poids du corps', () => {
     expect(plain(suggestionTitle(bodyweight))).toBe('Reps proposées : 11 reps');
-    expect(plain(suggestionDetail(bodyweight))).toBe('La dernière fois : 10 reps ou plus sur toutes les séries.');
-    expect(plain(suggestionDetail(bodyweightSame))).toBe('La dernière fois : 10 reps sur toutes les séries.');
+    expect(plain(suggestionDetail(bodyweight))).toBe('La dernière fois : 10 reps ou plus à chaque série.');
+    expect(plain(suggestionDetail(bodyweightSame))).toBe('La dernière fois : 10 reps à chaque série.');
     expect(plain(keepLabel(bodyweight))).toBe('Rester à 10 reps');
     expect(plain(keepToast(bodyweight))).toBe('Reps remises à 10 reps.');
   });
 
-  it('espaces insécables entre nombre et unité, aucun « ! »', () => {
+  it('espaces insécables entre nombre et unité et avant « : », aucun « ! »', () => {
     expect(suggestionTitle(loaded)).toContain(`82,5${NBSP}kg`);
+    expect(suggestionTitle(loaded)).toBe(`Charge proposée${NBSP}: 82,5${NBSP}kg`);
+    for (const s of [loaded, loadedMixed, bodyweight]) {
+      expect(suggestionTitle(s) + suggestionDetail(s)).not.toMatch(/ :/);
+    }
     for (const s of [loaded, loadedMixed, bodyweight]) {
       expect(suggestionTitle(s) + suggestionDetail(s) + keepLabel(s) + keepToast(s)).not.toContain('!');
     }

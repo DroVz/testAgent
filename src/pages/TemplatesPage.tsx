@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
-import { exerciseName, formatCount, formatEstimatedDuration, formatLastDone } from '../lib/format';
+import { COLON, exerciseName, formatCount, formatEstimatedDuration, formatLastDone } from '../lib/format';
 import { suggestedTemplateId, templateLastDoneAt } from '../lib/stats';
 import { estimateTemplateMinutes } from '../lib/templates';
 import type { Template } from '../lib/types';
@@ -31,7 +31,7 @@ export default function TemplatesPage() {
   const remove = (t: Template) => {
     const snapshot = actions.deleteTemplate(t.id);
     setMenuFor(null);
-    toast.show({ message: `Séance supprimée : ${t.name}.`, onUndo: snapshot && (() => actions.restore(snapshot)) });
+    toast.show({ message: `Séance supprimée${COLON} ${t.name}.`, onUndo: snapshot && (() => actions.restore(snapshot)) });
   };
 
   const start = (templateId?: string) => {

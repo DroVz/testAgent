@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { useEffect } from 'react';
 import { HashRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import BrandHeader from './components/BrandHeader';
 import ResumeBanner from './components/ResumeBanner';
@@ -43,6 +44,12 @@ function Shell() {
   const ownToastHost = isSession || isEditor;
   // Logotype en tête des 3 onglets uniquement (pas en séance, récap, détail, constructeur ni réglages).
   const isTab = TABS.some((tab) => tab.to === pathname);
+
+  // Chaque écran s'ouvre en haut : sinon la séance démarrée depuis une liste défilée s'ouvre défilée
+  // (nom de l'exercice et note hors de l'écran).
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
 
   return (
     <div className="app">

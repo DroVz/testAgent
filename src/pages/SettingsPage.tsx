@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { version } from '../../package.json';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
+import { COLON } from '../lib/format';
 import { isSuggestLoadEnabled } from '../lib/progression';
 import { saveRestEndsAt } from '../lib/restTimer';
 import { exportFileName, exportState, validateImport } from '../lib/storage';
@@ -13,9 +14,9 @@ import { clearStoredExercise } from './ProgressPage';
 
 /** Taille maximale acceptée pour un import (fichier ou texte collé). */
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
-const TOO_LARGE = 'Import impossible : les données dépassent la taille maximale de 5 Mo.';
+const TOO_LARGE = `Import impossible${COLON} les données dépassent la taille maximale de 5 Mo.`;
 const SAVE_FAILED =
-  'Échec de l’import : les données n’ont pas pu être enregistrées sur l’appareil (stockage plein ou indisponible).';
+  `Échec de l’import${COLON} les données n’ont pas pu être enregistrées sur l’appareil (stockage plein ou indisponible).`;
 
 /** Déclenche le téléchargement d'un fichier texte ; renvoie false si le navigateur ne le permet pas. */
 function downloadText(text: string, filename: string): boolean {
@@ -71,7 +72,7 @@ export default function SettingsPage() {
     setExportMsg(
       downloadText(text, exportFileName())
         ? 'Fichier téléchargé. Tu peux aussi copier le texte ci-dessous.'
-        : 'Téléchargement indisponible sur ce navigateur : copie le texte ci-dessous.',
+        : `Téléchargement indisponible sur ce navigateur${COLON} copie le texte ci-dessous.`,
     );
   };
 
@@ -84,7 +85,7 @@ export default function SettingsPage() {
     } catch {
       exportRef.current?.focus();
       exportRef.current?.select();
-      setExportMsg('Copie automatique impossible : le texte est sélectionné, copie-le manuellement.');
+      setExportMsg(`Copie automatique impossible${COLON} le texte est sélectionné, copie-le manuellement.`);
     }
   };
 
@@ -96,7 +97,7 @@ export default function SettingsPage() {
     }
     const result = validateImport(text);
     if (!result.ok) {
-      setImportError(`Import impossible : ${result.error}`);
+      setImportError(`Import impossible${COLON} ${result.error}`);
       return;
     }
     setImportError(null);
@@ -116,7 +117,7 @@ export default function SettingsPage() {
       checkImport(await file.text());
     } catch {
       setImportDone(null);
-      setImportError('Import impossible : impossible de lire ce fichier.');
+      setImportError(`Import impossible${COLON} impossible de lire ce fichier.`);
     }
   };
 
@@ -265,7 +266,7 @@ export default function SettingsPage() {
         message={
           dialog?.kind === 'import' && (
             <>
-              <p>Données importées : {describeState(dialog.state)}.</p>
+              <p>Données importées&nbsp;: {describeState(dialog.state)}.</p>
               <p>Tes données actuelles ({describeState(state)}) seront définitivement remplacées.</p>
               {state.activeSession && (
                 <p>
@@ -283,7 +284,7 @@ export default function SettingsPage() {
             dismissToast();
             if (actions.replaceState(dialog.state)) {
               setImportError(null);
-              setImportDone(`Import réussi : ${describeState(dialog.state)}.`);
+              setImportDone(`Import réussi${COLON} ${describeState(dialog.state)}.`);
             } else {
               setImportDone(null);
               setImportError(SAVE_FAILED);
@@ -311,7 +312,7 @@ export default function SettingsPage() {
       <ConfirmDialog
         open={dialog?.kind === 'reset'}
         title="Réinitialiser toutes les données ?"
-        message="Séances types, historique, séance en cours et exercices personnalisés seront effacés. Cette action est irréversible : exporte tes données avant si besoin."
+        message={`Séances types, historique, séance en cours et exercices personnalisés seront effacés. Cette action est irréversible${COLON} exporte tes données avant si besoin.`}
         confirmLabel="Tout effacer"
         danger
         onCancel={() => setDialog(null)}

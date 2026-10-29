@@ -1,4 +1,4 @@
-import { NBSP } from './format';
+import { COLON, NBSP } from './format';
 import { DEFAULT_EXERCISES } from './defaultExercises';
 import { MAX_REPS, MAX_WEIGHT, clampExerciseIndex } from './session';
 import {
@@ -41,7 +41,7 @@ export function createDefaultState(): AppState {
 class ValidationError extends Error {}
 
 function fail(path: string, expected: string): never {
-  throw new ValidationError(`${path} : ${expected} attendu`);
+  throw new ValidationError(`${path}${COLON} ${expected} attendu`);
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -209,7 +209,7 @@ function parseSession(v: unknown, path: string): WorkoutSession {
 function assertUniqueIds(items: { id: string }[], path: string): void {
   const seen = new Set<string>();
   for (const { id } of items) {
-    if (seen.has(id)) throw new ValidationError(`${path} : identifiant en double « ${id} »`);
+    if (seen.has(id)) throw new ValidationError(`${path}${COLON} identifiant en double « ${id} »`);
     seen.add(id);
   }
 }
