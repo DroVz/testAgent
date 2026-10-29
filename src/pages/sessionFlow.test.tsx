@@ -1008,3 +1008,230 @@ describe('marque (B · Améthyste)', () => {
     expect(screen.getByText('Exercice 1 sur 1')).toBeInTheDocument();
   });
 });
+
+describe('charge proposée (lot 1)', () => {
+  /** Séance type « Haut du corps » : développé couché 3 × 8 et tractions 3 × 10 ; séance d'hier terminée. */
+  function stateWithLastTime(bench: [number, number][], pullups: number[] = [6, 5, 5]): AppState {
+    const s = createDefaultState();
+    s.templates.push(
+      createTemplate(
+        {
+          name: 'Haut du corps',
+          exercises: [
+            { ...createTemplateExercise('developpe-couche'), targetSets: 3, targetReps: 8, targetWeight: 80 },
+            { ...createTemplateExercise('tractions'), targetSets: 3, targetReps: 10 },
+          ],
+        },
+        new Date('2026-10-01T10:00:00Z'),
+        'th',
+      ),
+    );
+    const yesterday = new Date(Date.now() - 24 * 3600 * 1000);
+    s.sessions.push({
+      id: 'hier',
+      templateId: 'th',
+      name: 'Haut du corps',
+      startedAt: yesterday.toISOString(),
+      endedAt: new Date(yesterday.getTime() + 3600 * 1000).toISOString(),
+      exercises: [
+        { exerciseId: 'developpe-couche', sets: bench.map(([weight, reps]) => ({ weight, reps, done: true })) },
+        { exerciseId: 'tractions', sets: pullups.map((reps) => ({ weight: 0, reps, done: true })) },
+      ],
+    });
+    return s;
+  }
+  const start = () => fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Haut du corps' }));
+  const note = () => document.querySelector<HTMLElement>('.load-note');
+  const weightInput = () => screen.getByLabelText('Charge (kg)');
+  const repsInput = () => screen.getByLabelText('Reps');
+  /** Valeurs des séries à venir (lignes compactes). */
+  const todoValues = () =>
+    [...document.querySelectorAll('.set-row--todo .set-row__values')].map((el) => el.textContent?.replace(/\s/g, ' '));
+  /** Nom accessible avec espace insécable (« 80 kg ») : comparaison souple sur l'espace. */
+  const keepName = (value: string) => new RegExp(`^Rester à ${value.replace(' ', '\\s')}$`);
+  const undoKeep = () =>
+    fireEvent.click(within(toastEl()).getByRole('button', { name: 'Annuler : remettre la proposition' }));
+
+  it('critères 1 et 13 : séries à 82,5 kg × 8, note lue avant les séries, icône ignorée', () => {
+    const { saved } = renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 8]]));
+    start();
+    expect(weightInput()).toHaveValue('82,5');
+    expect(repsInput()).toHaveValue('8');
+    expect(todoValues()).toEqual(['82,5 kg × 8', '82,5 kg × 8']);
+    expect(saved().activeSession?.exercises[0].sets.map((s) => [s.weight, s.reps])).toEqual([
+      [82.5, 8],
+      [82.5, 8],
+      [82.5, 8],
+    ]);
+
+    expect(screen.getByText('Charge proposée : 82,5 kg')).toBeInTheDocument();
+    expect(screen.getByText('La dernière fois : 80 kg × 8 sur toutes les séries.')).toBeInTheDocument();
+    const list = screen.getByRole('list', { name: 'Séries de Développé couché' });
+    expect(note()!.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(note()!.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    // Ni accent ni vert dans la note ; le rappel par série reste ; « Valider la série » seul accent
+    expect(note()!.querySelector('.btn--primary')).toBeNull();
+    expect(currentSet()).toHaveTextContent('Dernière fois : 80 kg × 8');
+    expect(screen.getAllByRole('button').filter((b) => b.classList.contains('btn--primary'))).toHaveLength(1);
+  });
+
+  it('critère 3 : reps différentes la dernière fois → « 8 reps ou plus »', () => {
+    renderApp(stateWithLastTime([[80, 10], [80, 9], [80, 8]]));
+    start();
+    expect(screen.getByText('La dernière fois : 80 kg, 8 reps ou plus sur toutes les séries.')).toBeInTheDocument();
+  });
+
+  it('critère 4 : sans suggestion, écran identique (pas de note, valeurs de la dernière fois)', () => {
+    renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 7]]));
+    start();
+    expect(note()).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Rester à/ })).not.toBeInTheDocument();
+    expect(weightInput()).toHaveValue('80');
+    expect(todoValues()).toEqual(['80 kg × 8', '80 kg × 7']);
+  });
+
+  it('critère 5 : « Rester à 80 kg » puis Annuler', () => {
+    const { saved } = renderApp(stateWithLastTime([[80, 10], [80, 9], [80, 8]]));
+    start();
+    fireEvent.click(screen.getByRole('button', { name: keepName('80 kg') }));
+    expect(weightInput()).toHaveValue('80');
+    expect(repsInput()).toHaveValue('10');
+    expect(todoValues()).toEqual(['80 kg × 9', '80 kg × 8']);
+    expect(note()).toBeNull();
+    expect(saved().activeSession?.exercises[0]).not.toHaveProperty('suggestion');
+    expect(toastEl()).toHaveTextContent('Charge remise à 80 kg.');
+
+    undoKeep();
+    expect(weightInput()).toHaveValue('82,5');
+    expect(repsInput()).toHaveValue('8');
+    expect(todoValues()).toEqual(['82,5 kg × 8', '82,5 kg × 8']);
+    expect(screen.getByText('Charge proposée : 82,5 kg')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: keepName('80 kg') })).toBeInTheDocument();
+  });
+
+  it('« Annuler » disparaît après 5 s ; la charge de la dernière fois reste', () => {
+    vi.useFakeTimers();
+    try {
+      renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 8]]));
+      start();
+      fireEvent.click(screen.getByRole('button', { name: keepName('80 kg') }));
+      act(() => {
+        vi.advanceTimersByTime(TOAST_DURATION_MS + 100);
+      });
+      expect(document.querySelector('.toast')).toBeNull();
+      expect(weightInput()).toHaveValue('80');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('critères 6 et 7 : après la série 1, plus de bouton mais la note reste ; identique après rechargement', () => {
+    const first = renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 8]]));
+    start();
+    // −/+ ne fait pas disparaître la note : elle explique la proposition, pas la valeur actuelle
+    fireEvent.click(screen.getByRole('button', { name: 'Charge (kg) : plus 2,5' }));
+    expect(screen.getByText('Charge proposée : 82,5 kg')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Charge (kg) : moins 2,5' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
+    const check = () => {
+      expect(screen.queryByRole('button', { name: keepName('80 kg') })).not.toBeInTheDocument();
+      expect(screen.getByText('Charge proposée : 82,5 kg')).toBeInTheDocument();
+      expect(screen.getByText('La dernière fois : 80 kg × 8 sur toutes les séries.')).toBeInTheDocument();
+      expect(currentSet()).toHaveTextContent('Série 2 sur 3');
+      expect(weightInput()).toHaveValue('82,5');
+    };
+    check();
+    const saved = first.saved();
+    first.unmount();
+    window.location.hash = '#/seance';
+    renderApp(saved);
+    check();
+  });
+
+  it('rechargement avant toute série : note et bouton toujours là', () => {
+    const first = renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 8]]));
+    start();
+    const saved = first.saved();
+    first.unmount();
+    window.location.hash = '#/seance';
+    renderApp(saved);
+    expect(screen.getByText('Charge proposée : 82,5 kg')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: keepName('80 kg') })).toBeInTheDocument();
+  });
+
+  it('critère 8 : tractions au poids du corps → 11 reps', () => {
+    renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 7]], [10, 12, 10]));
+    start();
+    fireEvent.click(screen.getByRole('button', { name: /^Exercice suivant/ }));
+    expect(screen.getByRole('heading', { name: 'Tractions' })).toBeInTheDocument();
+    expect(repsInput()).toHaveValue('11');
+    expect(todoValues()).toEqual(['11 reps', '11 reps']);
+    expect(screen.getByText('Reps proposées : 11 reps')).toBeInTheDocument();
+    expect(screen.getByText('La dernière fois : 10 reps ou plus sur toutes les séries.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: keepName('10 reps') }));
+    expect(toastEl()).toHaveTextContent('Reps remises à 10 reps.');
+    expect(repsInput()).toHaveValue('10');
+    expect(todoValues()).toEqual(['12 reps', '10 reps']);
+  });
+
+  it('critère 9 : séance libre ou exercice ajouté à la volée : jamais de note', () => {
+    renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 8]]));
+    start();
+    // Exercice ajouté à la volée dans une séance type
+    fireEvent.click(screen.getByRole('button', { name: 'Options de Développé couché' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter un exercice' }));
+    fireEvent.click(dialog().getByText('Développé couché', { selector: 'span' }));
+    expect(screen.getByText('Exercice 3 sur 3')).toBeInTheDocument();
+    expect(weightInput()).toHaveValue('80');
+    expect(note()).toBeNull();
+  });
+
+  it('critère 9 bis : séance libre', () => {
+    renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 8]]));
+    fireEvent.click(screen.getByRole('button', { name: /séance libre/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter un exercice' }));
+    fireEvent.click(dialog().getByText('Développé couché', { selector: 'span' }));
+    expect(screen.getByRole('heading', { name: 'Développé couché' })).toBeInTheDocument();
+    expect(weightInput()).toHaveValue('80');
+    expect(note()).toBeNull();
+  });
+
+  it('critère 10 : réglage coupé → aucune suggestion ; il survit au rechargement', () => {
+    window.location.hash = '#/reglages';
+    const first = renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 8]]));
+    const toggle = screen.getByRole('switch', { name: 'Suggérer la charge suivante' });
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(toggle).toHaveAccessibleDescription(
+      'Quand tu as réussi toutes tes séries, la séance suivante propose 2,5 kg de plus (ou 1 rep au poids du corps).',
+    );
+    // Section « Séance » placée avant « Sauvegarde »
+    const titles = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(titles.indexOf('Séance')).toBeGreaterThanOrEqual(0);
+    expect(titles.indexOf('Séance')).toBeLessThan(titles.indexOf('Sauvegarde'));
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(first.saved().settings).toEqual({ suggestLoad: false });
+
+    const saved = first.saved();
+    first.unmount();
+    window.location.hash = '#/reglages';
+    renderApp(saved);
+    expect(screen.getByRole('switch', { name: 'Suggérer la charge suivante' })).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(screen.getByRole('link', { name: 'Séances' }));
+    start();
+    expect(note()).toBeNull();
+    expect(weightInput()).toHaveValue('80');
+  });
+
+  it('couper le réglage ne modifie pas la séance en cours', () => {
+    const first = renderApp(stateWithLastTime([[80, 8], [80, 8], [80, 8]]));
+    start();
+    const saved = first.saved();
+    first.unmount();
+    window.location.hash = '#/reglages';
+    const second = renderApp(saved);
+    fireEvent.click(screen.getByRole('switch', { name: 'Suggérer la charge suivante' }));
+    expect(second.saved().activeSession?.exercises[0].suggestion?.toWeight).toBe(82.5);
+    expect(second.saved().activeSession?.exercises[0].sets[0].weight).toBe(82.5);
+  });
+});

@@ -288,6 +288,43 @@ describe('currentExerciseIndex (séance en cours)', () => {
   });
 });
 
+describe('charge proposée et réglages (lot 1)', () => {
+  const suggestion = { fromWeight: 80, fromReps: 8, toWeight: 82.5, toReps: 8, sameReps: true };
+  const withSuggestion = (): AppState => ({
+    ...createDefaultState(),
+    activeSession: {
+      id: 'a',
+      name: 'Haut',
+      startedAt: '2026-03-01T10:00:00.000Z',
+      exercises: [{ exerciseId: 'developpe-couche', sets: [{ weight: 82.5, reps: 8, done: false }], suggestion }],
+    },
+    settings: { suggestLoad: false },
+  });
+
+  it('suggestion et réglage conservés à l’export puis à l’import', () => {
+    const result = validateImport(exportState(withSuggestion()));
+    expect(result.ok && result.state.activeSession?.exercises[0].suggestion).toEqual(suggestion);
+    expect(result.ok && result.state.settings).toEqual({ suggestLoad: false });
+  });
+
+  it('export antérieur (sans settings ni suggestion) : importé sans erreur, réglage absent = activé', () => {
+    const old = JSON.parse(exportState(sampleState()));
+    delete old.settings;
+    const result = validateImport(JSON.stringify(old));
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.state).not.toHaveProperty('settings');
+  });
+
+  it('valeurs invalides rejetées avec un message clair', () => {
+    const bad = withSuggestion() as unknown as { settings: unknown; activeSession: { exercises: { suggestion: unknown }[] } };
+    bad.settings = { suggestLoad: 'oui' };
+    expect(parseAppState(bad)).toEqual({ ok: false, error: 'settings.suggestLoad : booléen attendu' });
+    const bad2 = withSuggestion() as unknown as { activeSession: { exercises: { suggestion: Record<string, unknown> }[] } };
+    bad2.activeSession.exercises[0].suggestion.toWeight = -1;
+    expect(parseAppState(bad2)).toMatchObject({ ok: false, error: expect.stringContaining('suggestion.toWeight') });
+  });
+});
+
 describe('exportFileName', () => {
   it('muscutrack-AAAA-MM-JJ.json en date locale', () => {
     expect(exportFileName(new Date(2026, 0, 5, 23, 59))).toBe('muscutrack-2026-01-05.json');

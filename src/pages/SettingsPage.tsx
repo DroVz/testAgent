@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { version } from '../../package.json';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
+import { isSuggestLoadEnabled } from '../lib/progression';
 import { saveRestEndsAt } from '../lib/restTimer';
 import { exportFileName, exportState, validateImport } from '../lib/storage';
 import { MUSCLE_GROUPS, type AppState, type Exercise, type MuscleGroup } from '../lib/types';
@@ -62,6 +63,7 @@ export default function SettingsPage() {
   const exportRef = useRef<HTMLTextAreaElement>(null);
 
   const customExercises = state.exercises.filter((e) => e.isCustom);
+  const suggestLoad = isSuggestLoadEnabled(state);
 
   const doExport = () => {
     const text = exportState(state);
@@ -134,6 +136,26 @@ export default function SettingsPage() {
         Séances
       </Link>
       <h1 className="page__title">Réglages</h1>
+
+      <div className="card settings-section">
+        <h2 className="section-title">Séance</h2>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={suggestLoad}
+          aria-describedby="suggest-load-help"
+          className="switch-row"
+          onClick={() => actions.setSuggestLoad(!suggestLoad)}
+        >
+          <span className="switch-row__label">Suggérer la charge suivante</span>
+          <span className="switch" aria-hidden="true">
+            <span className="switch__thumb" />
+          </span>
+        </button>
+        <p id="suggest-load-help" className="muted settings-section__text">
+          Quand tu as réussi toutes tes séries, la séance suivante propose 2,5 kg de plus (ou 1 rep au poids du corps).
+        </p>
+      </div>
 
       <div className="card settings-section">
         <h2 className="section-title">Sauvegarde</h2>

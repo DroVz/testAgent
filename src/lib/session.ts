@@ -1,6 +1,7 @@
 import { createId } from './id';
+import { suggestLoad } from './progression';
 import { doneSets, lastPerformance } from './stats';
-import type { SessionExercise, SetEntry, Template, WorkoutSession } from './types';
+import type { LoadSuggestion, SessionExercise, SetEntry, Template, WorkoutSession } from './types';
 
 export const FREE_SESSION_NAME = 'Séance libre';
 
@@ -19,46 +20,57 @@ export function sanitizeReps(value: number): number {
   return Number.isFinite(value) && value > 0 ? Math.min(Math.floor(value), MAX_REPS) : 0;
 }
 
+/** Valeurs de la dernière fois, série par série (la dernière série est répétée au-delà). */
+function lastValuesAt(last: SetEntry[], i: number): Pick<SetEntry, 'weight' | 'reps'> {
+  const src = last[Math.min(i, last.length - 1)];
+  return { weight: src.weight, reps: src.reps };
+}
+
 /**
- * Séries pré-remplies pour un exercice de séance type : `targetSets` séries (au moins 1),
- * valeurs de la dernière performance si elle existe, sinon les objectifs.
+ * Exercice de séance type pré-rempli : `targetSets` séries (au moins 1). Avec une charge proposée,
+ * toutes les séries la reprennent ; sinon valeurs de la dernière performance, sinon les objectifs.
  */
-function prefillSets(
+function prefillExercise(
   exerciseId: string,
   history: WorkoutSession[],
   target: { sets: number; reps: number; weight?: number },
-): SetEntry[] {
+  suggest: boolean,
+): SessionExercise {
   const count = Math.max(1, target.sets);
-  const last = lastPerformance(history, exerciseId);
-  return Array.from({ length: count }, (_, i) => {
-    if (last) {
-      const src = last.sets[Math.min(i, last.sets.length - 1)];
-      return { weight: src.weight, reps: src.reps, done: false };
-    }
+  const last = lastPerformance(history, exerciseId)?.sets;
+  const suggestion = suggestLoad({ target: { targetSets: target.sets, targetReps: target.reps }, last, enabled: suggest });
+  const sets = Array.from({ length: count }, (_, i): SetEntry => {
+    if (suggestion) return { weight: suggestion.toWeight, reps: suggestion.toReps, done: false };
+    if (last) return { ...lastValuesAt(last, i), done: false };
     return { weight: target.weight ?? 0, reps: target.reps, done: false };
   });
+  return suggestion ? { exerciseId, sets, suggestion } : { exerciseId, sets };
 }
 
-/** Crée une séance à partir d'une séance type. */
+/**
+ * Crée une séance à partir d'une séance type. `suggestLoadEnabled` : réglage « Suggérer la charge
+ * suivante » (activé par défaut).
+ */
 export function createSessionFromTemplate(
   template: Template,
   history: WorkoutSession[],
   now: Date = new Date(),
   id: string = createId(),
+  suggestLoadEnabled = true,
 ): WorkoutSession {
   return {
     id,
     templateId: template.id,
     name: template.name,
     startedAt: now.toISOString(),
-    exercises: template.exercises.map((te) => ({
-      exerciseId: te.exerciseId,
-      sets: prefillSets(te.exerciseId, history, {
-        sets: te.targetSets,
-        reps: te.targetReps,
-        weight: te.targetWeight,
-      }),
-    })),
+    exercises: template.exercises.map((te) =>
+      prefillExercise(
+        te.exerciseId,
+        history,
+        { sets: te.targetSets, reps: te.targetReps, weight: te.targetWeight },
+        suggestLoadEnabled,
+      ),
+    ),
   };
 }
 
@@ -176,6 +188,41 @@ export function setSetDone(
   return mapSet(session, exerciseIndex, setIndex, (s) => ({ ...s, done }));
 }
 
+/**
+ * « Rester à 80 kg » : les séries non validées reprennent les valeurs de la dernière fois (série par
+ * série, comme le pré-remplissage sans suggestion) et la note disparaît.
+ */
+export function keepLastLoad(session: WorkoutSession, exerciseIndex: number, history: WorkoutSession[]): WorkoutSession {
+  const ex = session.exercises[exerciseIndex];
+  if (!ex?.suggestion) return session;
+  const { suggestion, ...rest } = ex;
+  const last = lastPerformance(history, ex.exerciseId)?.sets;
+  const values = (i: number) => (last ? lastValuesAt(last, i) : { weight: suggestion.fromWeight, reps: suggestion.fromReps });
+  return mapExercise(session, exerciseIndex, () => ({
+    ...rest,
+    sets: ex.sets.map((s, i) => (s.done ? s : { ...s, ...values(i) })),
+  }));
+}
+
+/**
+ * « Annuler » après « Rester à … » : remet la note et les valeurs proposées sur les séries non validées.
+ * Sans effet si l'exercice à cet index n'est plus le même.
+ */
+export function reapplySuggestion(
+  session: WorkoutSession,
+  exerciseIndex: number,
+  exerciseId: string,
+  suggestion: LoadSuggestion,
+): WorkoutSession {
+  const ex = session.exercises[exerciseIndex];
+  if (!ex || ex.exerciseId !== exerciseId) return session;
+  return mapExercise(session, exerciseIndex, (e) => ({
+    ...e,
+    suggestion,
+    sets: e.sets.map((s) => (s.done ? s : { ...s, weight: suggestion.toWeight, reps: suggestion.toReps })),
+  }));
+}
+
 // ---------- Mode séance « un exercice à la fois » ----------
 
 /** Borne un index d'exercice dans [0, count − 1] (0 si aucun exercice ou valeur invalide). */
@@ -236,7 +283,8 @@ export function validateSet(session: WorkoutSession, exerciseIndex: number, setI
 
 /**
  * Termine la séance : retire les séries non validées et les exercices sans série validée,
- * et pose `endedAt`. L'index d'exercice affiché (propre à la séance en cours) est retiré.
+ * et pose `endedAt`. L'index d'exercice affiché et les charges proposées (propres à la séance en
+ * cours) sont retirés.
  */
 export function finishSession(session: WorkoutSession, now: Date = new Date()): WorkoutSession {
   const { currentExerciseIndex: _displayed, ...rest } = session;
@@ -244,7 +292,7 @@ export function finishSession(session: WorkoutSession, now: Date = new Date()): 
     ...rest,
     endedAt: now.toISOString(),
     exercises: session.exercises
-      .map((e) => ({ ...e, sets: doneSets(e.sets) }))
+      .map(({ suggestion: _suggestion, ...e }) => ({ ...e, sets: doneSets(e.sets) }))
       .filter((e) => e.sets.length > 0),
   };
 }

@@ -13,8 +13,10 @@ import {
   currentSetIndex,
   finishSession,
   goToExercise,
+  keepLastLoad,
   nextExerciseIndex,
   pendingSetCount,
+  reapplySuggestion,
   removeExercise,
   removeSet,
   sanitizeReps,
@@ -81,6 +83,75 @@ describe('createSessionFromTemplate', () => {
 
   it('génère un id par défaut', () => {
     expect(createSessionFromTemplate(template, []).id).toBeTruthy();
+  });
+});
+
+describe('charge proposée (lot 1)', () => {
+  const benchHistory = (sets: SetEntry[]): WorkoutSession[] => [
+    {
+      id: 'h',
+      templateId: 't1',
+      name: 'Haut du corps',
+      startedAt: '2026-02-28T10:00:00.000Z',
+      endedAt: '2026-02-28T11:00:00.000Z',
+      exercises: [{ exerciseId: 'developpe-couche', sets }],
+    },
+  ];
+  const t38: Template = {
+    ...template,
+    exercises: [{ exerciseId: 'developpe-couche', targetSets: 3, targetReps: 8, targetWeight: 80, restSeconds: 90 }],
+  };
+  const success = benchHistory([set(80, 10, true), set(80, 9, true), set(80, 8, true)]);
+
+  it('toutes les séries pré-remplies à la charge proposée, suggestion enregistrée dans l’exercice', () => {
+    const s = createSessionFromTemplate(t38, success, NOW, 'x');
+    expect(s.exercises[0].sets).toEqual([set(82.5, 8), set(82.5, 8), set(82.5, 8)]);
+    expect(s.exercises[0].suggestion).toEqual({ fromWeight: 80, fromReps: 8, toWeight: 82.5, toReps: 8, sameReps: false });
+  });
+
+  it('réglage coupé ou échec : pré-remplissage inchangé, pas de champ suggestion', () => {
+    for (const s of [
+      createSessionFromTemplate(t38, success, NOW, 'x', false),
+      createSessionFromTemplate(t38, benchHistory([set(80, 8, true), set(80, 8, true), set(80, 7, true)]), NOW, 'x'),
+    ]) {
+      expect(s.exercises[0]).not.toHaveProperty('suggestion');
+      expect(s.exercises[0].sets.map((x) => x.weight)).toEqual([80, 80, 80]);
+    }
+  });
+
+  it('exercice en double dans la séance type : chaque occurrence calculée avec son objectif', () => {
+    const t = { ...t38, exercises: [t38.exercises[0], { ...t38.exercises[0], targetReps: 12 }] };
+    const s = createSessionFromTemplate(t, success, NOW, 'x');
+    expect(s.exercises[0].suggestion?.toWeight).toBe(82.5);
+    expect(s.exercises[1]).not.toHaveProperty('suggestion');
+  });
+
+  it('jamais en séance libre ni pour un exercice ajouté à la volée', () => {
+    expect(addExercise(createFreeSession(NOW, 'f'), 'developpe-couche', success).exercises[0]).not.toHaveProperty('suggestion');
+  });
+
+  it('keepLastLoad : séries non validées aux valeurs de la dernière fois, note retirée ; reapplySuggestion : retour', () => {
+    let s = createSessionFromTemplate(t38, success, NOW, 'x');
+    const suggestion = s.exercises[0].suggestion!;
+    s = keepLastLoad(s, 0, success);
+    expect(s.exercises[0]).not.toHaveProperty('suggestion');
+    expect(s.exercises[0].sets).toEqual([set(80, 10), set(80, 9), set(80, 8)]);
+    s = reapplySuggestion(s, 0, 'developpe-couche', suggestion);
+    expect(s.exercises[0].suggestion).toEqual(suggestion);
+    expect(s.exercises[0].sets).toEqual([set(82.5, 8), set(82.5, 8), set(82.5, 8)]);
+    // Séries déjà validées : jamais touchées
+    s = setSetDone(updateSet(s, 0, 0, { weight: 85 }), 0, 0, true);
+    expect(keepLastLoad(s, 0, success).exercises[0].sets[0]).toEqual(set(85, 8, true));
+    // Mauvais exercice à cet index : sans effet ; sans suggestion : sans effet
+    const kept = keepLastLoad(s, 0, success);
+    expect(reapplySuggestion(kept, 0, 'squat', suggestion)).toBe(kept);
+    expect(keepLastLoad(kept, 0, success)).toBe(kept);
+  });
+
+  it('finishSession retire la suggestion', () => {
+    let s = createSessionFromTemplate(t38, success, NOW, 'x');
+    s = setSetDone(s, 0, 0, true);
+    expect(finishSession(s, NOW).exercises[0]).not.toHaveProperty('suggestion');
   });
 });
 

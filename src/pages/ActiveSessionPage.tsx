@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, Ellipsis, Pencil } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Ellipsis, Pencil, TrendingUp } from 'lucide-react';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -23,6 +23,7 @@ import {
   nextExerciseIndex,
   pendingSetCount,
 } from '../lib/session';
+import { keepLabel, keepToast, suggestionDetail, suggestionTitle } from '../lib/progression';
 import { loadRestEndsAt, saveRestEndsAt } from '../lib/restTimer';
 import { countDoneSets, lastPerformance, sessionDurationMs, type LastPerformance } from '../lib/stats';
 import { useAppStore } from '../state/AppStore';
@@ -178,6 +179,21 @@ export default function ActiveSessionPage() {
     toastId.current = toast.show({ message, onUndo: snapshot && (() => actions.restore(snapshot)) });
   };
 
+  /** « Rester à 80 kg » : valeurs de la dernière fois, annulable 5 s (« Annuler » remet la proposition). */
+  const keepLast = () => {
+    const suggestion = exercise?.suggestion;
+    if (!suggestion) return;
+    const { exerciseId } = exercise;
+    const index = exIdx;
+    actions.keepLastLoad(index);
+    setFeedback(null);
+    toastId.current = toast.show({
+      message: keepToast(suggestion),
+      onUndo: () => actions.reapplySuggestion(index, exerciseId, suggestion),
+      undoLabel: 'Annuler : remettre la proposition',
+    });
+  };
+
   const goTo = (index: number) => {
     actions.goToExercise(index);
     setEditing(null);
@@ -328,6 +344,23 @@ export default function ActiveSessionPage() {
                 >
                   Abandonner la séance
                 </button>
+              </div>
+            )}
+
+            {/* Charge proposée : note de coach en encre, lue avant la liste des séries ; sans accent ni vert. */}
+            {exercise.suggestion && (
+              <div className="load-note">
+                <p className="load-note__title">
+                  <TrendingUp size={20} aria-hidden="true" />
+                  {suggestionTitle(exercise.suggestion)}
+                </p>
+                <p className="load-note__detail">{suggestionDetail(exercise.suggestion)}</p>
+                {/* Revenir à la dernière fois n'a de sens qu'avant la première série validée. */}
+                {!exercise.sets.some((s) => s.done) && (
+                  <button type="button" className="btn btn--ghost load-note__keep" onClick={keepLast}>
+                    {keepLabel(exercise.suggestion)}
+                  </button>
+                )}
               </div>
             )}
 

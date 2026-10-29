@@ -6,12 +6,15 @@ import {
   createSessionFromTemplate,
   finishSession,
   goToExercise,
+  keepLastLoad,
+  reapplySuggestion,
   removeExercise,
   removeSet,
   setSetDone,
   updateSet,
   validateSet,
 } from '../lib/session';
+import { isSuggestLoadEnabled } from '../lib/progression';
 import { createDefaultState } from '../lib/storage';
 import {
   deleteTemplate,
@@ -21,7 +24,7 @@ import {
   upsertTemplate,
   type TemplateInput,
 } from '../lib/templates';
-import type { AppState, Exercise, MuscleGroup, Template, WorkoutSession } from '../lib/types';
+import type { AppState, Exercise, LoadSuggestion, MuscleGroup, Template, WorkoutSession } from '../lib/types';
 import { restoreSnapshot, type UndoSnapshot } from '../lib/undo';
 
 /**
@@ -50,6 +53,8 @@ export type AppAction =
   | { type: 'session/setDone'; exerciseIndex: number; setIndex: number; done: boolean }
   | { type: 'session/validateSet'; exerciseIndex: number; setIndex: number }
   | { type: 'session/goToExercise'; exerciseIndex: number }
+  | { type: 'session/keepLastLoad'; exerciseIndex: number }
+  | { type: 'session/reapplySuggestion'; exerciseIndex: number; exerciseId: string; suggestion: LoadSuggestion }
   | { type: 'session/finish'; now: Date }
   | { type: 'session/abandon' }
   // Historique
@@ -58,6 +63,8 @@ export type AppAction =
   // Annulation d'une suppression (toast « Annuler »)
   | { type: 'undo/restore'; snapshot: UndoSnapshot }
   // Données
+  // Réglages
+  | { type: 'settings/setSuggestLoad'; enabled: boolean }
   | { type: 'data/replace'; state: AppState }
   | { type: 'data/reset' };
 
@@ -121,7 +128,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       if (!template) return state;
       return {
         ...state,
-        activeSession: createSessionFromTemplate(template, state.sessions, action.now, action.sessionId),
+        activeSession: createSessionFromTemplate(
+          template,
+          state.sessions,
+          action.now,
+          action.sessionId,
+          isSuggestLoadEnabled(state),
+        ),
       };
     }
     case 'session/startFree':
@@ -145,6 +158,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return withActive(state, (s) => validateSet(s, action.exerciseIndex, action.setIndex));
     case 'session/goToExercise':
       return withActive(state, (s) => goToExercise(s, action.exerciseIndex));
+    case 'session/keepLastLoad':
+      return withActive(state, (s) => keepLastLoad(s, action.exerciseIndex, state.sessions));
+    case 'session/reapplySuggestion':
+      return withActive(state, (s) => reapplySuggestion(s, action.exerciseIndex, action.exerciseId, action.suggestion));
     case 'session/finish': {
       if (!state.activeSession) return state;
       const finished = finishSession(state.activeSession, action.now);
@@ -163,6 +180,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     case 'undo/restore':
       return restoreSnapshot(state, action.snapshot);
+
+    case 'settings/setSuggestLoad':
+      // S'applique aux séances démarrées ensuite : la séance en cours n'est pas modifiée.
+      return { ...state, settings: { ...state.settings, suggestLoad: action.enabled } };
 
     case 'data/replace':
       return action.state;

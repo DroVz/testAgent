@@ -3,8 +3,10 @@ import { DEFAULT_EXERCISES } from './defaultExercises';
 import { MAX_REPS, MAX_WEIGHT, clampExerciseIndex } from './session';
 import {
   MUSCLE_GROUPS,
+  type AppSettings,
   type AppState,
   type Exercise,
+  type LoadSuggestion,
   type SessionExercise,
   type SetEntry,
   type Template,
@@ -148,12 +150,39 @@ function parseSet(v: unknown, path: string): SetEntry {
   };
 }
 
-function parseSessionExercise(v: unknown, path: string): SessionExercise {
+function bool(v: unknown, path: string): boolean {
+  if (typeof v !== 'boolean') fail(path, 'booléen');
+  return v;
+}
+
+function parseSuggestion(v: unknown, path: string): LoadSuggestion {
   const o = obj(v, path);
   return {
+    fromWeight: weight(o.fromWeight, `${path}.fromWeight`),
+    fromReps: reps(o.fromReps, `${path}.fromReps`),
+    toWeight: weight(o.toWeight, `${path}.toWeight`),
+    toReps: reps(o.toReps, `${path}.toReps`),
+    sameReps: bool(o.sameReps, `${path}.sameReps`),
+  };
+}
+
+function parseSessionExercise(v: unknown, path: string): SessionExercise {
+  const o = obj(v, path);
+  const e: SessionExercise = {
     exerciseId: nonEmptyStr(o.exerciseId, `${path}.exerciseId`),
     sets: arr(o.sets, `${path}.sets`, parseSet),
   };
+  // Optionnel (charge proposée, lot 1) : données antérieures sans ce champ acceptées.
+  if (o.suggestion !== undefined) e.suggestion = parseSuggestion(o.suggestion, `${path}.suggestion`);
+  return e;
+}
+
+/** Réglages optionnels : un export antérieur sans `settings` s'importe avec les valeurs par défaut. */
+function parseSettings(v: unknown, path: string): AppSettings {
+  const o = obj(v, path);
+  const settings: AppSettings = {};
+  if (o.suggestLoad !== undefined) settings.suggestLoad = bool(o.suggestLoad, `${path}.suggestLoad`);
+  return settings;
 }
 
 function parseSession(v: unknown, path: string): WorkoutSession {
@@ -203,6 +232,7 @@ export function parseAppState(raw: unknown): ParseResult {
     if (o.activeSession !== undefined && o.activeSession !== null) {
       state.activeSession = parseSession(o.activeSession, 'activeSession');
     }
+    if (o.settings !== undefined && o.settings !== null) state.settings = parseSettings(o.settings, 'settings');
     return { ok: true, state };
   } catch (e) {
     if (e instanceof ValidationError) return { ok: false, error: e.message };

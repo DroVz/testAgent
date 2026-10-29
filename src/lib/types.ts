@@ -45,9 +45,23 @@ export interface SetEntry {
   done: boolean;
 }
 
+/**
+ * Charge proposée (lot 1) : la dernière fois, toutes les séries ont atteint l'objectif à `fromWeight`.
+ * `fromReps` = plus petit nombre de reps de la dernière fois ; `sameReps` : toutes au même nombre.
+ */
+export interface LoadSuggestion {
+  fromWeight: number;
+  fromReps: number;
+  toWeight: number;
+  toReps: number;
+  sameReps: boolean;
+}
+
 export interface SessionExercise {
   exerciseId: string;
   sets: SetEntry[];
+  /** Charge proposée à la création de la séance ; retirée par « Rester à … » et à la fin de la séance. */
+  suggestion?: LoadSuggestion;
 }
 
 export interface WorkoutSession {
@@ -67,12 +81,19 @@ export interface WorkoutSession {
   currentExerciseIndex?: number;
 }
 
+export interface AppSettings {
+  /** « Suggérer la charge suivante » ; absent = activé. */
+  suggestLoad?: boolean;
+}
+
 export interface AppState {
   version: 1;
   exercises: Exercise[];
   templates: Template[];
   sessions: WorkoutSession[];
   activeSession?: WorkoutSession;
+  /** Réglages ; absent (anciens exports) = valeurs par défaut. */
+  settings?: AppSettings;
 }
 
 export const DEFAULT_REST_SECONDS = 90;

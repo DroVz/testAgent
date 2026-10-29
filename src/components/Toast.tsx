@@ -8,6 +8,8 @@ export interface ToastOptions {
   message: string;
   /** Annule l'action. Sans `onUndo`, le toast n'a pas de bouton. */
   onUndo?: () => void;
+  /** Nom accessible du bouton « Annuler » (par défaut : « Annuler la suppression »). */
+  undoLabel?: string;
 }
 
 interface ToastData extends ToastOptions {
@@ -82,7 +84,7 @@ export function ToastHost({ placement, aboveTabbar = false }: { placement: 'floa
             <button
               type="button"
               className="toast__undo"
-              aria-label="Annuler la suppression"
+              aria-label={toast.undoLabel ?? 'Annuler la suppression'}
               onClick={() => {
                 toast.onUndo?.();
                 ctx.dismiss(toast.id);
