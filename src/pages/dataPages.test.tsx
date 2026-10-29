@@ -147,6 +147,8 @@ describe('historique', () => {
 });
 
 describe('progrès', () => {
+  /** Graphique (« <métrique> — <exercice> : … ») : l'autre image de la page est le logotype de l'en-tête de marque. */
+  const CHART = / — /;
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(2026, 9, 28, 12, 0));
@@ -156,7 +158,7 @@ describe('progrès', () => {
   it('état vide si aucun historique', () => {
     renderAt('#/progres');
     expect(screen.getByText('Pas encore de progression à afficher')).toBeInTheDocument();
-    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: CHART })).not.toBeInTheDocument();
   });
 
   it('stats globales, exercice par défaut, records et graphique', () => {
@@ -172,7 +174,7 @@ describe('progrès', () => {
     expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['Développé couché', 'Squat']);
 
     // 1RM estimé par défaut, arrondi à 0,5 kg : 110 × (1 + 5/30) = 128,33 → 128,5 kg
-    expect(screen.getByRole('img')).toHaveAccessibleName(/^1RM estimé — Squat : 2 séances, dernière valeur 128,5\skg/);
+    expect(screen.getByRole('img', { name: CHART })).toHaveAccessibleName(/^1RM estimé — Squat : 2 séances, dernière valeur 128,5\skg/);
     const prs = screen.getByRole('heading', { name: 'Records personnels' }).parentElement!;
     expect(within(prs).getByText('Meilleur poids').nextElementSibling).toHaveTextContent('110 kg');
     // 1RM : max(110 × (1 + 5/30), 100 × (1 + 8/30)) = 128,33 → arrondi à 0,5 kg
@@ -188,16 +190,16 @@ describe('progrès', () => {
     fireEvent.click(metric.getByRole('button', { name: 'Volume' }));
     expect(metric.getByRole('button', { name: 'Volume' })).toHaveAttribute('aria-pressed', 'true');
     expect(metric.getByRole('button', { name: 'Poids max' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByRole('img')).toHaveAccessibleName(/^Volume — Squat : .*1\s350\skg/);
+    expect(screen.getByRole('img', { name: CHART })).toHaveAccessibleName(/^Volume — Squat : .*1\s350\skg/);
 
     fireEvent.click(metric.getByRole('button', { name: 'Poids max' }));
-    expect(screen.getByRole('img')).toHaveAccessibleName(/^Poids max — Squat : .*110\skg/);
+    expect(screen.getByRole('img', { name: CHART })).toHaveAccessibleName(/^Poids max — Squat : .*110\skg/);
     fireEvent.click(metric.getByRole('button', { name: '1RM estimé' }));
-    expect(screen.getByRole('img')).toHaveAccessibleName(/^1RM estimé — Squat : .*128,5\skg/);
+    expect(screen.getByRole('img', { name: CHART })).toHaveAccessibleName(/^1RM estimé — Squat : .*128,5\skg/);
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Exercice' }), { target: { value: 'developpe-couche' } });
     // Un seul point : graphique quand même, avec une indication
-    expect(screen.getByRole('img')).toHaveAccessibleName(/Développé couché : 1 séance/);
+    expect(screen.getByRole('img', { name: CHART })).toHaveAccessibleName(/Développé couché : 1 séance/);
     expect(screen.getByText(/Une seule séance pour l’instant/)).toBeInTheDocument();
     expect(localStorage.getItem(PROGRESS_EXERCISE_KEY)).toBe('developpe-couche');
 
@@ -211,7 +213,7 @@ describe('progrès', () => {
     // 1RM squat : 5 oct. 100 × (1 + 5/30) = 116,67 → 116,5 ; 26 oct. 128,33 → 128,5 : +12 kg en 3 semaines
     const sentence = document.querySelector('.progress-sentence');
     expect(sentence).toHaveTextContent('1RM estimé : +12 kg en 3 semaines');
-    expect(sentence!.compareDocumentPosition(screen.getByRole('img')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(sentence!.compareDocumentPosition(screen.getByRole('img', { name: CHART })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const metric = within(screen.getByRole('group', { name: 'Métrique' }));
     fireEvent.click(metric.getByRole('button', { name: 'Poids max' }));
     expect(document.querySelector('.progress-sentence')).toHaveTextContent('+10 kg en 3 semaines');

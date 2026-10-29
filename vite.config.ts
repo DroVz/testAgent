@@ -9,9 +9,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/icon.svg'],
+      includeAssets: ['icons/icon.svg', 'icons/apple-touch-icon.png'],
       workbox: {
-        // Police Inter (woff2) précachée : l'app garde sa typo hors ligne.
+        // Polices Inter et Space Grotesk (woff2) précachées : l'app garde sa typo hors ligne.
         globPatterns: ['**/*.{js,css,html,woff2}'],
       },
       manifest: {
@@ -23,12 +23,12 @@ export default defineConfig({
         scope: './',
         display: 'standalone',
         orientation: 'portrait',
-        theme_color: '#F7F7F4',
-        background_color: '#F7F7F4',
+        theme_color: '#F5F5FA',
+        background_color: '#F5F5FA',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           { src: 'icons/icon.svg', sizes: 'any', type: 'image/svg+xml' },
         ],
       },

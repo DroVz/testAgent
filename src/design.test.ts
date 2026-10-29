@@ -29,17 +29,31 @@ function block(source: string, start: string): string {
 
 const token = (scope: string, name: string) => new RegExp(`${name}:\\s*([^;]+);`).exec(scope)?.[1].trim().toLowerCase();
 
+/** Rapport de contraste WCAG 2.x entre deux couleurs #rrggbb. */
+function contrast(a: string, b: string): number {
+  const luminance = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => {
+      const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
 describe('identité visuelle', () => {
-  it('jetons de couleur exacts du §6, clair par défaut et sombre via prefers-color-scheme', () => {
+  it('jetons de couleur exacts du §6 (B · Améthyste), clair par défaut et sombre via prefers-color-scheme', () => {
     const light = block(css, ':root {');
     const dark = block(css, '@media (prefers-color-scheme: dark)');
     const expected: Record<string, [string, string]> = {
-      '--bg': ['#f7f7f4', '#0f1114'],
-      '--surface': ['#ffffff', '#181b20'],
-      '--text': ['#111418', '#f2f3f5'],
-      '--text-muted': ['#5b636e', '#9aa3af'],
-      '--border': ['#e3e5e8', '#2a2f36'],
-      '--accent': ['#e8481c', '#ff6a3d'],
+      '--bg': ['#f5f5fa', '#0b0b12'],
+      '--surface': ['#ffffff', '#161620'],
+      '--text': ['#13131c', '#f1f1f6'],
+      '--text-muted': ['#5e5e71', '#a5a5ba'],
+      '--border': ['#dddde6', '#31313f'],
+      '--accent': ['#584cad', '#adaaf8'],
+      '--accent-contrast': ['#ffffff', '#0b0b12'],
       '--success': ['#137a4b', '#34c27c'],
       '--danger': ['#c62828', '#ff6b6b'],
     };
@@ -49,13 +63,33 @@ describe('identité visuelle', () => {
     }
   });
 
-  it('Inter en premier, chiffres tabulaires, cibles 48 / 56 px, rayons 12 / 999 px', () => {
+  it('contraste texte ≥ 4,5:1 en clair et en sombre (fond, cartes, texte posé sur l’accent et le danger)', () => {
+    for (const scope of [block(css, ':root {'), block(css, '@media (prefers-color-scheme: dark)')]) {
+      const t = (name: string) => token(scope, name)!;
+      const pairs: [string, string][] = [
+        ['--text', '--bg'],
+        ['--text', '--surface'],
+        ['--text-muted', '--bg'],
+        ['--text-muted', '--surface'],
+        ['--accent-contrast', '--accent'],
+        ['--danger-contrast', '--danger'],
+        ['--success', '--surface'],
+        ['--danger', '--surface'],
+      ];
+      for (const [fg, bg] of pairs) {
+        expect(contrast(t(fg), t(bg)), `${fg} sur ${bg}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it('Inter pour le corps, Space Grotesk pour titres et chiffres, cibles 48 / 56 px, rayons 14 / 999 px', () => {
     const light = block(css, ':root {');
     expect(token(light, '--font-sans')).toMatch(/^'inter variable'/);
+    expect(token(light, '--font-display')).toMatch(/^'space grotesk'/);
     expect(light).toContain('font-variant-numeric: tabular-nums');
     expect(token(light, '--touch')).toBe('48px');
     expect(token(light, '--touch-primary')).toBe('56px');
-    expect(token(light, '--radius')).toBe('12px');
+    expect(token(light, '--radius')).toBe('14px');
     expect(token(light, '--radius-pill')).toBe('999px');
   });
 
@@ -69,6 +103,19 @@ describe('identité visuelle', () => {
       else if (rem) expect(Number(rem[1]) * 16, size).toBeGreaterThanOrEqual(13);
       else expect(size, size).toMatch(/^var\(--fs-(display|title|body|caption)\)$/);
     }
+  });
+
+  it('Space Grotesk 500 et 700 embarquées via @fontsource (hors ligne)', () => {
+    const fonts = readFileSync(join(SRC, 'fonts.css'), 'utf-8');
+    for (const weight of [500, 700]) {
+      expect(fonts).toContain(`@fontsource/space-grotesk/files/space-grotesk-latin-${weight}-normal.woff2`);
+    }
+  });
+
+  it('signature pente 12° : crans de progression biseautés, un par exercice (--steps)', () => {
+    const track = /\.session-progress__track \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(track).toContain('skewX(-12deg)');
+    expect(track).toContain('var(--steps, 1)');
   });
 
   it('respecte prefers-reduced-motion', () => {

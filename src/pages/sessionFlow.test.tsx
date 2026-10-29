@@ -958,3 +958,37 @@ describe('onglet Séances (lot 4)', () => {
     expect(screen.getByRole('heading', { name: 'Séances' })).toBeInTheDocument();
   });
 });
+
+describe('marque (B · Améthyste)', () => {
+  const brand = () => screen.queryByRole('img', { name: 'MuscuTrack' });
+
+  it('logotype en tête des 3 onglets, absent des réglages et du mode séance', () => {
+    renderApp(stateWithTwoExercises());
+    const nav = () => within(screen.getByRole('navigation', { name: 'Navigation principale' }));
+    for (const tab of ['Séances', 'Historique', 'Progrès']) {
+      fireEvent.click(nav().getByRole('link', { name: tab }));
+      expect(screen.getByRole('heading', { name: tab })).toBeInTheDocument();
+      expect(brand(), tab).toBeInTheDocument();
+      expect(brand()?.closest('.brand-header')).not.toBeNull();
+    }
+
+    fireEvent.click(nav().getByRole('link', { name: 'Séances' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Réglages' }));
+    expect(screen.getByRole('heading', { name: 'Réglages' })).toBeInTheDocument();
+    expect(brand()).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('link', { name: 'Séances' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Haut' }));
+    expect(screen.getByText('Exercice 1 sur 2')).toBeInTheDocument();
+    expect(brand()).not.toBeInTheDocument();
+  });
+
+  it('progression en crans : --steps = nombre d’exercices sur la piste et son parent', () => {
+    renderApp(stateWithTwoExercises());
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Haut' }));
+    const track = screen.getByRole('progressbar', { name: 'Progression dans la séance' });
+    expect(track.style.getPropertyValue('--steps')).toBe('2');
+    expect(track.parentElement?.style.getPropertyValue('--steps')).toBe('2');
+    expect(screen.getByText('Exercice 1 sur 2')).toBeInTheDocument();
+  });
+});

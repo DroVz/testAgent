@@ -68,29 +68,35 @@ Exemples :
 
 ## 6. Design visuel
 
-### Couleurs (variables CSS, mode clair par défaut, mode sombre prévu)
+### Couleurs (variables CSS, mode clair par défaut, mode sombre prévu) — marque « B · Améthyste »
 | Rôle | Clair | Sombre |
 |---|---|---|
-| Fond | `#F7F7F4` | `#0F1114` |
-| Surface (cartes) | `#FFFFFF` | `#181B20` |
-| Texte principal | `#111418` | `#F2F3F5` |
-| Texte secondaire | `#5B636E` | `#9AA3AF` |
-| Bordure | `#E3E5E8` | `#2A2F36` |
-| **Accent (prochaine action)** | `#E8481C` | `#FF6A3D` |
+| Fond | `#F5F5FA` | `#0B0B12` |
+| Surface (cartes) | `#FFFFFF` | `#161620` |
+| Texte principal | `#13131C` | `#F1F1F6` |
+| Texte secondaire | `#5E5E71` (5,8:1) | `#A5A5BA` (7,4:1) |
+| Bordure | `#DDDDE6` | `#31313F` |
+| **Accent (prochaine action)** | `#584CAD`, texte posé `#FFFFFF` 6,9:1 | `#ADAAF8`, texte posé `#0B0B12` 9,2:1 |
 | Succès / record | `#137A4B` | `#34C27C` |
 | Danger | `#C62828` | `#FF6B6B` |
 
 Contraste texte/fond ≥ 4.5:1 partout. Les séries validées sont **remplies en encre** (texte principal) avec une coche, pas en couleur vive : l'accent reste réservé à la prochaine action.
 
 ### Typographie
-- Une seule famille : **Inter** (variable), avec `font-variant-numeric: tabular-nums` sur tous les chiffres.
-- Échelle : chiffres de série 40 px / 700 ; titres d'écran 24 px / 700 ; corps 16 px / 400 ; légendes 13 px / 500. Jamais de texte < 13 px.
+- Deux familles : **Space Grotesk** 700 pour les titres d'écran, les noms (séances, exercices) et tous les chiffres héros ; **Inter** (variable) pour le corps. `font-variant-numeric: tabular-nums` (`tnum`) sur tous les chiffres.
+- Échelle inchangée : chiffres de série 40 px / 700 ; titres d'écran 24 px / 700 ; corps 16 px / 400 ; légendes 13 px / 500. Jamais de texte < 13 px.
 
 ### Forme et espace
 - Grille d'espacement de **8 px**. Marges d'écran 16 px.
-- Rayons : 12 px (cartes), 999 px (boutons principaux, pastilles).
+- Rayons : 14 px (cartes), 999 px (boutons, pastilles).
+- Pente de 12° réservée aux crans de la barre de progression de séance (un cran par exercice) et au logo, nulle part ailleurs.
 - Pas d'ombres lourdes : bordure fine ou léger relief seulement. Beaucoup d'espace blanc.
 - Icônes : un seul jeu (ex. Lucide), trait 2 px, toujours accompagnées d'un libellé quand l'action est importante.
+
+### Marque
+- Logotype monochrome (couleur du texte principal), en tête des 3 onglets uniquement (Séances, Historique, Progrès) ; jamais en mode séance, sur le récap ni dans les réglages.
+- L'icône d'app est la seule à porter la couleur de marque (`#584CAD`) ; l'accent n'apparaît jamais sur le logo dans l'app.
+- Signature : la pente de 12°, une double barre oblique dans le logo et l'icône, reprise par les crans biseautés de la progression de séance.
 
 ### Mouvement
 - Discret et utile : 150 à 200 ms, pour confirmer une action. Coche animée à la validation d'une série, transition horizontale entre exercices, petit « pulse » sur un record.

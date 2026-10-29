@@ -1,5 +1,5 @@
 import { Check, ChevronLeft, ChevronRight, Ellipsis, Pencil } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExercisePicker from '../components/ExercisePicker';
@@ -124,6 +124,8 @@ export default function ActiveSessionPage() {
   if (!session) return <Navigate to="/seances" replace />;
 
   const total = session.exercises.length;
+  // Crans de progression (pente 12°) : un par exercice, lu par .session-progress__track en CSS.
+  const stepsStyle = { '--steps': total } as CSSProperties;
   const exercise = session.exercises[exIdx];
   const name = exercise ? exerciseName(state.exercises, exercise.exerciseId) : '';
   // Série en cours = première série non validée de l'exercice affiché.
@@ -257,12 +259,13 @@ export default function ActiveSessionPage() {
         </>
       ) : (
         <>
-          <div className="session-progress">
+          <div className="session-progress" style={stepsStyle}>
             <p className="session-progress__label">
               Exercice {exIdx + 1} sur {total}
             </p>
             <div
               className="session-progress__track"
+              style={stepsStyle}
               role="progressbar"
               aria-label="Progression dans la séance"
               aria-valuemin={1}

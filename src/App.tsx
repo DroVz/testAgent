@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { HashRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import BrandHeader from './components/BrandHeader';
 import ResumeBanner from './components/ResumeBanner';
 import { ToastHost, ToastProvider } from './components/Toast';
 import ActiveSessionPage from './pages/ActiveSessionPage';
@@ -40,6 +41,8 @@ function Shell() {
   const fullscreen = isSession || isEditor || pathname === '/reglages';
   // Séance et constructeur affichent le toast dans leur propre bas d'écran, au-dessus du bouton principal.
   const ownToastHost = isSession || isEditor;
+  // Logotype en tête des 3 onglets uniquement (pas en séance, récap, détail, constructeur ni réglages).
+  const isTab = TABS.some((tab) => tab.to === pathname);
 
   return (
     <div className="app">
@@ -64,6 +67,7 @@ function Shell() {
       )}
       {!isSession && <ResumeBanner />}
       <main className={`app__content${fullscreen ? ' app__content--fullscreen' : ''}`}>
+        {isTab && <BrandHeader />}
         <Routes>
           <Route path="/seances" element={<TemplatesPage />} />
           <Route path="/seances/nouvelle" element={<TemplateEditorPage />} />
