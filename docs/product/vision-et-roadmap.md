@@ -190,44 +190,24 @@ Si un exercice figure deux fois dans la même séance type, chaque occurrence es
 
 ### Lot 3 — Ton rythme : objectif hebdo choisi, bilan, jalons · effort M
 
-**Objectif** : donner un cadre pour revenir, que **tu choisis toi-même**. On montre ce qui est fait, jamais ce qui a été raté.
+> **Spécification détaillée : [`lot3-rythme.md`](lot3-rythme.md)** (29 octobre 2026). Elle fait foi : règles de calcul, textes exacts, emplacements, réglage, persistance, cas limites et 26 critères d'acceptation.
+
+**Objectif** : donner un cadre pour revenir, que **tu choisis toi-même**. On montre ce qui est fait, jamais ce qui manque : une semaine sous l'objectif ne laisse aucune trace.
 
 #### User stories
 - **US3.1** En tant que pratiquant, je veux choisir combien de séances je vise par semaine, pour avoir un repère réaliste.
 - **US3.2** En tant que pratiquant, je veux voir où j'en suis dans ma semaine, pour décider d'aller m'entraîner.
 - **US3.3** En tant que pratiquant, je veux un bilan de ma semaine passée et de mon mois, pour voir le chemin parcouru.
 - **US3.4** En tant que pratiquant, je veux qu'on marque les étapes (10ᵉ séance, etc.), sans fanfare.
+- **US3.5** En tant que pratiquant qui n'a pas pu venir, je veux que l'app ne me le reproche pas.
 
-#### Comportement
-- **Choix du rythme** :
-  - dans Réglages, section « Séance », champ « Rythme visé » avec les choix « Aucun » (défaut), 1, 2, 3, 4, 5 ou 6 séances par semaine, en pastilles de 48 px ;
-  - texte d'aide : « Un repère pour toi. Une semaine sous ce rythme n'est jamais comptée contre toi. » ;
-  - sur Progrès, tant que le rythme vaut « Aucun » et qu'au moins 2 séances sont terminées, une carte secondaire affiche « Combien de séances par semaine veux-tu viser ? », les pastilles 2, 3 et 4, et un bouton « Plus tard ». « Plus tard » masque la carte définitivement (on peut toujours régler le rythme dans Réglages).
-- **Où en est la semaine** (semaine du lundi au dimanche, déjà implémentée par `startOfWeek`) :
-  - sur Séances, sous le titre, en texte secondaire 13 px : « Cette semaine : 1 séance sur 3. » ;
-  - une fois l'objectif atteint : « Cette semaine : 3 séances sur 3. Objectif atteint. » ;
-  - au-delà : « Cette semaine : 4 séances. Objectif de 3 atteint. » ;
-  - avec le rythme « Aucun » : « Cette semaine : 1 séance. », ou rien du tout s'il n'y a eu aucune séance cette semaine.
-- Sur Progrès, la tuile « Cette semaine » affiche « 2 sur 3 » et une rangée de N pastilles rondes : remplies en encre pour les séances faites, en contour pour les autres. Les crans biseautés à 12° restent réservés à la progression de séance (`docs/brand/README.md`, B · Améthyste).
-- **Fin de semaine** : le compteur repart à 0 le lundi. Aucun message sur la semaine écoulée si l'objectif n'est pas atteint.
-- **Bilan** : sur Progrès, sous les tuiles, deux lignes.
-  - « Semaine dernière : 3 séances, 14 520 kg, 1 record. » (le nombre de records = les records battus par les séances de cette semaine, via `strongestRecords(detectNewRecords(...))`) ;
-  - « Octobre : 11 séances, 52 300 kg, 4 records. » pour le mois en cours ;
-  - le segment « records » est omis quand il vaut 0, et la ligne « Semaine dernière » est omise s'il n'y a eu aucune séance la semaine dernière.
-- **Jalons** : dans le récap, sous la phrase de synthèse, en texte secondaire, une seule ligne quand la séance qui se termine porte le total à 1, 10, 25, 50, 100, 200, 300… (puis tous les 100) :
-  - « Première séance enregistrée. Bienvenue. »
-  - « 10ᵉ séance enregistrée. »
-  - pas de « ! », pas d'icône ni d'animation.
-
-#### Critères d'acceptation
-1. Rythme 3, une séance faite lundi : Séances affiche « Cette semaine : 1 séance sur 3. »
-2. Rythme 3, 3 séances faites : « Cette semaine : 3 séances sur 3. Objectif atteint. » ; avec 4 séances : « Cette semaine : 4 séances. Objectif de 3 atteint. »
-3. Lundi suivant, 0 séance : Séances n'affiche **rien** sur la semaine écoulée, et aucun texte de l'app ne contient « raté », « manqué », « perdu » ou « série » au sens d'une suite de jours (test grep sur `src/`).
-4. Rythme « Aucun » : aucune pastille ; la tuile affiche le nombre seul, comme aujourd'hui.
-5. Bilan et jalons : tests unitaires sur les bornes de semaine et de mois (fuseau local, dimanche 23 h 59, lundi 0 h 00) et sur la suite 1, 10, 25, 50, 100, 200.
-6. La carte « Combien de séances… » n'apparaît plus après « Plus tard », même après un rechargement.
-7. Le rythme est inclus dans l'export et l'import. Les anciens exports s'importent avec le rythme « Aucun ».
-8. Revue design : aucun nouvel aplat accent sur Séances, Progrès et récap.
+#### En bref
+- **Séance comptée** = terminée avec au moins une série validée. Semaine du lundi 00:00 au dimanche 23:59, heure locale ; une séance compte pour la semaine de son début. Les tuiles existantes de Progrès passent à cette définition.
+- **Objectif par semaine** dans Réglages › Séance : « Aucun » (défaut), 1 à 6, en pastilles de 48 px remplies en encre. Proposé une seule fois sur Progrès dès 2 séances comptées (2, 3, 4 ou « Plus tard »). L'objectif n'est pas historisé : il ne s'applique qu'à la semaine en cours, et un changement est immédiat.
+- **Ligne de semaine** sur Séances (sous le titre) et sur le récap : « Cette semaine : 2 séances sur 3. », « … 3 séances sur 3. Objectif atteint. », « Cette semaine : 4 séances. Objectif de 3 atteint. ». À 0 séance : « Objectif de la semaine : 3 séances. », ou rien sans objectif.
+- **Progrès** : tuile « Cette semaine » en « 2 sur 3 » avec N pastilles en encre ; bilan sous les tuiles (« Semaine dernière : 3 séances, 14 520 kg, 1 record. », « Octobre : … »), segments à 0 omis, jamais d'objectif dans le bilan.
+- **Jalons** dans le récap, aux 1ʳᵉ, 10ᵉ, 25ᵉ, 50ᵉ, 100ᵉ séances puis tous les 100 : « 10ᵉ séance enregistrée. »
+- **Changements par rapport à la version du 28 octobre** : « Rythme visé » devient « Objectif par semaine » ; « 0 séance sur 3 » devient « Objectif de la semaine : 3 séances. » ; la ligne de semaine apparaît aussi dans le récap ; les séances vides ne comptent plus ; le bilan du mois bascule sur le mois précédent quand le mois en cours est vide ; le volume est omis quand il vaut 0 ; le test « aucun mot d'échec » porte sur les fonctions du lot et non sur tout `src/` (« perdue » est légitime dans les avertissements de perte de données).
 
 ---
 
