@@ -1,6 +1,6 @@
 # Proposition : pilier « Engagement » pour `docs/identity.md`
 
-*Product owner, 28 octobre 2026. Proposition **non appliquée**. `identity.md` n'est pas modifié tant que le propriétaire n'a pas validé.*
+*Product owner, 28 octobre 2026. Appliquée à `identity.md` le 29 octobre 2026 par le chef de projet (le propriétaire avait demandé ce pilier ; à confirmer à son retour).*
 
 ## Où l'insérer
 
