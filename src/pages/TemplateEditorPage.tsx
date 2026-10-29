@@ -149,7 +149,7 @@ function Editor({ template }: { template?: Template }) {
                   </button>
                   <button
                     type="button"
-                    className="icon-btn icon-btn--danger"
+                    className="icon-btn"
                     aria-label={`Retirer ${label}`}
                     onClick={() => removeExercise(i, label)}
                   >

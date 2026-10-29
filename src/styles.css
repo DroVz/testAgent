@@ -138,11 +138,16 @@ svg {
 
 /* Space Grotesk 700 pour les titres, les noms et les chiffres héros (échelle inchangée), chiffres tabulaires. */
 .page__title,
+.picker__title,
+.session__name,
 .session-exercise__name,
 .empty-state__title,
 .dialog__title,
 .template-card__name,
-.number-field--hero .number-field__input,
+.history-item__name,
+.detail-exercise__name,
+.editor-item__name,
+.number-field__input,
 .stat__value,
 .progress-sentence,
 .pr-list__number,
@@ -271,7 +276,7 @@ svg {
   color: var(--text-muted);
   text-decoration: none;
   font-family: var(--font-display);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   transition: color var(--duration) var(--ease), border-color var(--duration) var(--ease);
 }
@@ -421,10 +426,6 @@ svg {
   opacity: 0.3;
 }
 
-.icon-btn--danger {
-  color: var(--danger);
-}
-
 .icon-btn--small {
   /* Cible tactile ≥ 48 px conservée ; seule l'icône est plus petite. */
   min-width: var(--touch);
@@ -489,7 +490,7 @@ svg {
   width: 100%;
   min-width: 0;
   min-height: var(--touch);
-  padding: var(--space-1) var(--space-2);
+  padding: var(--space-1) 0; /* Pas de marge latérale : « 120 » en Space Grotesk 24 px tient dans le champ à 390 px. */
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -948,7 +949,7 @@ svg {
   margin: 0;
   overflow: hidden;
   font-size: var(--fs-body);
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.5;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1010,7 +1011,7 @@ svg {
   height: 100%;
   border-radius: 0;
   background: var(--text);
-  transition: width var(--duration) var(--ease);
+  /* Pas de transition de width : quand --steps change, le remplissage saute net au bon cran. */
 }
 
 .session-exercise {

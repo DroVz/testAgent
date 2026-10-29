@@ -990,5 +990,21 @@ describe('marque (B · Améthyste)', () => {
     expect(track.style.getPropertyValue('--steps')).toBe('2');
     expect(track.parentElement?.style.getPropertyValue('--steps')).toBe('2');
     expect(screen.getByText('Exercice 1 sur 2')).toBeInTheDocument();
+
+    const steps = () => screen.getByRole('progressbar', { name: 'Progression dans la séance' }).style.getPropertyValue('--steps');
+    const openMenu = () => fireEvent.click(screen.getByRole('button', { name: /^Options de / }));
+    // Ajout en séance : un cran de plus
+    openMenu();
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter un exercice' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByText('Dips', { selector: 'span' }));
+    expect(steps()).toBe('3');
+    // Retraits : un cran de moins à chaque fois
+    openMenu();
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer cet exercice' }));
+    expect(steps()).toBe('2');
+    openMenu();
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer cet exercice' }));
+    expect(steps()).toBe('1');
+    expect(screen.getByText('Exercice 1 sur 1')).toBeInTheDocument();
   });
 });

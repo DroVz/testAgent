@@ -37,6 +37,8 @@ npm test           # lance les tests (Vitest)
 npm run typecheck  # vérification TypeScript seule
 ```
 
+Pour régénérer les icônes PWA (`public/`) : `node scripts/generate-icons.mjs` (nécessite `npx playwright install chromium`).
+
 ## Déploiement sur GitHub Pages
 
 L’application est 100 % statique (routes en `#/…`, chemins relatifs) : elle fonctionne dans un sous-dossier comme `https://<utilisateur>.github.io/<depot>/`.

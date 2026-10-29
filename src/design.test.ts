@@ -93,6 +93,33 @@ describe('identité visuelle', () => {
     expect(token(light, '--radius-pill')).toBe('999px');
   });
 
+  it('Space Grotesk 700 tabulaire pour les noms, titres et tous les champs chiffrés (y compris le constructeur)', () => {
+    // Règle groupée « font-family: var(--font-display) » : liste de sélecteurs juste avant le bloc.
+    const rule = /([^{}]+)\{\s*font-family: var\(--font-display\);\s*font-weight: 700;[^}]*tabular-nums;[^}]*\}/.exec(css);
+    expect(rule).not.toBeNull();
+    const selectors = rule![1]
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split(',')
+      .map((sel) => sel.trim());
+    for (const sel of [
+      '.page__title',
+      '.picker__title',
+      '.session__name',
+      '.template-card__name',
+      '.history-item__name',
+      '.detail-exercise__name',
+      '.editor-item__name',
+      '.number-field__input',
+    ]) {
+      expect(selectors, sel).toContain(sel);
+    }
+  });
+
+  it('barre d’onglets à 13 px (échelle 40 / 24 / 16 / 13)', () => {
+    const item = /\.tabbar__item \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(item).toMatch(/font-size:\s*13px;/);
+  });
+
   it('aucune taille de texte < 13 px', () => {
     const sizes = [...css.matchAll(/font-size:\s*([^;]+);/g)].map((m) => m[1].trim());
     expect(sizes.length).toBeGreaterThan(0);

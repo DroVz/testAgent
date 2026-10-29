@@ -21,7 +21,7 @@ const fullBleed = (scale) =>
 const TARGETS = [
   { file: 'icon-192.png', size: 192, svg: icon },
   { file: 'icon-512.png', size: 512, svg: icon },
-  // Maskable : glyphe réduit à 80 % pour tenir dans la zone sûre (cercle de 40 % du côté).
+  // Maskable : glyphe réduit à 80 % pour tenir dans la zone sûre (cercle de rayon 40 % du côté, soit un diamètre de 80 %).
   { file: 'icon-maskable-512.png', size: 512, svg: fullBleed(0.8) },
   // iOS arrondit lui-même les coins : fond plein.
   { file: 'apple-touch-icon.png', size: 180, svg: fullBleed(1) },

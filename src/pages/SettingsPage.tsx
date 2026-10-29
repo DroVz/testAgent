@@ -225,7 +225,7 @@ export default function SettingsPage() {
 
       <div className="card settings-section">
         <h2 className="section-title">Zone sensible</h2>
-        <button type="button" className="btn btn--block btn--danger" onClick={() => setDialog({ kind: 'reset' })}>
+        <button type="button" className="btn btn--block btn--danger-outline" onClick={() => setDialog({ kind: 'reset' })}>
           Réinitialiser toutes les données
         </button>
         {resetError && (
@@ -364,7 +364,7 @@ function CustomExerciseRow({
         >
           Modifier
         </button>
-        <button type="button" className="icon-btn icon-btn--danger" aria-label={`Supprimer ${exercise.name}`} onClick={onDelete}>
+        <button type="button" className="icon-btn" aria-label={`Supprimer ${exercise.name}`} onClick={onDelete}>
           <Trash size={20} aria-hidden="true" />
         </button>
       </li>

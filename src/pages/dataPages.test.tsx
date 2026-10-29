@@ -159,6 +159,9 @@ describe('progrès', () => {
     renderAt('#/progres');
     expect(screen.getByText('Pas encore de progression à afficher')).toBeInTheDocument();
     expect(screen.queryByRole('img', { name: CHART })).not.toBeInTheDocument();
+    // Robuste au libellé : aucun graphique, et la seule image est le logotype de l'en-tête.
+    expect(document.querySelector('.chart')).toBeNull();
+    expect(screen.queryAllByRole('img').filter((img) => !img.closest('.brand-header'))).toEqual([]);
   });
 
   it('stats globales, exercice par défaut, records et graphique', () => {

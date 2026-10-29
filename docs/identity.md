@@ -85,6 +85,8 @@ Exemples :
 
 Contraste texte/fond ≥ 4.5:1 partout. Les séries validées sont **remplies en encre** (texte principal) avec une coche, pas en couleur vive : l'accent reste réservé à la prochaine action.
 
+Le rouge plein est réservé au bouton qui confirme une action irréversible ; ailleurs, le danger est en contour ou en texte.
+
 ### Typographie
 - Deux familles : **Space Grotesk** 700 pour les titres d'écran, les noms (séances, exercices) et tous les chiffres héros ; **Inter** (variable) pour le corps. `font-variant-numeric: tabular-nums` (`tnum`) sur tous les chiffres.
 - Échelle inchangée : chiffres de série 40 px / 700 ; titres d'écran 24 px / 700 ; corps 16 px / 400 ; légendes 13 px / 500. Jamais de texte < 13 px.
