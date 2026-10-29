@@ -50,7 +50,7 @@ Exemples :
 ## 5. Parcours clés
 
 ### Créer (onglet Séances)
-- Liste de séances sous forme de cartes : nom, nombre d'exercices, durée estimée, dernier passage. Liste vide : bouton principal « Choisir un programme » (programmes de départ), puis « Créer une séance » en secondaire. Liste non vide : « Créer une séance », « Séance libre » et « Ajouter un programme de départ », tous en secondaire.
+- Liste de séances sous forme de cartes : nom, nombre d'exercices, durée estimée, dernier passage. Liste vide : bouton principal « Choisir un programme » (programmes de départ), puis « Créer une séance » en secondaire. Liste non vide : « Créer une séance », « Séance libre » et « Ajouter un programme de départ », tous en secondaire. Sous le titre, la ligne de semaine en texte secondaire (« Cette semaine : 2 séances sur 3. »).
 - Constructeur en une page : nom en haut, liste d'exercices en dessous, bouton « Ajouter un exercice » (recherche instantanée, récents en premier). Pour chaque exercice : séries × reps × charge cible, modifiables en place. Réordonner par glisser ou boutons ↑ ↓.
 - Action secondaire : « Dupliquer » une séance existante.
 
@@ -66,7 +66,7 @@ Exemples :
 
 ### Suivre (Historique + Progrès)
 - **Historique** : liste chronologique des séances faites ; au clic, le détail exercice par exercice.
-- **Progrès** : on choisit un exercice, on voit **un seul graphique** (charge max ou 1RM estimé dans le temps) et **une phrase qui résume** : « +7,5 kg en 8 semaines ». Les records sont listés sous le graphique.
+- **Progrès** : les tuiles Séances, Cette semaine (avec pastilles si un objectif est choisi) et Ce mois, puis le bilan de la semaine dernière et du mois. On choisit un exercice, on voit **un seul graphique** (charge max ou 1RM estimé dans le temps) et **une phrase qui résume** : « +7,5 kg en 8 semaines ». Les records sont listés sous le graphique.
 - Toujours comparer à la fois précédente, pas à un idéal.
 
 ## 6. Design visuel
@@ -94,6 +94,7 @@ Le rouge plein est réservé au bouton qui confirme une action irréversible ; a
 ### Forme et espace
 - Grille d'espacement de **8 px**. Marges d'écran 16 px.
 - Rayons : 14 px (cartes), 999 px (boutons, pastilles).
+- Pastilles de rythme : rondes, 10 px, encre (remplie = faite, contour = à venir).
 - Pente de 12° réservée aux crans de la barre de progression de séance (un cran par exercice) et au logo, nulle part ailleurs.
 - Pas d'ombres lourdes : bordure fine ou léger relief seulement. Beaucoup d'espace blanc.
 - Icônes : un seul jeu (ex. Lucide), trait 2 px, toujours accompagnées d'un libellé quand l'action est importante.
@@ -140,9 +141,9 @@ Pose-toi ces cinq questions. Une réponse « non » est un défaut à corriger :
 |---|---|---|
 | Charge proposée | Note de deux lignes, en texte principal et secondaire, icône en encre. Pas de proposition si la dernière fois date de plus de 4 semaines. | « Charge proposée : 82,5 kg » / « La dernière fois : 80 kg × 8 à chaque série. » |
 | Record | Seul endroit où le « ! » et le vert « succès » sont permis ; petit « pulse » de 150 à 200 ms | « Nouveau record en développé couché : 82,5 kg ! » |
-| Rythme de la semaine | Un compte face à un objectif choisi, avec des pastilles en encre | « Cette semaine : 2 séances sur 3. » / « Objectif atteint. » |
-| Bilan | Une phrase factuelle, avec des unités | « Semaine dernière : 3 séances, 14 520 kg, 1 record. » |
-| Jalon | Une ligne de texte secondaire dans le récap, sans « ! » ni icône | « 10ᵉ séance enregistrée. » |
+| Rythme de la semaine | Un compte face à un objectif choisi, avec des pastilles en encre. Seule la semaine en cours est comparée à l'objectif. Une séance compte si elle est terminée avec au moins une série validée. | « Cette semaine : 2 séances sur 3. » / « Objectif atteint. » / « Objectif de la semaine : 3 séances. » (aucune séance encore) / « Cette semaine : 4 séances. Objectif de 3 atteint. » |
+| Bilan | Une phrase factuelle, avec des unités. Les segments à 0 sont omis ; le bilan ne mentionne jamais l'objectif. | « Semaine dernière : 3 séances, 14 520 kg, 1 record. » |
+| Jalon | Une ligne de texte secondaire dans le récap, sans « ! » ni icône. Seuils : 1, 10, 25, 50, 100, puis tous les 100. | « 10ᵉ séance enregistrée. » |
 | Rappel de séance | Désactivé par défaut ; jours et heure choisis ; texte neutre ; pas de rappel si la séance du jour est déjà faite | « C'est l'heure de ta séance. Suggérée : Jambes. » |
 | Programmes de départ | Choix guidé à la place d'un écran vide, sans questionnaire | « Commence avec un programme ou crée la tienne. » |
 
@@ -166,5 +167,3 @@ En plus des cinq questions du §8, pose-toi ces cinq-là pour chaque élément d
 3. **L'action principale reste-t-elle seule en accent ?** Si on masque l'élément, l'écran garde-t-il la même hiérarchie ?
 4. **Un mauvais jour, est-ce neutre ?** Relis l'écran comme quelqu'un qui n'est pas venu depuis 3 semaines, ou qui a baissé : ne se sent-il ni jugé ni pressé ?
 5. **Est-ce que ça pousse vers la pratique ?** L'élément donne-t-il une raison concrète de faire la prochaine séance (une charge à tenter, une séance de plus pour le rythme), plutôt qu'une raison d'ouvrir l'app ?
-
-Pastilles de rythme : en encre (remplies = faites, contour = à venir), aucune nouvelle couleur.

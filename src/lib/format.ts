@@ -1,3 +1,4 @@
+import { isMilestone, type PeriodSummary } from './rhythm';
 import { DEFAULT_REST_SECONDS, type Exercise, type SetEntry, type Template, type WorkoutSession } from './types';
 
 export const DELETED_EXERCISE_NAME = 'Exercice supprimé';
@@ -265,4 +266,68 @@ export function formatProgressSentence(
   const span = formatSpan(from, to, now, 'en');
   if (delta > 0) return { headline: `+${format(amount)} ${span}` };
   return { headline: `−${format(amount)} ${span}`, note: DECLINE_NOTE };
+}
+
+// ---------- Rythme (lot 3) : on montre ce qui est fait, jamais ce qui manque ----------
+
+/**
+ * Ligne de semaine (Séances, récap) ; `goal` undefined = « Aucun ».
+ * « Cette semaine : 2 séances sur 3. », « … 3 séances sur 3. Objectif atteint. »,
+ * « Cette semaine : 4 séances. Objectif de 3 atteint. ». À 0 séance : le repère
+ * (« Objectif de la semaine : 3 séances. »), ou rien (undefined) sans objectif.
+ */
+export function formatWeekLine(count: number, goal?: number): string | undefined {
+  const done = formatCount(count, 'séance');
+  if (goal === undefined) return count > 0 ? `Cette semaine${COLON} ${done}.` : undefined;
+  if (count === 0) return `Objectif de la semaine${COLON} ${formatCount(goal, 'séance')}.`;
+  if (count < goal) return `Cette semaine${COLON} ${done} sur ${formatNumber(goal)}.`;
+  if (count === goal) return `Cette semaine${COLON} ${done} sur ${formatNumber(goal)}. Objectif atteint.`;
+  return `Cette semaine${COLON} ${done}. Objectif de ${formatNumber(goal)} atteint.`;
+}
+
+/** Valeur de la tuile « Cette semaine » : « 2 sur 3 », ou le nombre seul (sans objectif ou au-delà). */
+export function formatWeekTile(count: number, goal?: number): string {
+  return goal !== undefined && count <= goal ? `${formatNumber(count)} sur ${formatNumber(goal)}` : formatNumber(count);
+}
+
+/** Nom accessible de la tuile : « 2 séances sur 3 », « 4 séances ». */
+export function formatWeekTileLabel(count: number, goal?: number): string {
+  const done = formatCount(count, 'séance');
+  return goal !== undefined && count <= goal ? `${done} sur ${formatNumber(goal)}` : done;
+}
+
+const monthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long' });
+
+/** Nom du mois, majuscule initiale, sans année : « Octobre ». */
+export function formatMonthName(date: Date): string {
+  const name = monthFormatter.format(date);
+  return name.charAt(0).toLocaleUpperCase('fr-FR') + name.slice(1);
+}
+
+/**
+ * Bilan : « Semaine dernière : 3 séances, 14 520 kg, 1 record. » Volume et records à 0 omis ;
+ * jamais de mention de l'objectif.
+ */
+export function formatPeriodSummary(label: string, summary: PeriodSummary): string {
+  const parts = [formatCount(summary.count, 'séance')];
+  if (summary.volume > 0) parts.push(formatWeight(summary.volume));
+  if (summary.records > 0) parts.push(formatCount(summary.records, 'record'));
+  return `${label}${COLON} ${parts.join(', ')}.`;
+}
+
+/** Jalon du récap : « Première séance enregistrée. Bienvenue. », « 10ᵉ séance enregistrée. » ; undefined hors seuil. */
+export function formatMilestone(rank: number): string | undefined {
+  if (!isMilestone(rank)) return undefined;
+  if (rank === 1) return 'Première séance enregistrée. Bienvenue.';
+  return `${formatNumber(rank)}ᵉ séance enregistrée.`;
+}
+
+/** Nom accessible d'un choix d'objectif : « Aucun objectif », « 1 séance par semaine ». */
+export function formatGoalOption(goal: number | undefined): string {
+  return goal === undefined ? 'Aucun objectif' : `${formatCount(goal, 'séance')} par semaine`;
+}
+
+/** Toast après un choix dans la carte de proposition : « Objectif enregistré : 3 séances par semaine. » */
+export function formatGoalSaved(goal: number): string {
+  return `Objectif enregistré${COLON} ${formatGoalOption(goal)}.`;
 }

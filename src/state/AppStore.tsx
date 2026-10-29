@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useS
 import { createId } from '../lib/id';
 import { createDefaultState, loadState, saveState, type StorageLike } from '../lib/storage';
 import { createTemplate, type TemplateInput } from '../lib/templates';
-import type { AppState, LoadSuggestion, MuscleGroup, SessionExercise, Template } from '../lib/types';
+import type { AppState, LoadSuggestion, MuscleGroup, SessionExercise, Template, WeeklyGoal } from '../lib/types';
 import { captureUndo, type DeletionTarget, type UndoSnapshot } from '../lib/undo';
 import { appReducer } from './appReducer';
 
@@ -54,6 +54,10 @@ export interface AppActions {
 
   /** Réglage « Suggérer la charge suivante » (séances démarrées ensuite). */
   setSuggestLoad(enabled: boolean): void;
+  /** « Objectif par semaine » ; undefined = « Aucun ». La proposition sur Progrès ne revient plus. */
+  setWeeklyGoal(goal: WeeklyGoal | undefined): void;
+  /** « Plus tard » sur la carte de proposition d'objectif. */
+  dismissWeeklyGoalPrompt(): void;
 
   /** Remplace toutes les données et les sauvegarde immédiatement ; renvoie false si la sauvegarde a échoué. */
   replaceState(state: AppState): boolean;
@@ -171,6 +175,8 @@ export function AppStoreProvider({ children, storage }: { children: ReactNode; s
       },
 
       setSuggestLoad: (enabled) => dispatch({ type: 'settings/setSuggestLoad', enabled }),
+      setWeeklyGoal: (goal) => dispatch({ type: 'settings/setWeeklyGoal', goal }),
+      dismissWeeklyGoalPrompt: () => dispatch({ type: 'settings/dismissWeeklyGoalPrompt' }),
       replaceState: (next) => replaceAndSave(next),
       resetState: () => replaceAndSave(createDefaultState()),
       dismissLoadError: () => setLoadError(undefined),

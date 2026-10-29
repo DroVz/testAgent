@@ -199,6 +199,33 @@ describe('appReducer — historique et données', () => {
   });
 });
 
+describe('appReducer — objectif par semaine (lot 3)', () => {
+  it('setWeeklyGoal enregistre l’objectif et marque la question comme posée, sans toucher aux autres réglages', () => {
+    const s = run(createDefaultState(), { type: 'settings/setSuggestLoad', enabled: false }, { type: 'settings/setWeeklyGoal', goal: 3 });
+    expect(s.settings).toEqual({ suggestLoad: false, weeklyGoal: 3, weeklyGoalAsked: true });
+  });
+
+  it('« Aucun » retire settings.weeklyGoal (ni 0 ni null) et pose weeklyGoalAsked', () => {
+    const s = run(createDefaultState(), { type: 'settings/setWeeklyGoal', goal: 4 }, { type: 'settings/setWeeklyGoal', goal: undefined });
+    expect(s.settings).toEqual({ weeklyGoalAsked: true });
+    expect(s.settings).not.toHaveProperty('weeklyGoal');
+    // Choisir « Aucun » d'emblée compte aussi comme un choix.
+    expect(appReducer(createDefaultState(), { type: 'settings/setWeeklyGoal', goal: undefined }).settings).toEqual({
+      weeklyGoalAsked: true,
+    });
+  });
+
+  it('« Plus tard » : objectif inchangé (« Aucun »), proposition écartée', () => {
+    const s = appReducer(createDefaultState(), { type: 'settings/dismissWeeklyGoalPrompt' });
+    expect(s.settings).toEqual({ weeklyGoalAsked: true });
+  });
+
+  it('réinitialisation : objectif « Aucun » et proposition de nouveau possible', () => {
+    const s = run(createDefaultState(), { type: 'settings/setWeeklyGoal', goal: 2 }, { type: 'data/reset' });
+    expect(s.settings).toBeUndefined();
+  });
+});
+
 describe('appReducer — annulation d’une suppression (toast « Annuler »)', () => {
   /** Supprime puis annule : l'état doit redevenir strictement identique. */
   function deleteThenUndo(before: AppState, target: DeletionTarget, action: AppAction): { deleted: AppState; restored: AppState } {

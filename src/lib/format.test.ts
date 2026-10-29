@@ -7,7 +7,15 @@ import {
   formatDate,
   formatDuration,
   formatEstimatedDuration,
+  formatGoalOption,
+  formatGoalSaved,
   formatLastDone,
+  formatMilestone,
+  formatMonthName,
+  formatPeriodSummary,
+  formatWeekLine,
+  formatWeekTile,
+  formatWeekTileLabel,
   formatOneRepMax,
   formatProgressSentence,
   formatRecordSentence,
@@ -302,5 +310,105 @@ describe('formatProgressSentence', () => {
     expect(formatProgressSentence([p(start, 116.4), p(weeks(2), 120.1)], formatOneRepMax, roundOneRepMax, now)?.headline).toBe(
       u('+3,5~kg en 2~semaines'),
     );
+  });
+});
+
+describe('rythme (lot 3)', () => {
+  /** « ~ » = espace insécable (U+00A0), « _ » = espace fine insécable (U+202F, milliers). */
+  const t = (text: string) => text.replace(/~/g, ' ').replace(/_/g, ' ');
+
+  it('formatWeekLine : les 10 textes du §3.1, insécables avant « : » et « séance(s) »', () => {
+    const cases: [number | undefined, number, string | undefined][] = [
+      [undefined, 0, undefined],
+      [undefined, 1, 'Cette semaine~: 1~séance.'],
+      [undefined, 4, 'Cette semaine~: 4~séances.'],
+      [3, 0, 'Objectif de la semaine~: 3~séances.'],
+      [1, 0, 'Objectif de la semaine~: 1~séance.'],
+      [3, 1, 'Cette semaine~: 1~séance sur 3.'],
+      [3, 2, 'Cette semaine~: 2~séances sur 3.'],
+      [3, 3, 'Cette semaine~: 3~séances sur 3. Objectif atteint.'],
+      [1, 1, 'Cette semaine~: 1~séance sur 1. Objectif atteint.'],
+      [3, 4, 'Cette semaine~: 4~séances. Objectif de 3 atteint.'],
+    ];
+    for (const [goal, count, expected] of cases) {
+      expect(formatWeekLine(count, goal), `${goal}/${count}`).toBe(expected === undefined ? undefined : t(expected));
+    }
+  });
+
+  it('changement d’objectif en cours de semaine : effet immédiat (§7)', () => {
+    expect(formatWeekLine(2, 2)).toBe(t('Cette semaine~: 2~séances sur 2. Objectif atteint.'));
+    expect(formatWeekLine(2, 4)).toBe(t('Cette semaine~: 2~séances sur 4.'));
+    expect(formatWeekLine(2, undefined)).toBe(t('Cette semaine~: 2~séances.'));
+  });
+
+  it('tuile « Cette semaine » : « 2 sur 3 », nombre seul sans objectif ou au-delà', () => {
+    expect(formatWeekTile(2)).toBe('2');
+    expect(formatWeekTile(2, 3)).toBe('2 sur 3');
+    expect(formatWeekTile(0, 3)).toBe('0 sur 3');
+    expect(formatWeekTile(4, 3)).toBe('4');
+    expect(formatWeekTileLabel(2, 3)).toBe(t('2~séances sur 3'));
+    expect(formatWeekTileLabel(4, 3)).toBe(t('4~séances'));
+  });
+
+  it('formatPeriodSummary : les 4 exemples du §3.2, segments à 0 omis', () => {
+    expect(formatPeriodSummary('Semaine dernière', { count: 3, volume: 14520, records: 1 })).toBe(
+      t('Semaine dernière~: 3~séances, 14_520~kg, 1~record.'),
+    );
+    expect(formatPeriodSummary('Octobre', { count: 11, volume: 52300, records: 4 })).toBe(
+      t('Octobre~: 11~séances, 52_300~kg, 4~records.'),
+    );
+    expect(formatPeriodSummary('Semaine dernière', { count: 1, volume: 3200, records: 0 })).toBe(
+      t('Semaine dernière~: 1~séance, 3_200~kg.'),
+    );
+    expect(formatPeriodSummary('Semaine dernière', { count: 2, volume: 0, records: 0 })).toBe(
+      t('Semaine dernière~: 2~séances.'),
+    );
+    // Volume arrondi comme formatWeight (pas de décimale inutile).
+    expect(formatPeriodSummary('Novembre', { count: 1, volume: 1012.5, records: 0 })).toBe(
+      t('Novembre~: 1~séance, 1_012,5~kg.'),
+    );
+  });
+
+  it('formatMonthName : en toutes lettres, majuscule initiale, sans année', () => {
+    expect(formatMonthName(new Date(2026, 9, 15))).toBe('Octobre');
+    expect(formatMonthName(new Date(2026, 10, 15))).toBe('Novembre');
+    expect(formatMonthName(new Date(2026, 11, 15))).toBe('Décembre');
+  });
+
+  it('formatMilestone : seuils seulement, « ᵉ » = U+1D49', () => {
+    expect(formatMilestone(1)).toBe('Première séance enregistrée. Bienvenue.');
+    expect(formatMilestone(10)).toBe('10ᵉ séance enregistrée.');
+    expect(formatMilestone(25)).toBe('25ᵉ séance enregistrée.');
+    expect(formatMilestone(1000)).toBe(t('1_000ᵉ séance enregistrée.'));
+    for (const rank of [2, 11, 75, 150]) expect(formatMilestone(rank), String(rank)).toBeUndefined();
+  });
+
+  it('réglage et proposition : noms accessibles et toast', () => {
+    expect(formatGoalOption(undefined)).toBe('Aucun objectif');
+    expect(formatGoalOption(1)).toBe(t('1~séance par semaine'));
+    expect(formatGoalOption(2)).toBe(t('2~séances par semaine'));
+    expect(formatGoalSaved(3)).toBe(t('Objectif enregistré~: 3~séances par semaine.'));
+    expect(formatGoalSaved(1)).toBe(t('Objectif enregistré~: 1~séance par semaine.'));
+  });
+
+  it('aucun vocabulaire d’échec, de taux ni de « ! » (objectif 0–6 × compte 0–8, bilans, jalons)', () => {
+    const texts: string[] = [];
+    for (const goal of [undefined, 1, 2, 3, 4, 5, 6]) {
+      for (let count = 0; count <= 8; count++) {
+        const line = formatWeekLine(count, goal);
+        if (line) texts.push(line);
+        texts.push(formatWeekTile(count, goal), formatWeekTileLabel(count, goal));
+        texts.push(formatPeriodSummary('Semaine dernière', { count, volume: count * 1000, records: count % 3 }));
+      }
+      texts.push(formatGoalOption(goal));
+      if (goal) texts.push(formatGoalSaved(goal));
+    }
+    for (let rank = 1; rank <= 1000; rank++) {
+      const milestone = formatMilestone(rank);
+      if (milestone) texts.push(milestone);
+    }
+    for (const text of texts) {
+      expect(text).not.toMatch(/!|%|raté|manqué|perdu|en retard|streak|série/i);
+    }
   });
 });

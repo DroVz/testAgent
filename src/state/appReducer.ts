@@ -24,7 +24,17 @@ import {
   upsertTemplate,
   type TemplateInput,
 } from '../lib/templates';
-import type { AppState, Exercise, LoadSuggestion, MuscleGroup, SessionExercise, Template, WorkoutSession } from '../lib/types';
+import type {
+  AppSettings,
+  AppState,
+  Exercise,
+  LoadSuggestion,
+  MuscleGroup,
+  SessionExercise,
+  Template,
+  WeeklyGoal,
+  WorkoutSession,
+} from '../lib/types';
 import { restoreSnapshot, type UndoSnapshot } from '../lib/undo';
 
 /**
@@ -68,6 +78,10 @@ export type AppAction =
   | { type: 'undo/restore'; snapshot: UndoSnapshot }
   // Réglages
   | { type: 'settings/setSuggestLoad'; enabled: boolean }
+  /** Objectif par semaine ; undefined = « Aucun » (le champ est retiré). Marque la question comme posée. */
+  | { type: 'settings/setWeeklyGoal'; goal: WeeklyGoal | undefined }
+  /** « Plus tard » sur la carte de proposition : elle ne revient plus. */
+  | { type: 'settings/dismissWeeklyGoalPrompt' }
   // Données
   | { type: 'data/replace'; state: AppState }
   | { type: 'data/reset' };
@@ -198,6 +212,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'settings/setSuggestLoad':
       // S'applique aux séances démarrées ensuite : la séance en cours n'est pas modifiée.
       return { ...state, settings: { ...state.settings, suggestLoad: action.enabled } };
+    case 'settings/setWeeklyGoal': {
+      // « Aucun » retire le champ : ni 0 ni null stocké.
+      const settings: AppSettings = { ...state.settings, weeklyGoalAsked: true };
+      if (action.goal === undefined) delete settings.weeklyGoal;
+      else settings.weeklyGoal = action.goal;
+      return { ...state, settings };
+    }
+    case 'settings/dismissWeeklyGoalPrompt':
+      return { ...state, settings: { ...state.settings, weeklyGoalAsked: true } };
 
     case 'data/replace':
       return action.state;

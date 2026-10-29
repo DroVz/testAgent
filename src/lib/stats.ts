@@ -44,6 +44,14 @@ export function completedSessions(sessions: WorkoutSession[]): WorkoutSession[] 
     .sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt));
 }
 
+/**
+ * Séances comptées (rythme, tuiles de Progrès, bilan, jalons) : terminées avec au moins une série
+ * validée, de la plus ancienne à la plus récente. Une séance vide reste dans l'Historique sans compter.
+ */
+export function countedSessions(sessions: WorkoutSession[]): WorkoutSession[] {
+  return completedSessions(sessions).filter((s) => countDoneSets(s) > 0);
+}
+
 /** Toutes les séries validées d'un exercice dans une séance (l'exercice peut apparaître plusieurs fois). */
 function doneSetsFor(session: WorkoutSession, exerciseId: string): SetEntry[] {
   return session.exercises.filter((e) => e.exerciseId === exerciseId).flatMap((e) => doneSets(e.sets));
@@ -207,13 +215,13 @@ export function startOfMonth(date: Date): Date {
 }
 
 function countBetween(sessions: WorkoutSession[], from: Date, to: Date): number {
-  return completedSessions(sessions).filter((s) => {
+  return countedSessions(sessions).filter((s) => {
     const t = Date.parse(s.startedAt);
     return t >= from.getTime() && t < to.getTime();
   }).length;
 }
 
-/** Nombre de séances terminées dans la semaine courante (lundi → dimanche). */
+/** Nombre de séances comptées dans la semaine courante (lundi → dimanche). */
 export function sessionsThisWeek(sessions: WorkoutSession[], now: Date = new Date()): number {
   const from = startOfWeek(now);
   const to = new Date(from);
@@ -221,7 +229,7 @@ export function sessionsThisWeek(sessions: WorkoutSession[], now: Date = new Dat
   return countBetween(sessions, from, to);
 }
 
-/** Nombre de séances terminées dans le mois civil courant. */
+/** Nombre de séances comptées dans le mois civil courant. */
 export function sessionsThisMonth(sessions: WorkoutSession[], now: Date = new Date()): number {
   const from = startOfMonth(now);
   const to = new Date(from.getFullYear(), from.getMonth() + 1, 1);

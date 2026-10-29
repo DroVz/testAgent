@@ -1515,6 +1515,129 @@ svg {
   line-height: 1.25;
 }
 
+/* ---------- Rythme (lot 3) : texte et encre uniquement, jamais d'accent ---------- */
+
+/* Ligne de semaine sous l'en-tête de Séances. */
+.week-line {
+  margin: calc(-1 * var(--space-2)) 0 var(--space-3);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+}
+
+.stat__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+}
+
+.stat__caption {
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+/* Pastilles de rythme : rondes, 10 px, encre (remplie = faite, contour = à venir). Pas de pente 12°. */
+.rhythm-dots {
+  display: flex;
+  gap: 6px;
+  margin-top: var(--space-2);
+}
+
+.rhythm-dot {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--text);
+  border-radius: 50%;
+  background: transparent;
+}
+
+.rhythm-dot--done {
+  background: var(--text);
+}
+
+/* Bilan sous les tuiles de Progrès : deux phrases factuelles, sans carte ni titre. */
+.progress-review {
+  margin-bottom: var(--space-3);
+}
+
+.progress-review p {
+  margin: 0;
+  font-size: var(--fs-body);
+}
+
+.progress-review p + p {
+  margin-top: var(--space-1);
+}
+
+/* Pastilles de choix d'objectif (Réglages, proposition) : cibles 48 px, retour à la ligne permis. */
+.goal-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.goal-chip {
+  min-width: var(--touch);
+  min-height: var(--touch);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
+.goal-chip:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+/* Choisi : rempli en encre, texte couleur fond. */
+.goal-chip[aria-checked='true'] {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--bg);
+}
+
+.goal-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.goal-prompt .section-title,
+.goal-prompt__text {
+  margin: 0;
+}
+
+/* « veux-tu » ne se coupe pas au trait d'union. */
+.goal-prompt__keep {
+  white-space: nowrap;
+}
+
+/* Bouton discret aligné sur le texte de la carte (son libellé, pas son fond transparent). */
+.goal-prompt__later {
+  align-self: flex-start;
+  margin-left: calc(-1 * var(--space-3));
+}
+
+/* Récap : ligne de semaine puis jalon, en texte secondaire. */
+.summary-rhythm {
+  margin-top: var(--space-2);
+}
+
+.summary-rhythm__line {
+  margin: 0;
+  font-size: var(--fs-body);
+}
+
 .summary-sentence {
   margin: 0;
   font-size: var(--fs-body);
@@ -1814,6 +1937,14 @@ svg {
   margin: 0;
   font-size: var(--fs-caption);
   font-weight: 500;
+}
+
+/* Libellé d'un groupe de réglage (même style que celui d'un interrupteur). */
+.settings-section__label {
+  margin-top: var(--space-2);
+  color: var(--text);
+  font-size: var(--fs-body);
+  font-weight: 600;
 }
 
 /* Interrupteur : toute la ligne est la cible (≥ 48 px). Activé = piste en encre (pas d'accent :

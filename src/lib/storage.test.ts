@@ -325,6 +325,42 @@ describe('charge proposée et réglages (lot 1)', () => {
   });
 });
 
+describe('objectif par semaine (lot 3)', () => {
+  const withGoal = (settings: Record<string, unknown>) => ({ ...JSON.parse(exportState(sampleState())), settings });
+
+  it('weeklyGoal et weeklyGoalAsked restitués à l’identique à l’export puis à l’import', () => {
+    const state: AppState = { ...sampleState(), settings: { suggestLoad: false, weeklyGoal: 3, weeklyGoalAsked: true } };
+    const result = validateImport(exportState(state));
+    expect(result.ok && result.state.settings).toEqual({ suggestLoad: false, weeklyGoal: 3, weeklyGoalAsked: true });
+    const asked = validateImport(exportState({ ...sampleState(), settings: { weeklyGoalAsked: false } }));
+    expect(asked.ok && asked.state.settings).toEqual({ weeklyGoalAsked: false });
+  });
+
+  it('export sans settings et export du lot 1 : importés sans erreur, objectif « Aucun »', () => {
+    const old = JSON.parse(exportState(sampleState()));
+    delete old.settings;
+    const none = validateImport(JSON.stringify(old));
+    expect(none.ok && none.state.settings?.weeklyGoal).toBeUndefined();
+    const lot1 = validateImport(JSON.stringify(withGoal({ suggestLoad: false })));
+    expect(lot1.ok && lot1.state.settings).toEqual({ suggestLoad: false });
+  });
+
+  it('weeklyGoal 7, 0, 2.5, "3" ou null rejetés avec un message qui cite settings.weeklyGoal', () => {
+    for (const bad of [7, 0, 2.5, '3', null, -1]) {
+      const r = parseAppState(withGoal({ weeklyGoal: bad }));
+      expect(r.ok, String(bad)).toBe(false);
+      if (!r.ok) expect(r.error).toBe('settings.weeklyGoal : entier de 1 à 6 attendu');
+    }
+  });
+
+  it('weeklyGoalAsked non booléen rejeté avec un message qui cite settings.weeklyGoalAsked', () => {
+    expect(parseAppState(withGoal({ weeklyGoalAsked: 'oui' }))).toEqual({
+      ok: false,
+      error: 'settings.weeklyGoalAsked : booléen attendu',
+    });
+  });
+});
+
 describe('exportFileName', () => {
   it('muscutrack-AAAA-MM-JJ.json en date locale', () => {
     expect(exportFileName(new Date(2026, 0, 5, 23, 59))).toBe('muscutrack-2026-01-05.json');

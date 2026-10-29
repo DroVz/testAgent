@@ -1,14 +1,15 @@
 import { ChevronLeft, Trash } from 'lucide-react';
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { version } from '../../package.json';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
-import { COLON } from '../lib/format';
+import { COLON, formatGoalOption } from '../lib/format';
 import { isSuggestLoadEnabled } from '../lib/progression';
+import { WEEKLY_GOALS, weeklyGoalOf } from '../lib/rhythm';
 import { saveRestEndsAt } from '../lib/restTimer';
 import { exportFileName, exportState, validateImport } from '../lib/storage';
-import { MUSCLE_GROUPS, type AppState, type Exercise, type MuscleGroup } from '../lib/types';
+import { MUSCLE_GROUPS, type AppState, type Exercise, type MuscleGroup, type WeeklyGoal } from '../lib/types';
 import { useAppStore } from '../state/AppStore';
 import { clearStoredExercise } from './ProgressPage';
 
@@ -65,6 +66,20 @@ export default function SettingsPage() {
 
   const customExercises = state.exercises.filter((e) => e.isCustom);
   const suggestLoad = isSuggestLoadEnabled(state);
+  const weeklyGoal = weeklyGoalOf(state);
+  const goalOptions: (WeeklyGoal | undefined)[] = [undefined, ...WEEKLY_GOALS];
+  const goalGroupRef = useRef<HTMLDivElement>(null);
+
+  /** Radiogroup : les flèches déplacent le choix (et le focus), comme un groupe de boutons radio natif. */
+  const onGoalKey = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    const target = step !== undefined ? index + step : e.key === 'Home' ? 0 : e.key === 'End' ? goalOptions.length - 1 : null;
+    if (target === null) return;
+    e.preventDefault();
+    const next = (target + goalOptions.length) % goalOptions.length;
+    actions.setWeeklyGoal(goalOptions[next]);
+    goalGroupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus();
+  };
 
   const doExport = () => {
     const text = exportState(state);
@@ -155,6 +170,38 @@ export default function SettingsPage() {
         </button>
         <p id="suggest-load-help" className="muted settings-section__text">
           Quand tu as réussi toutes tes séries, la séance suivante propose 2,5 kg de plus (ou 1 rep au poids du corps).
+        </p>
+        <span id="weekly-goal-label" className="switch-row__label settings-section__label">
+          Objectif par semaine
+        </span>
+        <div
+          ref={goalGroupRef}
+          role="radiogroup"
+          aria-labelledby="weekly-goal-label"
+          aria-describedby="weekly-goal-help"
+          className="goal-chips"
+        >
+          {goalOptions.map((g, i) => {
+            const checked = g === weeklyGoal;
+            return (
+              <button
+                key={g ?? 'aucun'}
+                type="button"
+                role="radio"
+                aria-checked={checked}
+                aria-label={formatGoalOption(g)}
+                tabIndex={checked ? 0 : -1}
+                className="goal-chip"
+                onClick={() => actions.setWeeklyGoal(g)}
+                onKeyDown={(e) => onGoalKey(e, i)}
+              >
+                {g ?? 'Aucun'}
+              </button>
+            );
+          })}
+        </div>
+        <p id="weekly-goal-help" className="muted settings-section__text">
+          Un repère pour toi, que tu changes quand tu veux. Une semaine en dessous ne laisse aucune trace.
         </p>
       </div>
 

@@ -275,7 +275,9 @@ Comportement :
 
 ---
 
-## 10. Évolutions de l'identité (proposées, à intégrer par le chef de projet)
+## 10. Évolutions de l'identité (appliquées le 29 octobre 2026)
+
+*Appliquées à `docs/identity.md` avec l'implémentation du lot : les six points ci-dessous y figurent (§5 Créer, §5 Suivre, §6 Forme et espace, §9.2), et la dernière phrase de §9 a été retirée.*
 
 1. **§9.2, ligne « Rythme de la semaine »**, colonne exemple : ajouter « Objectif de la semaine : 3 séances. » (aucune séance encore) et « Cette semaine : 4 séances. Objectif de 3 atteint. », et préciser dans la forme : « Seule la semaine en cours est comparée à l'objectif. Une séance compte si elle est terminée avec au moins une série validée. »
 2. **§9.2, ligne « Bilan »** : ajouter « Les segments à 0 sont omis ; le bilan ne mentionne jamais l'objectif. »

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   completedSessions,
   countDoneSets,
+  countedSessions,
   detectNewRecords,
   estimateOneRepMax,
   exerciseHistory,
@@ -216,22 +217,36 @@ describe('compteurs semaine / mois', () => {
     expect(startOfWeek(new Date(2026, 9, 26, 0, 1))).toEqual(new Date(2026, 9, 26));
   });
 
+  // Séances comptées (lot 3) : terminées avec au moins une série validée.
+  const done = { squat: [set(100, 5)] };
   const sessions = [
-    session('dim-precedent', local(2026, 10, 25, 20), {}),
-    session('lundi', local(2026, 10, 26, 8), {}),
-    session('mercredi', local(2026, 10, 28, 8), {}),
-    session('debut-mois', local(2026, 10, 1, 8), {}),
-    session('mois-precedent', local(2026, 9, 30, 8), {}),
-    session('en-cours', local(2026, 10, 28, 18), {}, null),
+    session('dim-precedent', local(2026, 10, 25, 20), done),
+    session('lundi', local(2026, 10, 26, 8), done),
+    session('mercredi', local(2026, 10, 28, 8), done),
+    session('debut-mois', local(2026, 10, 1, 8), done),
+    session('mois-precedent', local(2026, 9, 30, 8), done),
+    session('en-cours', local(2026, 10, 28, 18), done, null),
+    session('vide', local(2026, 10, 27, 8), {}),
+    session('rien-valide', local(2026, 10, 27, 18), { squat: [set(100, 5, false)] }),
   ];
   const now = new Date(2026, 9, 28, 19);
 
-  it('séances de la semaine (lundi → dimanche, séances terminées seulement)', () => {
+  it('séances de la semaine (lundi → dimanche, séances comptées seulement)', () => {
     expect(sessionsThisWeek(sessions, now)).toBe(2);
   });
 
-  it('séances du mois', () => {
+  it('séances du mois (séances vides ou sans série validée exclues)', () => {
     expect(sessionsThisMonth(sessions, now)).toBe(4);
+  });
+
+  it('countedSessions : terminées avec au moins une série validée, ordre chronologique', () => {
+    expect(countedSessions(sessions).map((s) => s.id)).toEqual([
+      'mois-precedent',
+      'debut-mois',
+      'dim-precedent',
+      'lundi',
+      'mercredi',
+    ]);
   });
 });
 

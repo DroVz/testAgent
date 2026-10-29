@@ -81,9 +81,16 @@ export interface WorkoutSession {
   currentExerciseIndex?: number;
 }
 
+/** Objectif de séances par semaine (lot 3). */
+export type WeeklyGoal = 1 | 2 | 3 | 4 | 5 | 6;
+
 export interface AppSettings {
   /** « Suggérer la charge suivante » ; absent = activé. */
   suggestLoad?: boolean;
+  /** « Objectif par semaine » ; absent = « Aucun » (jamais 0 ni null stocké). */
+  weeklyGoal?: WeeklyGoal;
+  /** Vrai dès qu'un objectif a été choisi (même « Aucun ») ou la proposition écartée ; absent = faux. */
+  weeklyGoalAsked?: boolean;
 }
 
 export interface AppState {

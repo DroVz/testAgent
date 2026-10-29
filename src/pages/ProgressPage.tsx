@@ -1,18 +1,28 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import LineChart from '../components/LineChart';
+import { useToast } from '../components/Toast';
 import {
   DELETED_EXERCISE_NAME,
+  NNBSP,
   exerciseName,
   formatDate,
+  formatGoalOption,
+  formatGoalSaved,
+  formatMonthName,
   formatNumber,
   formatOneRepMax,
+  formatPeriodSummary,
   formatProgressSentence,
+  formatWeekTile,
+  formatWeekTileLabel,
   formatWeight,
   roundOneRepMax,
 } from '../lib/format';
+import { PROPOSED_GOALS, progressReview, shouldProposeWeeklyGoal, weeklyGoalOf } from '../lib/rhythm';
 import {
   completedSessions,
+  countedSessions,
   exerciseHistory,
   personalRecords,
   sessionsThisMonth,
@@ -61,8 +71,15 @@ function storeExercise(id: string): void {
 
 /** Progression par exercice et statistiques globales (/progres). */
 export default function ProgressPage() {
-  const { state } = useAppStore();
+  const { state, actions } = useAppStore();
+  const toast = useToast();
   const completed = useMemo(() => completedSessions(state.sessions), [state.sessions]);
+  // Lot 3 : tuiles, bilan et proposition comptent les séances terminées avec au moins une série validée.
+  const counted = useMemo(() => countedSessions(state.sessions), [state.sessions]);
+  const review = useMemo(() => progressReview(state.sessions), [state.sessions]);
+  const goal = weeklyGoalOf(state);
+  const week = sessionsThisWeek(state.sessions);
+  const proposeGoal = shouldProposeWeeklyGoal(state);
 
   // Exercices ayant au moins une série validée, triés par nom. Par défaut : le premier exercice de la
   // dernière séance terminée (l'exercice principal de la séance, pas un exercice secondaire de fin).
@@ -117,17 +134,68 @@ export default function ProgressPage() {
       <dl className="stat-grid">
         <div className="stat">
           <dt className="stat__label">Séances</dt>
-          <dd className="stat__value">{formatNumber(completed.length)}</dd>
+          <dd className="stat__value">{formatNumber(counted.length)}</dd>
         </div>
         <div className="stat">
           <dt className="stat__label">Cette semaine</dt>
-          <dd className="stat__value">{formatNumber(sessionsThisWeek(state.sessions))}</dd>
+          {goal === undefined ? (
+            <dd className="stat__value">{formatNumber(week)}</dd>
+          ) : (
+            <dd className="stat__body">
+              {/* Le texte porte l'information ; les pastilles ne font que la répéter. */}
+              <span className="visually-hidden">{formatWeekTileLabel(week, goal)}</span>
+              <span className="stat__value" aria-hidden="true">
+                {formatWeekTile(week, goal)}
+              </span>
+              <span className="rhythm-dots" aria-hidden="true">
+                {Array.from({ length: goal }, (_, i) => (
+                  <span key={i} className={`rhythm-dot${i < week ? ' rhythm-dot--done' : ''}`} />
+                ))}
+              </span>
+              {week >= goal && <span className="stat__caption">Objectif atteint</span>}
+            </dd>
+          )}
         </div>
         <div className="stat">
           <dt className="stat__label">Ce mois</dt>
           <dd className="stat__value">{formatNumber(sessionsThisMonth(state.sessions))}</dd>
         </div>
       </dl>
+
+      {(review.lastWeek || review.month) && (
+        <div className="progress-review">
+          {review.lastWeek && <p className="muted">{formatPeriodSummary('Semaine dernière', review.lastWeek)}</p>}
+          {review.month && <p className="muted">{formatPeriodSummary(formatMonthName(review.month.monthStart), review.month)}</p>}
+        </div>
+      )}
+
+      {proposeGoal && (
+        <div className="card goal-prompt">
+          <h2 className="section-title">
+            Combien de séances par semaine <span className="goal-prompt__keep">veux-tu</span> viser{NNBSP}?
+          </h2>
+          <p className="muted goal-prompt__text">Un repère pour toi. Tu pourras le changer dans Réglages.</p>
+          <div className="goal-chips">
+            {PROPOSED_GOALS.map((g) => (
+              <button
+                key={g}
+                type="button"
+                className="goal-chip"
+                aria-label={formatGoalOption(g)}
+                onClick={() => {
+                  actions.setWeeklyGoal(g);
+                  toast.show({ message: formatGoalSaved(g) });
+                }}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="btn btn--ghost goal-prompt__later" onClick={actions.dismissWeeklyGoalPrompt}>
+            Plus tard
+          </button>
+        </div>
+      )}
 
       {!selected ? (
         <div className="empty-state">

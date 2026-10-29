@@ -8,8 +8,11 @@ import {
   formatRecordSentence,
   formatSessionSummary,
   formatSetsSummary,
+  formatMilestone,
+  formatWeekLine,
   formatWeight,
 } from '../lib/format';
+import { sessionRank, weekCountAtSession, weeklyGoalOf } from '../lib/rhythm';
 import {
   countDoneSets,
   detectNewRecords,
@@ -51,6 +54,13 @@ export default function SessionSummaryPage() {
     );
   }
 
+  // Lot 3 : compte de la semaine au moment de cette séance (semaine en cours seulement), puis jalon.
+  // Le rang ne dépend pas de la date du jour : le récap rouvert reste identique.
+  const weekAtSession = weekCountAtSession(state.sessions, session.id);
+  const weekLine = weekAtSession === undefined ? undefined : formatWeekLine(weekAtSession, weeklyGoalOf(state));
+  const rank = sessionRank(state.sessions, session.id);
+  const milestone = rank === undefined ? undefined : formatMilestone(rank);
+
   const template = session.templateId ? state.templates.find((t) => t.id === session.templateId) : undefined;
 
   return (
@@ -60,6 +70,12 @@ export default function SessionSummaryPage() {
       <p className="summary-sentence">
         {formatSessionSummary(session.exercises.length, countDoneSets(session), sessionVolume(session))}
       </p>
+      {(weekLine || milestone) && (
+        <div className="summary-rhythm">
+          {weekLine && <p className="muted summary-rhythm__line">{weekLine}</p>}
+          {milestone && <p className="muted summary-rhythm__line">{milestone}</p>}
+        </div>
+      )}
 
       <dl className="stat-grid">
         <div className="stat">

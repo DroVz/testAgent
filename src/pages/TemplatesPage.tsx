@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
-import { COLON, exerciseName, formatCount, formatEstimatedDuration, formatLastDone } from '../lib/format';
+import { COLON, exerciseName, formatCount, formatEstimatedDuration, formatLastDone, formatWeekLine } from '../lib/format';
+import { weekCount, weeklyGoalOf } from '../lib/rhythm';
 import { suggestedTemplateId, templateLastDoneAt } from '../lib/stats';
 import { estimateTemplateMinutes } from '../lib/templates';
 import type { Template } from '../lib/types';
@@ -55,6 +56,8 @@ export default function TemplatesPage() {
   };
 
   const empty = state.templates.length === 0;
+  // Ligne de semaine (lot 3) : rien sans objectif ni séance, sinon un fait (jamais ce qui manque).
+  const weekLine = formatWeekLine(weekCount(state.sessions), weeklyGoalOf(state));
 
   // Les séances ajoutées sont en fin de liste : on y défile (après le retour en haut fait par App),
   // une seule fois (l'état de navigation est vidé, un rechargement ne redéfile pas).
@@ -78,6 +81,8 @@ export default function TemplatesPage() {
           Réglages
         </Link>
       </header>
+
+      {weekLine && <p className="muted week-line">{weekLine}</p>}
 
       {empty ? (
         <div className="empty-state">

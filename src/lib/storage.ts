@@ -1,5 +1,6 @@
 import { COLON, NBSP } from './format';
 import { DEFAULT_EXERCISES } from './defaultExercises';
+import { isWeeklyGoal } from './rhythm';
 import { MAX_REPS, MAX_WEIGHT, clampExerciseIndex } from './session';
 import {
   MUSCLE_GROUPS,
@@ -182,6 +183,12 @@ function parseSettings(v: unknown, path: string): AppSettings {
   const o = obj(v, path);
   const settings: AppSettings = {};
   if (o.suggestLoad !== undefined) settings.suggestLoad = bool(o.suggestLoad, `${path}.suggestLoad`);
+  // Lot 3 : champs optionnels (exports antérieurs, dont ceux du lot 1, acceptés sans eux).
+  if (o.weeklyGoal !== undefined) {
+    if (!isWeeklyGoal(o.weeklyGoal)) fail(`${path}.weeklyGoal`, 'entier de 1 à 6');
+    settings.weeklyGoal = o.weeklyGoal;
+  }
+  if (o.weeklyGoalAsked !== undefined) settings.weeklyGoalAsked = bool(o.weeklyGoalAsked, `${path}.weeklyGoalAsked`);
   return settings;
 }
 
