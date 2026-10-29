@@ -6,6 +6,7 @@ import ResumeBanner from './components/ResumeBanner';
 import { ToastHost, ToastProvider } from './components/Toast';
 import ActiveSessionPage from './pages/ActiveSessionPage';
 import HistoryPage from './pages/HistoryPage';
+import ProgramsPage from './pages/ProgramsPage';
 import ProgressPage from './pages/ProgressPage';
 import SessionDetailPage from './pages/SessionDetailPage';
 import SessionSummaryPage from './pages/SessionSummaryPage';
@@ -36,7 +37,8 @@ function Shell() {
   const { pathname } = useLocation();
   // La séance en cours est un écran plein : pas de barre d'onglets ni de bannière de reprise.
   const isSession = pathname === '/seance';
-  // Constructeur (/seances/nouvelle, /seances/:id) : plein écran avec sa barre d'action fixe.
+  // Constructeur (/seances/nouvelle, /seances/:id) et programmes de départ (/seances/programmes) :
+  // plein écran avec leur barre d'action fixe.
   const isEditor = /^\/seances\/[^/]+$/.test(pathname);
   // Réglages : page plein écran ouverte depuis Séances, avec retour « ‹ Séances ».
   const fullscreen = isSession || isEditor || pathname === '/reglages';
@@ -78,6 +80,7 @@ function Shell() {
         <Routes>
           <Route path="/seances" element={<TemplatesPage />} />
           <Route path="/seances/nouvelle" element={<TemplateEditorPage />} />
+          <Route path="/seances/programmes" element={<ProgramsPage />} />
           <Route path="/seances/:id" element={<TemplateEditorPage />} />
           <Route path="/seance" element={<ActiveSessionPage />} />
           <Route path="/resume/:id" element={<SessionSummaryPage />} />

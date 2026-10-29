@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useS
 import { createId } from '../lib/id';
 import { createDefaultState, loadState, saveState, type StorageLike } from '../lib/storage';
 import { createTemplate, type TemplateInput } from '../lib/templates';
-import type { AppState, LoadSuggestion, MuscleGroup, SessionExercise } from '../lib/types';
+import type { AppState, LoadSuggestion, MuscleGroup, SessionExercise, Template } from '../lib/types';
 import { captureUndo, type DeletionTarget, type UndoSnapshot } from '../lib/undo';
 import { appReducer } from './appReducer';
 
@@ -13,6 +13,10 @@ export interface AppActions {
   /** Supprime une séance type ; renvoie l'instantané permettant d'annuler (`restore`). */
   deleteTemplate(id: string): UndoSnapshot | undefined;
   moveTemplateExercise(id: string, index: number, direction: 'up' | 'down'): void;
+  /** Ajoute des séances types à la fin de la liste, en une seule action (programme de départ). */
+  addTemplates(templates: Template[]): void;
+  /** Retire les séances types de ces ids s'il en reste ; idempotent (« Annuler » l'ajout d'un programme). */
+  removeTemplates(ids: string[]): void;
 
   addCustomExercise(name: string, muscleGroup: MuscleGroup): string;
   updateCustomExercise(id: string, name: string, muscleGroup: MuscleGroup): void;
@@ -126,6 +130,8 @@ export function AppStoreProvider({ children, storage }: { children: ReactNode; s
       deleteTemplate: (id) => remove({ kind: 'template', id }, { type: 'template/delete', id }),
       moveTemplateExercise: (id, index, direction) =>
         dispatch({ type: 'template/moveExercise', id, index, direction, now: now() }),
+      addTemplates: (templates) => dispatch({ type: 'template/addMany', templates }),
+      removeTemplates: (ids) => dispatch({ type: 'template/removeMany', ids }),
 
       addCustomExercise(name, muscleGroup) {
         const id = `custom-${createId()}`;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { STARTER_PROGRAMS, buildProgramTemplates } from '../lib/programs';
 import { createDefaultState } from '../lib/storage';
 import { createTemplate, createTemplateExercise } from '../lib/templates';
 import type { AppState } from '../lib/types';
@@ -16,6 +17,12 @@ function withTemplate(): AppState {
   return s;
 }
 
+/** Ids prévisibles « p1 », « p2 »… */
+function sequence() {
+  let n = 0;
+  return () => `p${++n}`;
+}
+
 const run = (state: AppState, ...actions: AppAction[]) => actions.reduce(appReducer, state);
 
 describe('appReducer — séances types', () => {
@@ -30,6 +37,30 @@ describe('appReducer — séances types', () => {
   it('update', () => {
     const s = appReducer(withTemplate(), { type: 'template/update', id: 't1', patch: { name: 'Pecs' }, now: T1 });
     expect(s.templates[0]).toMatchObject({ name: 'Pecs', updatedAt: T1.toISOString() });
+  });
+
+  it('programme de départ : ajout à la fin en une action, annulation exacte et idempotente', () => {
+    const before = withTemplate();
+    const templates = buildProgramTemplates(STARTER_PROGRAMS[0], before.templates.map((t) => t.name), T1, sequence());
+    const added = appReducer(before, { type: 'template/addMany', templates });
+    expect(added.templates.map((t) => t.name)).toEqual(['Push', 'Full body A', 'Full body B']);
+    expect(added.templates[0]).toBe(before.templates[0]);
+    // Rejouer l'ajout ne crée pas de doublon d'id.
+    expect(appReducer(added, { type: 'template/addMany', templates })).toBe(added);
+
+    const undone = appReducer(added, { type: 'template/removeMany', ids: ['p1', 'p2'] });
+    expect(undone.templates).toEqual(before.templates);
+    // Second appel : rien ne change.
+    expect(appReducer(undone, { type: 'template/removeMany', ids: ['p1', 'p2'] })).toBe(undone);
+  });
+
+  it('annuler l’ajout depuis un état vide revient à l’état vide ; une séance déjà supprimée est ignorée', () => {
+    const empty = createDefaultState();
+    const templates = buildProgramTemplates(STARTER_PROGRAMS[0], [], T1, sequence());
+    let s = appReducer(empty, { type: 'template/addMany', templates });
+    s = appReducer(s, { type: 'template/delete', id: 'p1' });
+    s = appReducer(s, { type: 'template/removeMany', ids: ['p1', 'p2'] });
+    expect(s.templates).toEqual([]);
   });
 
   it('action sur un id inconnu → état inchangé', () => {

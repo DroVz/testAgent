@@ -163,7 +163,8 @@ export default function ActiveSessionPage() {
   // Série mise en avant (grande carte) : celle en correction, sinon celle en cours.
   const heroIdx = correcting >= 0 ? correcting : setIdx;
 
-  // Référence d'une série : la même série la dernière fois, sinon l'objectif de la séance type.
+  // Référence d'une série : la même série la dernière fois, sinon l'objectif de la séance type
+  // (« Première fois : vise … » pour la série en cours d'un exercice jamais fait).
   const referenceFor = (i: number): string | null => {
     if (!exercise) return null;
     const last = lastByExercise.get(exercise.exerciseId);
@@ -174,7 +175,9 @@ export default function ActiveSessionPage() {
     }
     const template = session.templateId ? state.templates.find((t) => t.id === session.templateId) : undefined;
     const target = template?.exercises.find((te) => te.exerciseId === exercise.exerciseId);
-    return target ? `Objectif${COLON} ${formatSetValues(target.targetWeight ?? 0, target.targetReps)}` : null;
+    if (!target) return null;
+    const values = formatSetValues(target.targetWeight ?? 0, target.targetReps);
+    return i === setIdx ? `Première fois${COLON} vise ${values}, ajuste si besoin.` : `Objectif${COLON} ${values}`;
   };
 
   const validate = () => {

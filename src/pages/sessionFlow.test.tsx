@@ -136,8 +136,8 @@ describe('parcours séance', () => {
     expect(seriesOf('Développé couché')).toHaveLength(2);
     expect(currentSet()).toHaveTextContent('Série 1 sur 2');
     expect(currentSet()).toHaveTextContent('En cours');
-    // Objectif rappelé faute d'historique
-    expect(currentSet()).toHaveTextContent('Objectif : 10 reps');
+    // Première fois sur l'exercice : l'objectif devient une invitation à ajuster
+    expect(currentSet()).toHaveTextContent('Première fois : vise 10 reps, ajuste si besoin.');
 
     // Saisie au clavier (repli) et validation d'une série → retour + minuteur de repos
     fireEvent.change(screen.getByLabelText('Charge (kg)'), { target: { value: '62,5' } });
@@ -938,11 +938,11 @@ describe('onglet Séances (lot 4)', () => {
     expect(screen.getByRole('link', { name: 'Créer une séance' })).not.toHaveClass('btn--primary');
   });
 
-  it('état vide : « Créer une séance » est l’unique accent', () => {
+  it('état vide : « Choisir un programme » est l’unique accent', () => {
     renderApp();
     const accents = document.querySelectorAll('.btn--primary');
     expect(accents).toHaveLength(1);
-    expect(accents[0]).toHaveTextContent('Créer une séance');
+    expect(accents[0]).toHaveTextContent('Choisir un programme');
   });
 
   it('Réglages : bouton nommé dans l’en-tête, page plein écran, retour « Séances » ; export en 2 taps', () => {

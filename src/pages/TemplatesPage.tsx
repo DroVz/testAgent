@@ -1,6 +1,6 @@
-import { Ellipsis, Plus, Settings } from 'lucide-react';
+import { Ellipsis, LayoutList, Plus, Settings } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
 import { COLON, exerciseName, formatCount, formatEstimatedDuration, formatLastDone } from '../lib/format';
@@ -8,13 +8,17 @@ import { suggestedTemplateId, templateLastDoneAt } from '../lib/stats';
 import { estimateTemplateMinutes } from '../lib/templates';
 import type { Template } from '../lib/types';
 import { useAppStore } from '../state/AppStore';
+import type { ProgramAddedState } from './ProgramsPage';
 
 const PREVIEW_COUNT = 3;
 
 export default function TemplatesPage() {
   const { state, actions } = useAppStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
+  // Toast « Programme ajouté » éventuel : démarrer une séance le ferme (l'ajout devient définitif).
+  const programToastId = (location.state as ProgramAddedState | null)?.programToastId;
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [resumeAsk, setResumeAsk] = useState(false);
   const active = state.activeSession;
@@ -39,6 +43,7 @@ export default function TemplatesPage() {
       setResumeAsk(true);
       return;
     }
+    if (programToastId !== undefined) toast.dismiss(programToastId);
     if (templateId) actions.startSessionFromTemplate(templateId);
     else actions.startFreeSession();
     navigate('/seance');
@@ -66,7 +71,10 @@ export default function TemplatesPage() {
       {empty ? (
         <div className="empty-state">
           <p className="empty-state__title">Aucune séance pour l’instant.</p>
-          <p className="muted">Crée la première en 1 minute, ou démarre une séance libre.</p>
+          <p className="muted">Commence avec un programme ou crée la tienne.</p>
+          <Link to="/seances/programmes" className="btn btn--primary btn--lg btn--block">
+            Choisir un programme
+          </Link>
         </div>
       ) : (
         <ul className="template-list">
@@ -144,13 +152,20 @@ export default function TemplatesPage() {
       )}
 
       <div className="stack">
-        <Link to="/seances/nouvelle" className={`btn btn--block${empty ? ' btn--primary btn--lg' : ''}`}>
+        <Link to="/seances/nouvelle" className="btn btn--block">
           <Plus size={20} aria-hidden="true" />
           Créer une séance
         </Link>
         <button type="button" className="btn btn--block" onClick={() => start()}>
           Séance libre
         </button>
+        {/* Liste vide : « Choisir un programme » mène déjà au même écran, pas de seconde entrée. */}
+        {!empty && (
+          <Link to="/seances/programmes" className="btn btn--block">
+            <LayoutList size={20} aria-hidden="true" />
+            Ajouter un programme de départ
+          </Link>
+        )}
       </div>
 
       <ConfirmDialog

@@ -37,6 +37,10 @@ export type AppAction =
   | { type: 'template/update'; id: string; patch: Partial<TemplateInput>; now: Date }
   | { type: 'template/duplicate'; id: string; newId: string; now: Date }
   | { type: 'template/delete'; id: string }
+  /** Ajout groupé à la fin de la liste (programme de départ). */
+  | { type: 'template/addMany'; templates: Template[] }
+  /** Retrait groupé par ids (annulation de l'ajout d'un programme) ; sans effet si aucun n'existe. */
+  | { type: 'template/removeMany'; ids: string[] }
   | { type: 'template/moveExercise'; id: string; index: number; direction: 'up' | 'down'; now: Date }
   // Exercices personnalisés
   | { type: 'exercise/addCustom'; id: string; name: string; muscleGroup: MuscleGroup }
@@ -101,6 +105,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
     case 'template/delete':
       return { ...state, templates: deleteTemplate(state.templates, action.id) };
+    case 'template/addMany': {
+      // Pas de doublon d'id : un ajout rejoué ne crée rien de plus.
+      const fresh = action.templates.filter((t) => !state.templates.some((x) => x.id === t.id));
+      return fresh.length === 0 ? state : { ...state, templates: [...state.templates, ...fresh] };
+    }
+    case 'template/removeMany': {
+      const ids = new Set(action.ids);
+      const templates = state.templates.filter((t) => !ids.has(t.id));
+      return templates.length === state.templates.length ? state : { ...state, templates };
+    }
     case 'template/moveExercise':
       return withTemplate(state, action.id, (t) =>
         moveTemplateExercise(t, action.index, action.direction, action.now),

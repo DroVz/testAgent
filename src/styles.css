@@ -144,6 +144,7 @@ svg {
 .empty-state__title,
 .dialog__title,
 .template-card__name,
+.program-card__name,
 .history-item__name,
 .detail-exercise__name,
 .editor-item__name,
@@ -707,6 +708,92 @@ svg {
 /* Laisse respirer le dernier élément du formulaire au-dessus de la barre. */
 .editor__add {
   margin-bottom: var(--space-3);
+}
+
+/* ---------- Programmes de départ ---------- */
+
+.programs__intro {
+  margin: 0 0 var(--space-3);
+}
+
+.programs__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/*
+ * Toute la carte est la cible tactile (bouton radio). Choisie : contour d'encre 2 px + coche +
+ * « Choisi » ; jamais d'accent (réservé à « Ajouter ce programme »).
+ */
+.program-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--touch);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.program-card--checked {
+  border-color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--text);
+}
+
+.program-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.program-card__name {
+  font-size: var(--fs-body);
+  line-height: 1.5;
+}
+
+.program-card__state {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  line-height: 24px;
+}
+
+.program-card__details,
+.program-card__template {
+  display: flex;
+  flex-direction: column;
+}
+
+.program-card__details {
+  gap: var(--space-2);
+}
+
+.program-card__audience {
+  font-size: var(--fs-body);
+}
+
+.program-card__template,
+.program-card__already {
+  font-size: var(--fs-caption);
+  font-weight: 500;
+}
+
+.program-card__template-name {
+  font-weight: 700;
+}
+
+.programs__note {
+  margin: var(--space-3) 0;
+  font-size: var(--fs-caption);
+  font-weight: 500;
 }
 
 /* ---------- Toast « Annuler » ---------- */
