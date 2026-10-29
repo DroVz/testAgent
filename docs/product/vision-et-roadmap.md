@@ -58,7 +58,7 @@ Pourquoi cet ordre :
 - **Lot 1 d'abord** : il sert dès la prochaine séance du propriétaire, avec des données qui existent déjà (`lastPerformance`, objectifs de la séance type). Il ne demande aucun nouvel écran.
 - **Lot 2 ensuite** : il ne sert qu'aux nouveaux utilisateurs, donc il prend toute sa valeur juste avant la publication. Il doit être prêt avant le lot 4, car un relecteur Apple qui ouvre une app vide et doit tout construire, c'est un risque de refus 4.2.
 - **Lot 3** vient après le lot 1 parce qu'il a besoin d'un historique pour avoir du sens. C'est aussi lui qui demande le plus de garde-fous d'identité.
-- **Lot 4 en dernier** dans l'ordre de développement, mais les actions du propriétaire (compte, Mac) peuvent **démarrer dès maintenant** en parallèle (voir 4.B).
+- **Lot 4 en dernier** dans l'ordre de développement, mais les actions du propriétaire (compte, Mac) peuvent **démarrer dès maintenant** en parallèle (voir la partie B de `lot4-app-store.md`).
 
 ---
 
@@ -213,65 +213,22 @@ Si un exercice figure deux fois dans la même séance type, chaque occurrence es
 
 ### Lot 4 — Préparation App Store · effort L (code) + actions du propriétaire
 
+> **Spécification détaillée : [`lot4-app-store.md`](lot4-app-store.md)** (29 octobre 2026). Elle fait foi : versions Capacitor épinglées, structure `src/platform/` et repli web de chaque fonction, stockage durable et migration, textes exacts des notifications et de la politique de confidentialité, métadonnées et captures du Store, critères d'acceptation testables sur Windows, checklist ordonnée du propriétaire (coûts, délais) et réponse au risque 4.2.
+
 **Objectif** : une app iOS native, emballée avec Capacitor. Elle fait plus qu'un site web (règle 4.2), ne collecte aucune donnée, et ses données survivent aux mises à jour.
 
-Note sur la règle 4.2 (*Minimum Functionality*) : en octobre 2026, elle reste le motif de refus le plus courant pour les applis web emballées. Apple attend des fonctions et une interface qui vont au-delà d'un site reconditionné. Notre argument : app entièrement hors ligne, notifications locales de fin de repos et de rappel, retour haptique, écran maintenu allumé en séance, partage natif de la sauvegarde, et aucun contenu chargé depuis le web.
+#### User stories
+- **US4.0** En tant que propriétaire, je veux que la même base de code produise la PWA et l'app iPhone.
+- **US4.1** En tant que pratiquant, je veux être prévenu de la fin du repos même écran verrouillé.
+- **US4.2** En tant que pratiquant, je veux des rappels de séance optionnels aux jours et à l'heure que je choisis, sans relance.
+- **US4.3** En tant que pratiquant, je veux que mes données survivent aux mises à jour et que ma sauvegarde passe par la feuille de partage d'iOS.
+- **US4.4 / US4.5** En tant que pratiquant, je veux sentir qu'une série est validée et que l'écran reste allumé pendant la séance.
 
-#### 4.A — Faisable dans le code maintenant
-
-**User stories**
-- **US4.1** En tant que pratiquant, je veux être prévenu de la fin du repos même si l'écran est verrouillé, pour ne pas surveiller le minuteur.
-- **US4.2** En tant que pratiquant, je veux des rappels de séance optionnels aux jours et à l'heure que je choisis, pour tenir mon rythme.
-- **US4.3** En tant que pratiquant, je veux que mes données survivent aux mises à jour de l'app et que ma sauvegarde passe par la feuille de partage d'iOS, pour ne rien perdre.
-
-**Travaux et critères**
-1. **Capacitor (iOS)** : `capacitor.config.ts` avec `appId` (voir questions, défaut `fr.muscutrack.app`) et `appName` « MuscuTrack ». Un script `npm run build:ios` construit `dist/` sans service worker (le SW sert au web, pas à l'app native) et lance `npx cap sync ios`. L'app est réservée à l'iPhone (`TARGETED_DEVICE_FAMILY = 1`), ce qui évite les captures iPad. *Critère : `npm run build` (web) est inchangé et le service worker n'est pas enregistré dans la version iOS.*
-2. **Stockage durable** : la couche `lib/storage.ts` passe par une interface. En natif, elle écrit dans `@capacitor/preferences` ou dans un fichier JSON via `@capacitor/filesystem`, plutôt que dans le `localStorage` de la WebView, qu'iOS peut purger. Migration automatique depuis `localStorage` au premier lancement. *Critère : test d'une migration d'un état complet (séances, séance en cours, réglages) sans perte.*
-3. **Notification de fin de repos** (`@capacitor/local-notifications`) :
-   - programmée au lancement du minuteur, annulée par « Passer », par −15 s / +15 s (puis reprogrammée) et par la fin de séance ;
-   - texte : titre « Repos terminé. », corps « Série suivante : développé couché, 82,5 kg × 8. » ;
-   - si l'app est au premier plan, pas de notification, seulement l'haptique.
-   - L'autorisation est demandée **au premier minuteur**, jamais au lancement : feuille « Être prévenu à la fin du repos ? » avec « Autoriser » et « Pas maintenant ». Si l'utilisateur refuse, on ne redemande pas ; le réglage reste disponible dans Réglages.
-4. **Rappels de séance** (dans Réglages, section « Rappels », désactivés par défaut) :
-   - choix des jours (L M M J V S D, pastilles de 48 px) et de l'heure (défaut 18:00) ;
-   - texte : « C'est l'heure de ta séance. Suggérée : Jambes. » ;
-   - aucun rappel le jour où une séance est déjà terminée : on reprogramme à chaque ouverture de l'app et à chaque fin de séance ;
-   - jamais de texte de relance du type « Ça fait 5 jours… ».
-5. **Haptique** (`@capacitor/haptics`) : impact léger à « Valider la série », notification de succès à la fin du repos. Remplace `navigator.vibrate`, qui ne fonctionne pas sur iOS.
-6. **Écran allumé** pendant le mode séance, relâché à la sortie, avec un plugin keep-awake.
-7. **Export par feuille de partage** : `@capacitor/filesystem` puis `@capacitor/share` partagent le fichier `muscutrack-AAAA-MM-JJ.json`. L'import par sélection de fichier reste tel quel. *Critère : sur iPhone, « Exporter mes données » ouvre la feuille de partage iOS.*
-8. **Intégration iOS** :
-   - zones sûres (`env(safe-area-inset-*)`) pour la barre du bas, le bouton fixe et les toasts ;
-   - barre d'état en clair et en sombre (`@capacitor/status-bar`) ;
-   - écran de lancement aux couleurs Améthyste (`@capacitor/splash-screen`) ;
-   - aucun lien externe ouvert dans la WebView.
-9. **Confidentialité** :
-   - `PrivacyInfo.xcprivacy` déclare zéro donnée collectée, zéro traçage et les API à raison requise utilisées par les plugins (par exemple UserDefaults) ;
-   - `ITSAppUsesNonExemptEncryption = false` ;
-   - une page statique `confidentialite.html` publiée sur GitHub Pages : « MuscuTrack ne collecte aucune donnée. Tout reste sur ton téléphone. Aucun compte, aucun serveur, aucun outil de mesure d'audience. »
-10. **Assets** :
-    - icône 1024 × 1024 sans transparence ni coins arrondis, tirée de `docs/brand/hybride-b/logo-app.svg` (B · Améthyste) ; icônes PWA 192 et 512 regénérées ;
-    - script Playwright de captures à 440 × 956 @3x = **1320 × 2868** (iPhone 6,9 pouces), avec un jeu de données de démo, en clair et en sombre : Séances, Séance (avec « Charge proposée »), Récap avec record, Progrès ;
-    - textes de la fiche, en français :
-      - sous-titre (30 caractères max) : « Ton carnet de muscu, clair » ;
-      - mots-clés (100 caractères max) : « musculation,salle,carnet,séance,charge,progression,record,entraînement,sport,force » ;
-      - description de 4 paragraphes qui reprend la vision.
-
-**Effort** : L, à découper en 4a (items 1, 2, 7, 8 et 9), 4b (3, 5 et 6) et 4c (4 et 10).
-
-#### 4.B — Actions du propriétaire (non faisables dans le code)
-
-| Action | Coût / prérequis | Quand |
-|---|---|---|
-| S'inscrire à l'**Apple Developer Program** (individuel par défaut : le nom légal du propriétaire apparaîtra comme vendeur) | 99 €/an, identifiant Apple avec double authentification, pièce d'identité | **Dès maintenant** (la validation prend de quelques heures à quelques jours) |
-| Disposer d'un **Mac avec la version de Xcode** qu'Apple exige au moment de l'envoi (SDK iOS récent obligatoire) | Mac personnel, ou Mac en location / CI macOS dans le cloud (Codemagic, runners macOS de GitHub Actions) | Avant le lot 4a |
-| Un **iPhone de test** et TestFlight | – | Lot 4b (notifications et haptique se testent sur un vrai appareil) |
-| Créer l'app dans **App Store Connect** : nom (vérifier que « MuscuTrack » est libre), identifiant de bundle, catégorie *Santé et forme physique*, prix gratuit | – | Lot 4c |
-| Remplir les **étiquettes de confidentialité** : « Données non collectées » ; questionnaire d'âge (4+) ; URL de confidentialité et de support | – | Lot 4c |
-| **Statut de professionnel (DSA, UE)** : obligatoire pour être distribué dans l'UE. App gratuite sans revenus : se déclarer « non professionnel » | – | Lot 4c |
-| Envoyer en revue, répondre au relecteur. Rédiger les notes de revue : « App hors ligne, sans compte. Pour tester : Choisir un programme → Full body → Démarrer la séance. » | – | Fin du lot 4 |
-
----
+#### En bref
+- **Partie A, dans le code, sans Mac** : 9 sous-lots en 3 vagues. **4a** socle Capacitor 8.5.3 et `src/platform/` (build web inchangé, pas de service worker en natif), stockage dans un fichier JSON avec sauvegarde précédente et migration sans perte depuis `localStorage`, export par la feuille de partage, politique de confidentialité dans l'app et en page publique. **4b** notification de fin de repos (autorisation demandée au premier minuteur, une seule fois), haptique à la validation et au récap avec record, écran allumé (Wake Lock sur le web). **4c** rappels ponctuels sur 28 jours (désactivés par défaut, sautés si une séance comptée a déjà eu lieu ce jour-là), icône 1024 et splash générés avec `sharp` depuis la marque Améthyste, métadonnées et captures.
+- Chaque fonction native a un repli web défini (souvent : cachée). Tests : Vitest avec plugins mockés, tests Node sur `dist/`, `Info.plist`, PNG et manifeste, e2e « aucune requête réseau ».
+- **Changements par rapport à la version du 28 octobre** : captures en **1206 × 2622 (obligatoire)** et 1320 × 2868, et non plus 1320 × 2868 seule ; fichier JSON plutôt que Preferences ; `@capacitor/assets` écarté (abandonné) ; rappels ponctuels recalculés au lieu de rappels hebdomadaires ; mots-clés sans « muscu » ni « carnet » (déjà dans le sous-titre) ; haptique de record au récap ; plus de vibration en retard au retour de veille.
+- **Partie B, chez le propriétaire** : 14 étapes ordonnées. Coût minimal 99 € par an ; 2 à 4 semaines entre l'inscription et la publication. À lancer dès maintenant : l'inscription à l'Apple Developer Program.
 
 ### Plus tard (non priorisé)
 
