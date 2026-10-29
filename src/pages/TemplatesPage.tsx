@@ -1,5 +1,5 @@
 import { Ellipsis, LayoutList, Plus, Settings } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
@@ -17,8 +17,8 @@ export default function TemplatesPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
-  // Toast « Programme ajouté » éventuel : démarrer une séance le ferme (l'ajout devient définitif).
-  const programToastId = (location.state as ProgramAddedState | null)?.programToastId;
+  // Après l'ajout d'un programme à une liste existante : première séance créée, à montrer.
+  const addedTemplateId = (location.state as ProgramAddedState | null)?.addedTemplateId;
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [resumeAsk, setResumeAsk] = useState(false);
   const active = state.activeSession;
@@ -43,7 +43,6 @@ export default function TemplatesPage() {
       setResumeAsk(true);
       return;
     }
-    if (programToastId !== undefined) toast.dismiss(programToastId);
     if (templateId) actions.startSessionFromTemplate(templateId);
     else actions.startFreeSession();
     navigate('/seance');
@@ -56,6 +55,18 @@ export default function TemplatesPage() {
   };
 
   const empty = state.templates.length === 0;
+
+  // Les séances ajoutées sont en fin de liste : on y défile (après le retour en haut fait par App),
+  // une seule fois (l'état de navigation est vidé, un rechargement ne redéfile pas).
+  useEffect(() => {
+    if (!addedTemplateId) return;
+    const card = [...document.querySelectorAll<HTMLElement>('[data-template-id]')].find(
+      (el) => el.dataset.templateId === addedTemplateId,
+    );
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    card?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+    navigate('.', { replace: true, state: null });
+  }, [addedTemplateId, navigate]);
 
   return (
     <section className="page">
@@ -82,7 +93,11 @@ export default function TemplatesPage() {
             const featured = t.id === suggested;
             const minutes = estimateTemplateMinutes(t);
             return (
-              <li key={t.id} className={`card template-card${featured ? ' template-card--featured' : ''}`}>
+              <li
+                key={t.id}
+                data-template-id={t.id}
+                className={`card template-card${featured ? ' template-card--featured' : ''}`}
+              >
                 <div className="template-card__head">
                   <div className="template-card__info">
                     {featured && <p className="template-card__badge">Suggérée</p>}

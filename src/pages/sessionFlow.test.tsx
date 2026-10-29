@@ -137,7 +137,7 @@ describe('parcours séance', () => {
     expect(currentSet()).toHaveTextContent('Série 1 sur 2');
     expect(currentSet()).toHaveTextContent('En cours');
     // Première fois sur l'exercice : l'objectif devient une invitation à ajuster
-    expect(currentSet()).toHaveTextContent('Première fois : vise 10 reps, ajuste si besoin.');
+    expect(currentSet()).toHaveTextContent('Première fois : 10 reps. Ajuste si besoin.');
 
     // Saisie au clavier (repli) et validation d'une série → retour + minuteur de repos
     fireEvent.change(screen.getByLabelText('Charge (kg)'), { target: { value: '62,5' } });

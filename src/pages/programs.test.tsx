@@ -52,6 +52,7 @@ const accents = () => [...document.querySelectorAll<HTMLElement>('.btn--primary'
 const toastEl = () => document.querySelector<HTMLElement>('.toast');
 const radios = () => screen.getAllByRole('radio');
 const addButton = () => screen.getByRole('button', { name: 'Ajouter ce programme' });
+const unavailableButton = () => screen.getByRole('button', { name: 'Choisis un programme ci-dessus' });
 const cardNames = () => screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
 const currentSet = () => document.querySelector<HTMLElement>('[aria-current="step"]')!;
 
@@ -92,13 +93,14 @@ describe('lot 2 — parcours en 5 taps (§8)', () => {
     expect(window.location.hash).toBe('#/seances/programmes');
     expect(radios()).toHaveLength(3);
     for (const r of radios()) expect(r).toHaveAttribute('aria-checked', 'false');
-    expect(addButton()).toBeDisabled();
+    expect(unavailableButton()).toHaveAttribute('aria-disabled', 'true');
 
     // Tap 2 : carte « Full body »
     tap(screen.getByRole('radio', { name: 'Full body' }));
     expect(screen.getByRole('radio', { name: 'Full body' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: 'Full body' })).toHaveTextContent('Choisi');
     expect(addButton()).toBeEnabled();
+    expect(addButton()).not.toHaveAttribute('aria-disabled');
 
     // Tap 3 : « Ajouter ce programme »
     tap(addButton());
@@ -115,7 +117,7 @@ describe('lot 2 — parcours en 5 taps (§8)', () => {
     expect(screen.getByRole('heading', { name: 'Squat' })).toBeInTheDocument();
     expect(screen.getByLabelText('Charge (kg)')).toHaveValue('20');
     expect(screen.getByLabelText('Reps')).toHaveValue('8');
-    expect(currentSet()).toHaveTextContent('Première fois : vise 20 kg × 8, ajuste si besoin.');
+    expect(currentSet()).toHaveTextContent('Première fois : la barre seule (20 kg) × 8. Ajuste si besoin.');
     // Pas de charge proposée la première fois (aucun historique).
     expect(screen.queryByText(/Charge proposée/)).not.toBeInTheDocument();
     expect(toastEl()).toBeNull();
@@ -178,9 +180,10 @@ describe('lot 2 — écran Programmes de départ', () => {
     expect(screen.queryByText('Séance type introuvable')).not.toBeInTheDocument();
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
     expect(document.querySelector('.brand-header')).toBeNull();
-    expect(
-      screen.getByText('Choisis un programme. Ses séances s’ajoutent à ta liste, et tu pourras les modifier.'),
-    ).toBeInTheDocument();
+    // Intro révisée le 29/10 : la règle des charges (« barre seule ») est au-dessus des cartes.
+    expect(document.querySelector('.programs__intro')?.textContent).toBe(
+      'Choisis un programme. Ses séances s’ajoutent à ta liste, et tu pourras les modifier. Les charges partent de la barre seule (20\u00a0kg)\u202f; l’app te propose +2,5\u00a0kg quand tu réussis toutes tes séries.',
+    );
 
     const group = screen.getByRole('radiogroup', { name: 'Programmes de départ' });
     expect(within(group).getAllByRole('radio')).toHaveLength(3);
@@ -208,18 +211,18 @@ describe('lot 2 — écran Programmes de départ', () => {
     expect(bw).toHaveTextContent('Pompes · Fentes · Dips · Tractions · Relevé de jambes');
     expect(screen.queryByText('Déjà dans tes séances.')).not.toBeInTheDocument();
 
-    const note = screen.getByText(/Les charges de départ sont légères/);
-    expect(note.textContent).toBe(
-      'Les charges de départ sont légères : 20 kg, c’est la barre seule. Quand tu réussis toutes tes séries, l’app te propose 2,5 kg de plus.',
-    );
+    // La note sous les cartes est retirée (redondante avec l'intro).
+    expect(screen.queryByText(/Les charges de départ sont légères/)).not.toBeInTheDocument();
+    // « Pour qui » en texte secondaire, sous le nom.
+    expect(full.querySelector('.program-card__audience')).toHaveClass('muted');
   });
 
   it('sélection : rien par défaut, une seule carte choisie, re-tap sans effet ; seul accent = « Ajouter ce programme »', () => {
     window.location.hash = '#/seances/programmes';
     renderApp();
-    expect(addButton()).toBeDisabled();
     expect(screen.queryByText('Choisi')).not.toBeInTheDocument();
-    expect(accents()).toEqual([addButton()]);
+    // Rien de choisi : aucun aplat accent sur l'écran.
+    expect(accents()).toEqual([]);
 
     fireEvent.click(screen.getByRole('radio', { name: 'Haut / Bas' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Full body' }));
@@ -248,6 +251,40 @@ describe('lot 2 — écran Programmes de départ', () => {
     fireEvent.keyDown(radios()[1], { key: 'ArrowUp' });
     fireEvent.keyDown(radios()[0], { key: 'ArrowUp' });
     expect(radios()[2]).toHaveAttribute('aria-checked', 'true');
+    // Début et Fin
+    fireEvent.keyDown(radios()[2], { key: 'Home' });
+    expect(radios()[0]).toHaveAttribute('aria-checked', 'true');
+    expect(radios()[0]).toHaveFocus();
+    fireEvent.keyDown(radios()[0], { key: 'End' });
+    expect(radios()[2]).toHaveAttribute('aria-checked', 'true');
+    expect(radios()[2]).toHaveFocus();
+    expect(radios().map((r) => r.tabIndex)).toEqual([-1, -1, 0]);
+  });
+
+  it('bouton indisponible : sans accent, dit ce qui manque, focalisable ; un tap mène à la première carte sans rien créer', () => {
+    const { saved } = renderApp(stateWith('Jambes'));
+    openPrograms();
+    const button = unavailableButton();
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).not.toBeDisabled();
+    expect(button).not.toHaveClass('btn--primary');
+    expect(button).toHaveClass('btn', 'btn--lg', 'btn--block', 'btn--unavailable');
+    expect(screen.queryByRole('button', { name: 'Ajouter ce programme' })).not.toBeInTheDocument();
+
+    const scroll = vi.mocked(Element.prototype.scrollIntoView);
+    scroll.mockClear();
+    fireEvent.click(button);
+    expect(radios()[0]).toHaveFocus();
+    expect(scroll).toHaveBeenCalledTimes(1);
+    expect(scroll.mock.contexts[0]).toBe(radios()[0]);
+    expect(scroll.mock.calls[0][0]).toMatchObject({ block: 'center' });
+    expect(window.location.hash).toBe('#/seances/programmes');
+    expect(saved().templates.map((t) => t.name)).toEqual(['Jambes']);
+    expect(toastEl()).toBeNull();
+
+    fireEvent.click(radios()[0]);
+    expect(accents()).toEqual([addButton()]);
+    expect(addButton()).toHaveClass('btn--primary');
   });
 
   it('« Retour aux séances » ramène à /seances sans rien créer', () => {
@@ -351,6 +388,77 @@ describe('lot 2 — ajout et annulation', () => {
     expect(toastEl()).toBeNull();
   });
 
+  it('bug du 29/10 : Historique puis retour Séances, « Démarrer » ferme quand même le toast ; « Annuler » ne touche pas la séance en cours', () => {
+    const { saved } = renderApp();
+    openPrograms();
+    addProgram('Full body');
+    expect(toastEl()).toHaveTextContent('Programme ajouté : Full body (2 séances).');
+    // Onglet Historique, puis retour à Séances par l'onglet (nouvel état de navigation).
+    fireEvent.click(screen.getByRole('link', { name: 'Historique' }));
+    expect(window.location.hash).toBe('#/historique');
+    fireEvent.click(screen.getByRole('link', { name: 'Séances' }));
+    expect(window.location.hash).toBe('#/seances');
+    expect(toastEl()).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Full body A' }));
+    expect(window.location.hash).toBe('#/seance');
+    expect(toastEl()).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Annuler l’ajout du programme' })).not.toBeInTheDocument();
+    expect(saved().templates.map((t) => t.name)).toEqual(['Full body A', 'Full body B']);
+    expect(saved().activeSession?.templateId).toBe(saved().templates[0].id);
+  });
+
+  it('reprise d’une séance en cours (bannière) : le toast d’ajout se ferme aussi', () => {
+    const s = stateWith('Jambes');
+    s.activeSession = { id: 'a1', name: 'Séance libre', startedAt: T0.toISOString(), exercises: [] };
+    const { saved } = renderApp(s);
+    openPrograms();
+    addProgram('Full body');
+    expect(toastEl()).not.toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: /Séance en cours/ }));
+    expect(window.location.hash).toBe('#/seance');
+    expect(toastEl()).toBeNull();
+    expect(saved().templates).toHaveLength(3);
+  });
+
+  it('les autres toasts (suppression) ne se ferment pas au démarrage d’une séance', () => {
+    renderApp(stateWith('Jambes', 'Pecs'));
+    fireEvent.click(screen.getByRole('button', { name: 'Options de Pecs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Jambes' }));
+    expect(toastEl()).toHaveTextContent('Séance supprimée : Pecs.');
+  });
+
+  it('liste existante : après l’ajout, la première séance créée défile au centre (une seule fois)', () => {
+    renderApp(stateWith('Jambes', 'Pecs', 'Dos', 'Bras'));
+    openPrograms();
+    fireEvent.click(screen.getByRole('radio', { name: 'Full body' }));
+    const scroll = vi.mocked(Element.prototype.scrollIntoView);
+    scroll.mockClear();
+    vi.mocked(window.scrollTo).mockClear();
+    fireEvent.click(addButton());
+    expect(scroll).toHaveBeenCalledTimes(1);
+    const target = scroll.mock.contexts[0] as HTMLElement;
+    expect(within(target).getByRole('heading')).toHaveTextContent('Full body A');
+    expect(scroll.mock.calls[0][0]).toMatchObject({ block: 'center' });
+    // Le retour en haut (App) passe avant.
+    expect(vi.mocked(window.scrollTo).mock.invocationCallOrder[0]).toBeLessThan(scroll.mock.invocationCallOrder[0]);
+    // L'état de navigation est vidé : pas de second défilement.
+    fireEvent.click(screen.getByRole('link', { name: 'Historique' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Séances' }));
+    expect(scroll).toHaveBeenCalledTimes(1);
+  });
+
+  it('liste vide : pas de défilement (la séance créée est déjà en tête)', () => {
+    renderApp();
+    openPrograms();
+    fireEvent.click(screen.getByRole('radio', { name: 'Full body' }));
+    const scroll = vi.mocked(Element.prototype.scrollIntoView);
+    scroll.mockClear();
+    fireEvent.click(addButton());
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
   it('avec un historique, la suggestion reste celle d’avant', () => {
     const s = stateWith('Jambes');
     s.sessions.push(pastSession('t1', 'Jambes'));
@@ -417,18 +525,45 @@ describe('lot 2 — ajout et annulation', () => {
 });
 
 describe('lot 2 — « Première fois » en séance (§7)', () => {
-  it('poids du corps : « Première fois : vise 10 reps, ajuste si besoin. » ; série suivante aussi tant que rien n’existe', () => {
+  it('poids du corps : « Première fois : 10 reps. Ajuste si besoin. » en série 1 seulement, puis « Objectif : … »', () => {
     renderApp();
     openPrograms();
     addProgram('Poids du corps');
     fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Poids du corps' }));
     expect(screen.getByRole('heading', { name: 'Pompes' })).toBeInTheDocument();
-    expect(currentSet()).toHaveTextContent('Première fois : vise 10 reps, ajuste si besoin.');
-    expect(currentSet().textContent).toContain('Première fois : vise 10 reps, ajuste si besoin.');
+    expect(currentSet().textContent).toContain('Première fois : 10 reps. Ajuste si besoin.');
     fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
-    // Série 2 en cours, toujours sans historique
+    // Série 2 en cours : « Première fois » n'est plus vrai pour cet exercice.
     expect(currentSet()).toHaveTextContent('Série 2 sur 3');
-    expect(currentSet()).toHaveTextContent('Première fois : vise 10 reps, ajuste si besoin.');
+    expect(currentSet()).toHaveTextContent('Objectif : 10 reps');
+    expect(currentSet()).not.toHaveTextContent('Première fois');
+  });
+
+  it('à la barre : « la barre seule (20 kg) » en série 1, puis « Objectif : 20 kg × 8 » en série 2', () => {
+    renderApp();
+    openPrograms();
+    addProgram('Full body');
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Full body A' }));
+    expect(currentSet()).toHaveTextContent('Série 1 sur 3');
+    expect(currentSet().textContent).toContain('Première fois : la barre seule (20 kg) × 8. Ajuste si besoin.');
+    fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
+    expect(currentSet()).toHaveTextContent('Série 2 sur 3');
+    expect(currentSet()).toHaveTextContent('Objectif : 20 kg × 8');
+    expect(currentSet()).not.toHaveTextContent('Première fois');
+  });
+
+  it('autre charge (séance type perso) : « Première fois : vise 60 kg × 8. Ajuste si besoin. »', () => {
+    const s = createDefaultState();
+    s.templates.push(
+      createTemplate(
+        { name: 'Jambes', exercises: [{ ...createTemplateExercise('squat'), targetWeight: 60, targetReps: 8 }] },
+        T0,
+        't1',
+      ),
+    );
+    renderApp(s);
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Jambes' }));
+    expect(currentSet()).toHaveTextContent('Première fois : vise 60 kg × 8. Ajuste si besoin.');
   });
 
   it('série corrigée (non en cours) : « Objectif : … »', () => {

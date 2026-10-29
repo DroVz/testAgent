@@ -2,16 +2,21 @@ import { Check, ChevronLeft } from 'lucide-react';
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ToastHost, useToast } from '../components/Toast';
-import { COLON, exerciseName, formatCount, formatEstimatedDuration, formatWeight } from '../lib/format';
+import { COLON, NNBSP, exerciseName, formatCount, formatEstimatedDuration, formatWeight } from '../lib/format';
 import { BAR_WEIGHT, STARTER_PROGRAMS, buildProgramTemplates, isProgramAlreadyAdded } from '../lib/programs';
 import { LOAD_STEP_KG } from '../lib/progression';
 import { estimateTemplateMinutes } from '../lib/templates';
 import { useAppStore } from '../state/AppStore';
 
-/** État transmis à /seances après un ajout : id du toast à fermer si une séance démarre. */
+/**
+ * État transmis à /seances après un ajout : première séance type créée, vers laquelle la liste
+ * défile (absent quand la liste était vide : elle est déjà en tête).
+ */
 export interface ProgramAddedState {
-  programToastId: number;
+  addedTemplateId?: string;
 }
+
+const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
 /** Programmes de départ (/seances/programmes) : choix guidé, sans questionnaire (lot 2). */
 export default function ProgramsPage() {
@@ -32,20 +37,35 @@ export default function ProgramsPage() {
     const templates = buildProgramTemplates(program, names);
     const ids = templates.map((t) => t.id);
     actions.addTemplates(templates);
-    const programToastId = toast.show({
+    toast.show({
       message: `Programme ajouté${COLON} ${program.name} (${formatCount(templates.length, 'séance')}).`,
       undoLabel: 'Annuler l’ajout du programme',
       onUndo: () => actions.removeTemplates(ids),
+      // Démarrer une séance rend l'ajout définitif (spec §4, point 5).
+      dismissOnSessionStart: true,
     });
-    navigate('/seances', { replace: true, state: { programToastId } satisfies ProgramAddedState });
+    const state: ProgramAddedState = names.length > 0 ? { addedTemplateId: ids[0] } : {};
+    navigate('/seances', { replace: true, state });
+  };
+
+  /** Bouton indisponible (rien de choisi) : il amène au choix au lieu de ne rien faire. */
+  const showCards = () => {
+    const first = cards.current[0];
+    if (!first) return;
+    first.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
+    first.focus({ preventScroll: true });
   };
 
   // Groupe de boutons radio : les flèches déplacent le choix (une seule carte dans l'ordre de tabulation).
   const onKeyDown = (e: KeyboardEvent, index: number) => {
-    const delta = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
-    if (delta === 0) return;
+    const count = STARTER_PROGRAMS.length;
+    let next: number;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') next = (index + 1) % count;
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') next = (index - 1 + count) % count;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = count - 1;
+    else return;
     e.preventDefault();
-    const next = (index + delta + STARTER_PROGRAMS.length) % STARTER_PROGRAMS.length;
     setSelected(STARTER_PROGRAMS[next].id);
     cards.current[next]?.focus();
   };
@@ -59,7 +79,9 @@ export default function ProgramsPage() {
       </Link>
       <h1 className="page__title">Programmes de départ</h1>
       <p className="muted programs__intro">
-        Choisis un programme. Ses séances s’ajoutent à ta liste, et tu pourras les modifier.
+        Choisis un programme. Ses séances s’ajoutent à ta liste, et tu pourras les modifier. Les charges partent de
+        la barre seule ({formatWeight(BAR_WEIGHT)}){NNBSP}; l’app te propose +{formatWeight(LOAD_STEP_KG)} quand tu
+        réussis toutes tes séries.
       </p>
 
       <div className="programs__list" role="radiogroup" aria-label="Programmes de départ">
@@ -95,7 +117,7 @@ export default function ProgramsPage() {
                 )}
               </span>
               <span id={detailsId} className="program-card__details">
-                <span className="program-card__audience">{program.audience}</span>
+                <span className="program-card__audience muted">{program.audience}</span>
                 {program.templates.map((t) => (
                   <span key={t.name} className="program-card__template muted">
                     <span className="program-card__template-name">
@@ -113,17 +135,19 @@ export default function ProgramsPage() {
         })}
       </div>
 
-      <p className="muted programs__note">
-        Les charges de départ sont légères{COLON} {formatWeight(BAR_WEIGHT)}, c’est la barre seule. Quand tu réussis
-        toutes tes séries, l’app te propose {formatWeight(LOAD_STEP_KG)} de plus.
-      </p>
-
       {/* Barre d'action fixe en bas, comme le constructeur : toast éventuel au-dessus, puis l'action principale. */}
       <div className="editor-dock">
         <ToastHost placement="inline" />
-        <button type="button" className="btn btn--primary btn--lg btn--block" disabled={selected === null} onClick={add}>
-          Ajouter ce programme
-        </button>
+        {/* Indisponible : sans accent, dit ce qui manque, reste focalisable (identity.md §4.2). */}
+        {selected === null ? (
+          <button type="button" className="btn btn--lg btn--block btn--unavailable" aria-disabled="true" onClick={showCards}>
+            Choisis un programme ci-dessus
+          </button>
+        ) : (
+          <button type="button" className="btn btn--primary btn--lg btn--block" onClick={add}>
+            Ajouter ce programme
+          </button>
+        )}
       </div>
     </section>
   );

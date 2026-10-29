@@ -34,8 +34,11 @@ Ouvrez ensuite sur le téléphone l’adresse « Network » affichée dans le te
 npm run build      # vérifie les types puis génère le site statique dans dist/
 npm run preview    # sert dist/ en local pour vérification
 npm test           # lance les tests (Vitest)
+npm run e2e        # build, puis test de bout en bout Playwright (première séance en 5 taps, clair et sombre)
 npm run typecheck  # vérification TypeScript seule
 ```
+
+`npm run e2e` sert le build avec `vite preview` sur un port libre (jamais 5199), joue le parcours de `e2e/premiere-seance.spec.ts` à 390 × 844, puis arrête le serveur. Il faut Chromium pour Playwright : `npx playwright install chromium` la première fois.
 
 Pour régénérer les icônes PWA (`public/`) : `node scripts/generate-icons.mjs` (nécessite `npx playwright install chromium`).
 

@@ -2,6 +2,8 @@
 
 *Product owner, 29 octobre 2026. Ce document précise le lot 2 de `vision-et-roadmap.md`. Il remplace le détail qui s'y trouvait. En cas d'écart entre les deux, ce document fait foi.*
 
+*Révisé le 29/10 après revue (`docs/review-2026-10-29-lot2.md`, décisions du chef de projet) : §4 (intro, note de charges, bouton indisponible, cartes, clavier, défilement après ajout, fermeture du toast), §7 (texte « Première fois »), §8 et critères 6, 7, 8, 12, 16, 17.*
+
 Lu avant d'écrire : `docs/identity.md` (§3, §4, §5, §9), `vision-et-roadmap.md`, le lot 1 livré (commit 4930699 : `src/lib/progression.ts`, `src/lib/session.ts`, `src/pages/ActiveSessionPage.tsx`), `src/pages/TemplatesPage.tsx`, `src/lib/templates.ts`, `src/lib/undo.ts`, `src/lib/stats.ts` (`suggestedTemplateId`), `src/components/Toast.tsx` et `src/lib/defaultExercises.ts`.
 
 ---
@@ -120,18 +122,19 @@ Les programmes ne sont **pas** stockés dans `AppState` et aucun champ n'est ajo
 **Structure, de haut en bas** (plein écran, barre d'onglets visible comme sur l'éditeur) :
 1. Lien retour, même composant que l'éditeur (`back-link`) : « Retour aux séances ». Il ramène à `/seances` sans rien créer.
 2. Titre `h1` : « Programmes de départ ».
-3. Intro, en texte secondaire : « Choisis un programme. Ses séances s'ajoutent à ta liste, et tu pourras les modifier. »
+3. Intro, en texte secondaire : « Choisis un programme. Ses séances s'ajoutent à ta liste, et tu pourras les modifier. Les charges partent de la barre seule (20 kg) ; l'app te propose +2,5 kg quand tu réussis toutes tes séries. » *(Révisé le 29/10 après revue : la règle des charges remonte au-dessus des cartes, pour être lue sans défiler.)*
 4. Les 3 cartes dans l'ordre du §3, dans un `role="radiogroup"` avec `aria-label="Programmes de départ"`. Chaque carte est un `role="radio"` avec `aria-checked`, et toute la carte est la cible tactile (au moins 48 px). Contenu d'une carte :
-   - nom du programme, en titre de carte : « Full body » ;
-   - texte « Pour qui » (§3) ;
+   - nom du programme, en titre de carte (16 px / 700 Space Grotesk, encre) : « Full body » ;
+   - texte « Pour qui » (§3), en texte secondaire 16 px ;
    - une ligne par séance type, en texte secondaire, au format `<nom> · ≈ 30 min`, puis la liste des exercices séparés par « · », sans troncature. Exemple : « Full body A · ≈ 30 min » / « Squat · Développé couché · Rowing barre · Crunch » ;
    - si **toutes** les séances types du programme existent déjà sous leur nom exact : une ligne secondaire « Déjà dans tes séances. ». La carte reste sélectionnable (voir §6.1).
-5. Note de charges, en texte secondaire 13 px, sous les cartes : « Les charges de départ sont légères : 20 kg, c'est la barre seule. Quand tu réussis toutes tes séries, l'app te propose 2,5 kg de plus. »
-6. Action principale fixée en bas (56 px, accent, pleine largeur, même placement que « Valider la série ») : « Ajouter ce programme ».
+5. ~~Note de charges sous les cartes~~ : retirée le 29/10 après revue, son contenu est dans l'intro.
+6. Action principale fixée en bas (56 px, pleine largeur, même placement que « Valider la série ») : « Ajouter ce programme » en accent une fois une carte choisie (voir « Sélection »).
 
 **Sélection** :
 - Rien n'est présélectionné, parce que le choix doit venir de l'utilisateur.
-- Tant que rien n'est choisi, le bouton principal est `disabled` (style `.btn:disabled` existant).
+- Tant que rien n'est choisi, le bouton principal est **indisponible** (révisé le 29/10 après revue, identity §4.2) : pas d'accent (contour, fond surface, texte secondaire), libellé « Choisis un programme ci-dessus », `aria-disabled="true"` au lieu de `disabled` pour rester focalisable. Un tap fait défiler jusqu'à la première carte et lui donne le focus, sans rien créer. Une fois une carte choisie : accent, « Ajouter ce programme ».
+- Clavier : les flèches déplacent le choix dans le groupe, Début et Fin vont à la première et à la dernière carte.
 - Un tap sur une carte la sélectionne et désélectionne les autres. Un nouveau tap sur la carte déjà choisie ne fait rien.
 - Une carte choisie a un contour de 2 px en **encre**, l'icône Lucide `Check` (20 px, `aria-hidden`) et le libellé « Choisi » en haut à droite. Pas d'accent sur les cartes : l'accent reste réservé au bouton (identity §4.2). On ne signale jamais par la couleur seule (§4.7).
 
@@ -140,7 +143,9 @@ Les programmes ne sont **pas** stockés dans `AppState` et aucun champ n'est ajo
 2. Navigation vers `/seances` avec `replace: true` : le retour du navigateur ne ramène pas sur l'écran de choix.
 3. Toast flottant : « Programme ajouté : Full body (2 séances). », ou « Programme ajouté : Poids du corps (1 séance). ». Le nombre passe par `formatCount(n, 'séance')`. Le toast a un bouton « Annuler », avec le nom accessible « Annuler l'ajout du programme ». Il reste 5 s (`TOAST_DURATION_MS`).
 4. **Annuler** retire exactement les séances types créées par cet ajout (par leurs ids), si elles existent encore. On revient à l'état d'avant, y compris l'état vide. Il n'y a pas de second toast. L'action est idempotente : un second appel ne fait rien.
-5. **Démarrer une séance ferme ce toast** (`toast.dismiss`) : l'ajout devient définitif. On n'a jamais une séance en cours dont la séance type a disparu.
+5. **Démarrer une séance ferme ce toast** : l'ajout devient définitif. On n'a jamais une séance en cours dont la séance type a disparu. *(Révisé le 29/10 après revue : le toast porte l'option `dismissOnSessionStart`, gérée par le `ToastProvider` ; toute entrée dans l'écran de séance la ferme, quel que soit le point d'entrée (carte, séance libre, reprise) et même après être passé par un autre onglet. Aucun id de toast ne transite par l'état de navigation.)*
+5 bis. **Montrer ce qui vient d'être ajouté** (ajouté le 29/10 après revue) : si la liste n'était pas vide, `/seances` défile jusqu'à la première séance créée (`scrollIntoView`, `block: 'center'`, sans animation sous `prefers-reduced-motion`), après le retour en haut fait à chaque changement de route. Liste vide : rien ne bouge, la séance créée est déjà en tête.
+5 ter. **Le toast flottant ne recouvre jamais un bouton** (identity §4.8) : tant qu'il est affiché, le contenu réserve en bas sa hauteur + 8 px.
 6. La séance suggérée suit la règle actuelle de `suggestedTemplateId`, **sans modification** :
    - sans historique, c'est la première séance type de la liste, donc « Full body A » pour un nouveau venu, en tête avec « Suggérée » et le bouton accent « Démarrer la séance » ;
    - si l'utilisateur a déjà un historique, la suggestion reste celle d'avant, parce qu'une séance type jamais faite n'est pas suggérée tant qu'une autre a été faite. C'est voulu : on ne bouscule pas une routine en place.
@@ -187,12 +192,16 @@ Aujourd'hui, l'écran affiche « Aucune séance pour l'instant. » + « Crée la
 
 ## 7. Première fois sur un exercice (séance en cours)
 
-Aujourd'hui, sans historique, la série affiche « Objectif : 20 kg × 8 ». Pour la **série en cours** (la grande carte) d'un exercice **sans dernière performance**, dans une séance démarrée **depuis une séance type**, cette ligne devient :
+*Révisé le 29/10 après revue : le texte explique « 20 kg » là où on s'en sert, et ne s'affiche plus qu'en série 1.*
 
-« Première fois : vise 20 kg × 8, ajuste si besoin. »
+Aujourd'hui, sans historique, la série affiche « Objectif : 20 kg × 8 ». Pour la **série 1 en cours** (la grande carte, tant qu'aucune série de l'exercice n'est validée) d'un exercice **sans dernière performance**, dans une séance démarrée **depuis une séance type**, cette ligne devient :
 
-- Construction : `` `Première fois : vise ${formatSetValues(targetWeight ?? 0, targetReps)}, ajuste si besoin.` ``. Au poids du corps, on obtient « Première fois : vise 10 reps, ajuste si besoin. ».
-- Les autres séries de l'exercice gardent « Objectif : 20 kg × 8 ».
+- exercice à la barre, à 20 kg : « Première fois : la barre seule (20 kg) × 8. Ajuste si besoin. » ;
+- au poids du corps (charge 0) : « Première fois : 8 reps. Ajuste si besoin. » ;
+- autre charge (séance type perso) : « Première fois : vise 60 kg × 8. Ajuste si besoin. ».
+
+- Construction : `firstTimeText(exerciseId, targetWeight ?? 0, targetReps)` dans `src/lib/programs.ts`. « À la barre » = exercice de la liste `BARBELL_EXERCISE_IDS` (squat, développés couché / incliné / militaire, soulevés de terre, rowing barre, hip thrust, curl barre, barre au front).
+- Dès qu'une série de l'exercice est validée, la série en cours revient à « Objectif : 20 kg × 8 » (comme la note du lot 1, masquée après la série 1). Les autres séries gardent « Objectif : … ».
 - La règle s'applique à **toute** séance type, pas seulement aux programmes : elle est vraie partout.
 - En séance libre, rien ne change : il n'y a pas d'objectif, donc pas de ligne.
 - Dès qu'un historique existe, on revient à « Dernière fois : … », comme aujourd'hui.
@@ -212,7 +221,7 @@ Contexte : stockage vide, viewport 390 × 844, mode clair. Aucun tap ne demande 
 | 1 | Séances (vide) | « Choisir un programme » | `/seances/programmes`, 3 cartes, aucune choisie, « Ajouter ce programme » désactivé |
 | 2 | Programmes | carte « Full body » | Carte en `aria-checked="true"` avec « Choisi », bouton actif |
 | 3 | Programmes | « Ajouter ce programme » | `/seances`, toast « Programme ajouté : Full body (2 séances). », carte « Full body A » en tête avec « Suggérée » |
-| 4 | Séances | « Démarrer la séance » (Full body A) | `/seance`, « Exercice 1 sur 4 », Squat, série 1 pré-remplie 20 kg × 8, ligne « Première fois : vise 20 kg × 8, ajuste si besoin. » ; le toast d'ajout est fermé |
+| 4 | Séances | « Démarrer la séance » (Full body A) | `/seance`, « Exercice 1 sur 4 », Squat, série 1 pré-remplie 20 kg × 8, ligne « Première fois : la barre seule (20 kg) × 8. Ajuste si besoin. » ; le toast d'ajout est fermé |
 | 5 | Séance | « Valider la série » | Série 1 de Squat validée à 20 kg × 8, toast « Série 1 validée. Repos : 120 s. », minuteur de repos lancé |
 
 Aucune saisie au clavier. Le test Playwright vérifie les 5 taps et l'état final dans `localStorage` (session active, Squat série 1 `done: true`, `weight: 20`, `reps: 8`).
@@ -233,24 +242,24 @@ Aucune saisie au clavier. Le test Playwright vérifie les 5 taps et l'état fina
 
 **Écran Programmes de départ**
 
-6. `/seances/programmes` affiche le titre, l'intro, les 3 cartes avec les textes exacts du §3 et du §4, et la note de charges. L'URL ne s'ouvre pas comme une séance type d'id « programmes ».
-7. Sans choix, « Ajouter ce programme » est `disabled`. Après un tap sur une carte, seule cette carte a `aria-checked="true"` et affiche « Choisi », et le bouton est actif.
-8. Aucune carte n'utilise la couleur d'accent, choisie ou non. Le seul élément accent de l'écran est « Ajouter ce programme ».
+6. `/seances/programmes` affiche le titre, l'intro (avec la règle des charges, visible sans défiler à 390 × 844), les 3 cartes avec les textes exacts du §3 et du §4, et plus de note sous les cartes. L'URL ne s'ouvre pas comme une séance type d'id « programmes ». *(Révisé le 29/10.)*
+7. Sans choix, le bouton dit « Choisis un programme ci-dessus », sans accent, avec `aria-disabled="true"` ; un tap met le focus sur la première carte sans rien créer. Après un tap sur une carte, seule cette carte a `aria-checked="true"` et affiche « Choisi », et le bouton devient « Ajouter ce programme » en accent. Début / Fin vont à la première / dernière carte. *(Révisé le 29/10.)*
+8. Aucune carte n'utilise la couleur d'accent, choisie ou non. Sans choix, l'écran n'a aucun aplat accent ; après un choix, le seul est « Ajouter ce programme ». *(Révisé le 29/10.)*
 9. « Retour aux séances » ramène à `/seances` sans rien créer.
 
 **Ajout et annulation**
 
 10. « Ajouter ce programme » sur Full body ajoute « Full body A » puis « Full body B » à la fin de la liste existante, sans toucher aux séances types déjà là. Le toast affiche « Programme ajouté : Full body (2 séances). ». Sur Poids du corps : « Programme ajouté : Poids du corps (1 séance). ».
 11. « Annuler » dans les 5 s retire exactement les séances créées. `state.templates` redevient égal à l'état d'avant (test sur le réducteur). Un second appel ne fait rien.
-12. Démarrer une séance pendant que ce toast est affiché le ferme, et l'ajout reste.
+12. Démarrer une séance pendant que ce toast est affiché le ferme, et l'ajout reste, quel que soit le point d'entrée (carte, séance libre, reprise) et même après un passage par un autre onglet. Ajout à une liste non vide : la première séance créée est visible à l'écran. En bas de page, le toast ne recouvre pas le dernier bouton. *(Révisé le 29/10.)*
 13. Après l'ajout depuis un stockage vide, « Full body A » est en tête avec « Suggérée » et « Démarrer la séance » en accent.
 14. Ajouter Full body deux fois crée « Full body A (2) » et « Full body B (2) ». Une troisième fois crée « (3) ». La carte affiche « Déjà dans tes séances. » dès le premier ajout.
 15. Une séance type créée par un programme se modifie, se duplique et se supprime comme les autres, avec le toast « Séance supprimée : Full body A. ».
 
 **Séance**
 
-16. Exercice sans historique dans une séance démarrée depuis une séance type : la série en cours affiche « Première fois : vise 20 kg × 8, ajuste si besoin. » (au poids du corps : « Première fois : vise 10 reps, ajuste si besoin. ») et les autres séries « Objectif : … ». Avec un historique, on voit « Dernière fois : … ». En séance libre, aucune ligne.
-17. Le parcours du §8 passe en 5 taps exactement, sans clavier, à 390 × 844 (Playwright).
+16. Exercice sans historique dans une séance démarrée depuis une séance type : la série 1 en cours affiche « Première fois : la barre seule (20 kg) × 8. Ajuste si besoin. » (au poids du corps : « Première fois : 10 reps. Ajuste si besoin. » ; autre charge : « Première fois : vise 60 kg × 8. Ajuste si besoin. »), et dès la série 2, comme les autres séries, « Objectif : … ». *(Révisé le 29/10.)* Avec un historique, on voit « Dernière fois : … ». En séance libre, aucune ligne.
+17. Le parcours du §8 passe en 5 taps exactement, sans clavier, à 390 × 844 (Playwright). *(Révisé le 29/10 : test versionné `e2e/premiere-seance.spec.ts`, lancé par `npm run e2e`, en clair et en sombre ; aucun défilement, cibles ≥ 48 px, état final dans `localStorage`.)*
 
 **Design**
 

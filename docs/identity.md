@@ -39,13 +39,13 @@ Exemples :
 ## 4. Règles de clarté (non négociables)
 
 1. **Une action principale par écran**, visuellement évidente (couleur d'accent, pleine largeur ou grande taille). Les actions secondaires sont discrètes.
-2. **Une seule couleur d'accent**, réservée à « la prochaine chose à faire ». Si tout est coloré, rien n'est clair.
+2. **Une seule couleur d'accent**, réservée à « la prochaine chose à faire ». Si tout est coloré, rien n'est clair. Un bouton principal indisponible ne porte pas l'accent et dit ce qui manque (« Choisis un programme ci-dessus »).
 3. **Le chiffre est le héros** : poids, reps et temps s'affichent en grand, en chiffres tabulaires (alignés).
 4. **On montre toujours la référence** : à côté de chaque champ à remplir, « Dernière fois : 80 kg × 8 ».
 5. **Cibles tactiles ≥ 48 px**, boutons principaux 56 px : on s'entraîne d'une main, avec les doigts moites.
 6. **Pas de saisie au clavier si on peut l'éviter** : boutons − / + (pas de 2,5 kg configurable), valeurs pré-remplies depuis la dernière séance.
 7. **Un état, un seul signal** : à faire = contour, en cours = accent, fait = rempli. Jamais la couleur seule : toujours aussi une icône ou un libellé.
-8. **Rien ne se perd** : toute action destructive est annulable (toast « Annuler » pendant 5 s), la séance en cours survit à un rechargement.
+8. **Rien ne se perd** : toute action destructive est annulable (toast « Annuler » pendant 5 s), la séance en cours survit à un rechargement. Un toast ne recouvre jamais un bouton.
 
 ## 5. Parcours clés
 

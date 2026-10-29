@@ -175,7 +175,10 @@ svg {
   max-width: 640px;
   margin: 0 auto;
   padding: var(--space-3);
-  padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--space-3));
+  /* --toast-reserve : hauteur du toast flottant affiché + 8 px (Toast.tsx), 0 sans toast. */
+  padding-bottom: calc(
+    var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--space-3) + var(--toast-reserve, 0px)
+  );
 }
 
 /* En-tête de marque : logotype monochrome (encre), en tête des 3 onglets uniquement. */
@@ -290,7 +293,7 @@ svg {
 }
 
 .app__content--fullscreen {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-3));
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-3) + var(--toast-reserve, 0px));
 }
 
 .visually-hidden {
@@ -394,6 +397,14 @@ svg {
   background: transparent;
   border-color: transparent;
   color: var(--danger);
+}
+
+/*
+ * Bouton principal indisponible (aria-disabled) : contour, sans accent, texte secondaire ; il dit
+ * ce qui manque (identity.md §4.2).
+ */
+.btn--unavailable {
+  color: var(--text-muted);
 }
 
 .btn--lg {
@@ -790,10 +801,9 @@ svg {
   font-weight: 700;
 }
 
-.programs__note {
-  margin: var(--space-3) 0;
-  font-size: var(--fs-caption);
-  font-weight: 500;
+/* Le dernier élément de la liste respire au-dessus de la barre d'action. */
+.programs__list {
+  margin-bottom: var(--space-3);
 }
 
 /* ---------- Toast « Annuler » ---------- */

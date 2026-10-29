@@ -24,6 +24,7 @@ import {
   nextExerciseIndex,
   pendingSetCount,
 } from '../lib/session';
+import { firstTimeText } from '../lib/programs';
 import { keepLabel, keepToast, suggestionDetail, suggestionTitle } from '../lib/progression';
 import { loadRestEndsAt, saveRestEndsAt } from '../lib/restTimer';
 import { countDoneSets, lastPerformance, sessionDurationMs, type LastPerformance } from '../lib/stats';
@@ -164,7 +165,8 @@ export default function ActiveSessionPage() {
   const heroIdx = correcting >= 0 ? correcting : setIdx;
 
   // Référence d'une série : la même série la dernière fois, sinon l'objectif de la séance type
-  // (« Première fois : vise … » pour la série en cours d'un exercice jamais fait).
+  // (« Première fois : … » pour la série 1 en cours d'un exercice jamais fait ; dès qu'une série
+  // est validée, « Objectif : … »).
   const referenceFor = (i: number): string | null => {
     if (!exercise) return null;
     const last = lastByExercise.get(exercise.exerciseId);
@@ -176,8 +178,9 @@ export default function ActiveSessionPage() {
     const template = session.templateId ? state.templates.find((t) => t.id === session.templateId) : undefined;
     const target = template?.exercises.find((te) => te.exerciseId === exercise.exerciseId);
     if (!target) return null;
-    const values = formatSetValues(target.targetWeight ?? 0, target.targetReps);
-    return i === setIdx ? `Première fois${COLON} vise ${values}, ajuste si besoin.` : `Objectif${COLON} ${values}`;
+    const weight = target.targetWeight ?? 0;
+    if (i === setIdx && !started) return firstTimeText(exercise.exerciseId, weight, target.targetReps);
+    return `Objectif${COLON} ${formatSetValues(weight, target.targetReps)}`;
   };
 
   const validate = () => {

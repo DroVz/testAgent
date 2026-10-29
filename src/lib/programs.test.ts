@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_EXERCISES } from './defaultExercises';
 import { formatEstimatedDuration } from './format';
-import { STARTER_PROGRAMS, buildProgramTemplates, isProgramAlreadyAdded, uniqueTemplateName } from './programs';
+import {
+  BARBELL_EXERCISE_IDS,
+  STARTER_PROGRAMS,
+  buildProgramTemplates,
+  firstTimeText,
+  isProgramAlreadyAdded,
+  uniqueTemplateName,
+} from './programs';
 import { estimateTemplateMinutes } from './templates';
 
 const T0 = new Date('2026-10-29T10:00:00.000Z');
@@ -198,5 +205,26 @@ describe('isProgramAlreadyAdded', () => {
     expect(isProgramAlreadyAdded(fullBody, ['Full body A', 'Full body B'])).toBe(true);
     expect(isProgramAlreadyAdded(fullBody, ['Full body A (2)', 'Full body B (2)'])).toBe(false);
     expect(isProgramAlreadyAdded(fullBody, [' Full body A ', 'Full body B'])).toBe(true);
+  });
+});
+
+describe('firstTimeText (§7 révisé le 29/10)', () => {
+  const NBSP = ' ';
+  it('à la barre seule : « la barre seule (20 kg) × 8 »', () => {
+    expect(firstTimeText('squat', 20, 8)).toBe(`Première fois${NBSP}: la barre seule (20${NBSP}kg) × 8. Ajuste si besoin.`);
+  });
+  it('au poids du corps : « 8 reps »', () => {
+    expect(firstTimeText('pompes', 0, 8)).toBe(`Première fois${NBSP}: 8${NBSP}reps. Ajuste si besoin.`);
+  });
+  it('autre charge, ou 20 kg sur un exercice qui ne se fait pas à la barre : « vise X kg × N »', () => {
+    expect(firstTimeText('squat', 60, 8)).toBe(`Première fois${NBSP}: vise 60${NBSP}kg × 8. Ajuste si besoin.`);
+    expect(firstTimeText('curl-halteres', 20, 10)).toBe(`Première fois${NBSP}: vise 20${NBSP}kg × 10. Ajuste si besoin.`);
+  });
+  it('tous les exercices à 20 kg des programmes sont reconnus comme exercices à la barre', () => {
+    const ids = DEFAULT_EXERCISES.map((e) => e.id);
+    for (const id of BARBELL_EXERCISE_IDS) expect(ids).toContain(id);
+    for (const p of STARTER_PROGRAMS)
+      for (const t of p.templates)
+        for (const e of t.exercises) if (e.targetWeight === 20) expect(BARBELL_EXERCISE_IDS.has(e.exerciseId)).toBe(true);
   });
 });

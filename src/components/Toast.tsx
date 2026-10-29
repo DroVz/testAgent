@@ -1,7 +1,24 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 
 /** Durée d'affichage d'un toast (identity.md §4.8 : « Annuler » pendant 5 s). */
 export const TOAST_DURATION_MS = 5000;
+
+/**
+ * Variable CSS (sur `<html>`) : place à réserver en bas du contenu tant qu'un toast flottant est
+ * affiché (sa hauteur + 8 px), pour qu'il ne recouvre jamais un bouton (identity.md §4.8).
+ */
+export const TOAST_RESERVE_VAR = '--toast-reserve';
+const TOAST_GAP_PX = 8;
 
 export interface ToastOptions {
   /** Phrase courte qui dit ce qui vient de se passer : « Séance supprimée. ». */
@@ -10,6 +27,11 @@ export interface ToastOptions {
   onUndo?: () => void;
   /** Nom accessible du bouton « Annuler » (par défaut : « Annuler la suppression »). */
   undoLabel?: string;
+  /**
+   * Ferme le toast dès qu'une séance démarre (ou reprend), quel que soit le point d'entrée :
+   * son « Annuler » ne doit jamais agir sur ce dont dépend la séance en cours.
+   */
+  dismissOnSessionStart?: boolean;
 }
 
 interface ToastData extends ToastOptions {
@@ -22,6 +44,8 @@ interface ToastContextValue {
   show(options: ToastOptions): number;
   /** Ferme le toast `id` s'il est encore affiché (sans id : ferme le toast courant). */
   dismiss(id?: number): void;
+  /** Ferme le toast courant s'il a `dismissOnSessionStart` (appelé au démarrage d'une séance). */
+  dismissOnSessionStart(): void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -41,6 +65,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToast((current) => (current && (id === undefined || current.id === id) ? null : current));
   }, []);
 
+  const dismissOnSessionStart = useCallback(() => {
+    setToast((current) => (current?.dismissOnSessionStart ? null : current));
+  }, []);
+
   // Chaque nouveau toast relance le délai de 5 s.
   useEffect(() => {
     if (!toast) return;
@@ -48,14 +76,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timeout);
   }, [toast, dismiss]);
 
-  const value = useMemo(() => ({ toast, show, dismiss }), [toast, show, dismiss]);
+  const value = useMemo(
+    () => ({ toast, show, dismiss, dismissOnSessionStart }),
+    [toast, show, dismiss, dismissOnSessionStart],
+  );
   return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
 }
 
-export function useToast(): Pick<ToastContextValue, 'show' | 'dismiss'> {
+export function useToast(): Pick<ToastContextValue, 'show' | 'dismiss' | 'dismissOnSessionStart'> {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error('useToast doit être utilisé dans <ToastProvider>.');
-  return { show: ctx.show, dismiss: ctx.dismiss };
+  return { show: ctx.show, dismiss: ctx.dismiss, dismissOnSessionStart: ctx.dismissOnSessionStart };
 }
 
 /**
@@ -68,6 +99,23 @@ export function useToast(): Pick<ToastContextValue, 'show' | 'dismiss'> {
 export function ToastHost({ placement, aboveTabbar = false }: { placement: 'floating' | 'inline'; aboveTabbar?: boolean }) {
   const ctx = useContext(ToastContext);
   const toast = ctx?.toast;
+  const toastRef = useRef<HTMLDivElement>(null);
+
+  // Toast flottant : la page réserve sa hauteur en bas tant qu'il est affiché.
+  useLayoutEffect(() => {
+    const el = toastRef.current;
+    if (placement !== 'floating' || !el) return;
+    const root = document.documentElement;
+    const update = () => root.style.setProperty(TOAST_RESERVE_VAR, `${el.offsetHeight + TOAST_GAP_PX}px`);
+    update();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
+    observer?.observe(el);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty(TOAST_RESERVE_VAR);
+    };
+  }, [placement, toast?.id]);
+
   const className = [
     'toast-region',
     `toast-region--${placement}`,
@@ -78,7 +126,7 @@ export function ToastHost({ placement, aboveTabbar = false }: { placement: 'floa
   return (
     <div className={className} role="status">
       {ctx && toast && (
-        <div key={toast.id} className="toast">
+        <div key={toast.id} ref={toastRef} className="toast">
           <span className="toast__message">{toast.message}</span>
           {toast.onUndo && (
             <button

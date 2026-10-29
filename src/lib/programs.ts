@@ -1,3 +1,4 @@
+import { COLON, formatCount, formatNumber, formatSetValues, formatWeight } from './format';
 import { createId } from './id';
 import { createTemplate } from './templates';
 import { DEFAULT_REST_SECONDS, type Template, type TemplateExercise } from './types';
@@ -25,6 +26,41 @@ export interface StarterProgram {
 
 /** Barre olympique à vide. */
 export const BAR_WEIGHT = 20;
+
+/**
+ * Exercices de la bibliothèque qui se font à la barre olympique : à 20 kg, la charge est « la barre
+ * seule ». Les ids viennent de `DEFAULT_EXERCISES` (stables).
+ */
+export const BARBELL_EXERCISE_IDS: ReadonlySet<string> = new Set([
+  'developpe-couche',
+  'developpe-incline',
+  'developpe-militaire',
+  'souleve-de-terre',
+  'souleve-de-terre-roumain',
+  'rowing-barre',
+  'squat',
+  'hip-thrust',
+  'curl-barre',
+  'barre-au-front',
+]);
+
+/**
+ * Ligne « Première fois » de la série 1 d'un exercice jamais fait (spec §7, révisée le 29/10) :
+ * - à la barre seule : « Première fois : la barre seule (20 kg) × 8. Ajuste si besoin. » ;
+ * - au poids du corps : « Première fois : 8 reps. Ajuste si besoin. » ;
+ * - sinon : « Première fois : vise 60 kg × 8. Ajuste si besoin. ».
+ */
+export function firstTimeText(exerciseId: string, weight: number, reps: number): string {
+  let target: string;
+  if (weight === BAR_WEIGHT && BARBELL_EXERCISE_IDS.has(exerciseId)) {
+    target = `la barre seule (${formatWeight(weight)}) × ${formatNumber(reps)}`;
+  } else if (weight <= 0) {
+    target = formatCount(reps, 'rep');
+  } else {
+    target = `vise ${formatSetValues(weight, reps)}`;
+  }
+  return `Première fois${COLON} ${target}. Ajuste si besoin.`;
+}
 /** Repos des mouvements lourds (squat, développé couché, soulevé de terre roumain). */
 const HEAVY_REST_SECONDS = 120;
 
