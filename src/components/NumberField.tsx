@@ -19,6 +19,15 @@ export interface NumberFieldProps {
   size?: 'default' | 'hero';
 }
 
+/**
+ * Longueur affichée, bornée à 3…5, posée en `data-len` : la police des champs non-héros se réduit
+ * (24 / 18 / 16 px) pour que « 102,5 » tienne sans déborder.
+ */
+export function displayLength(text: string): 3 | 4 | 5 {
+  const n = text.trim().length;
+  return n <= 3 ? 3 : n === 4 ? 4 : 5;
+}
+
 function clampValue(n: number, kind: 'decimal' | 'integer', min: number, max: number | undefined): number {
   const rounded = kind === 'integer' ? Math.round(n) : Math.round(n * 100) / 100;
   return Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min, rounded));
@@ -66,6 +75,7 @@ export default function NumberField({
     <input
       id={id}
       className="number-field__input"
+      data-len={displayLength(text)}
       type="text"
       inputMode={kind === 'decimal' ? 'decimal' : 'numeric'}
       autoComplete="off"

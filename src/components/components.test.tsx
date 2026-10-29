@@ -5,7 +5,7 @@ import { AppStoreProvider, useAppStore } from '../state/AppStore';
 import ConfirmDialog from './ConfirmDialog';
 import ExercisePicker from './ExercisePicker';
 import LineChart, { chartFontSize } from './LineChart';
-import NumberField from './NumberField';
+import NumberField, { displayLength } from './NumberField';
 import RestTimer from './RestTimer';
 import { TOAST_DURATION_MS, ToastHost, ToastProvider, useToast } from './Toast';
 
@@ -38,6 +38,21 @@ function ControlledNumber(props: { kind?: 'decimal' | 'integer'; step?: number; 
 }
 
 describe('NumberField', () => {
+  it('data-len suit la longueur du texte affiché (3 au plus court, 5 au plus long)', () => {
+    expect(['', '0', '90', '120'].map(displayLength)).toEqual([3, 3, 3, 3]);
+    expect(displayLength('72,5')).toBe(4);
+    expect(displayLength('102,5')).toBe(5);
+    expect(displayLength('102,55')).toBe(5);
+
+    render(<ControlledNumber initial={120} />);
+    const input = screen.getByLabelText('Poids');
+    expect(input).toHaveAttribute('data-len', '3');
+    fireEvent.change(input, { target: { value: '72,5' } });
+    expect(input).toHaveAttribute('data-len', '4');
+    fireEvent.change(input, { target: { value: '102,5' } });
+    expect(input).toHaveAttribute('data-len', '5');
+  });
+
   it('accepte la virgule et conserve la saisie en cours', () => {
     render(<ControlledNumber initial={60} />);
     const input = screen.getByLabelText('Poids');

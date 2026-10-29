@@ -490,7 +490,7 @@ svg {
   width: 100%;
   min-width: 0;
   min-height: var(--touch);
-  padding: var(--space-1) 0; /* Pas de marge latérale : « 120 » en Space Grotesk 24 px tient dans le champ à 390 px. */
+  padding: var(--space-1) 2px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -498,6 +498,16 @@ svg {
   font-weight: 700;
   text-align: center;
   font-variant-numeric: tabular-nums;
+}
+
+/* Taille adaptée à la longueur (data-len posé par NumberField) : 24 px jusqu'à 3 caractères,
+   18 px à 4 (« 72,5 »), 16 px à 5 et plus (« 102,5 »). Le champ héros garde ses 40 px. */
+.number-field:not(.number-field--hero) .number-field__input[data-len='4'] {
+  font-size: 18px;
+}
+
+.number-field:not(.number-field--hero) .number-field__input[data-len='5'] {
+  font-size: 16px;
 }
 
 .number-field__input:focus,
@@ -649,6 +659,18 @@ svg {
   grid-template-columns: 1fr 1fr;
   gap: var(--space-3);
   margin-top: var(--space-2);
+}
+
+/* Écrans étroits (< 360 px) : une colonne, sinon le chiffre n'a plus la place entre les −/+ de 48 px. */
+@media (max-width: 359px) {
+  .editor-item__fields {
+    grid-template-columns: 1fr;
+  }
+
+  /* Pleine largeur : la place suffit, pas de réduction. */
+  .editor-item__fields .number-field:not(.number-field--hero) .number-field__input[data-len] {
+    font-size: var(--fs-title);
+  }
 }
 
 /*

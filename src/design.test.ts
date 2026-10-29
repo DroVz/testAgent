@@ -115,6 +115,11 @@ describe('identité visuelle', () => {
     }
   });
 
+  it('champs chiffrés non-héros : 18 px à 4 caractères, 16 px à 5, sans toucher au héros', () => {
+    expect(css).toMatch(/\.number-field:not\(\.number-field--hero\) \.number-field__input\[data-len='4'\] \{\s*font-size: 18px;/);
+    expect(css).toMatch(/\.number-field:not\(\.number-field--hero\) \.number-field__input\[data-len='5'\] \{\s*font-size: 16px;/);
+  });
+
   it('barre d’onglets à 13 px (échelle 40 / 24 / 16 / 13)', () => {
     const item = /\.tabbar__item \{([^}]*)\}/.exec(css)?.[1] ?? '';
     expect(item).toMatch(/font-size:\s*13px;/);
