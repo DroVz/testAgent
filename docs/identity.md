@@ -50,7 +50,7 @@ Exemples :
 ## 5. Parcours clés
 
 ### Créer (onglet Séances)
-- Liste de séances sous forme de cartes : nom, nombre d'exercices, durée estimée, dernier passage. Bouton principal : « Créer une séance ».
+- Liste de séances sous forme de cartes : nom, nombre d'exercices, durée estimée, dernier passage. Liste vide : bouton principal « Choisir un programme » (programmes de départ), puis « Créer une séance » en secondaire. Liste non vide : « Créer une séance », « Séance libre » et « Ajouter un programme de départ », tous en secondaire.
 - Constructeur en une page : nom en haut, liste d'exercices en dessous, bouton « Ajouter un exercice » (recherche instantanée, récents en premier). Pour chaque exercice : séries × reps × charge cible, modifiables en place. Réordonner par glisser ou boutons ↑ ↓.
 - Action secondaire : « Dupliquer » une séance existante.
 

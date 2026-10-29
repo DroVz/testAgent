@@ -163,50 +163,22 @@ Si un exercice figure deux fois dans la même séance type, chaque occurrence es
 
 ### Lot 2 — Première séance en 2 minutes · effort M
 
-**Objectif** : un nouveau venu valide sa première série en moins de 2 minutes après le premier lancement, sans créer de compte, sans répondre à un questionnaire et sans construire de séance.
+> **Spécification détaillée : [`lot2-programmes.md`](lot2-programmes.md)** (29 octobre 2026). Elle fait foi : contenu exact des programmes, écrans, textes, cas limites, parcours en 5 taps et 18 critères d'acceptation.
+
+**Objectif** : un nouveau venu valide sa première série en 5 taps (moins de 2 minutes) après le premier lancement, sans compte, sans questionnaire et sans construire de séance.
 
 #### User stories
 - **US2.1** En tant que débutant qui ouvre l'app pour la première fois, je veux choisir un programme prêt à l'emploi, pour démarrer ma séance tout de suite.
-- **US2.2** En tant que débutant, je veux savoir quelle charge prendre sur un exercice que je n'ai jamais fait, pour ne pas me bloquer devant un « 0 kg ».
+- **US2.2** En tant que débutant, je veux une charge de départ que je comprends, pour ne pas bloquer devant un chiffre au hasard.
 - **US2.3** En tant qu'utilisateur déjà installé, je veux pouvoir ajouter un programme de départ plus tard, pour changer de routine sans tout recréer.
+- **US2.4** En tant qu'utilisateur qui s'est trompé de programme, je veux annuler l'ajout en un tap.
 
-#### Programmes de départ (contenu figé, exercices de la bibliothèque existante)
-
-| Programme | Pour qui (texte de la carte) | Séances types créées |
-|---|---|---|
-| **Full body** | « 2 à 3 séances par semaine. Idéal pour commencer. » | **Full body A** : Squat 3 × 8 · 20 kg, Développé couché 3 × 8 · 20 kg, Rowing barre 3 × 10 · 20 kg, Crunch 3 × 15. **Full body B** : Soulevé de terre roumain 3 × 10 · 20 kg, Développé militaire 3 × 8 · 20 kg, Tirage vertical 3 × 10 · 25 kg, Fentes 3 × 10 · 0 kg |
-| **Haut / Bas** | « 4 séances par semaine. Pour aller plus loin. » | **Haut du corps** : Développé couché 4 × 8 · 20 kg, Rowing barre 4 × 8 · 20 kg, Développé militaire 3 × 10 · 20 kg, Curl haltères 3 × 12 · 8 kg, Extension triceps poulie 3 × 12 · 15 kg. **Bas du corps** : Squat 4 × 8 · 20 kg, Soulevé de terre roumain 3 × 10 · 20 kg, Presse à cuisses 3 × 12 · 40 kg, Leg curl 3 × 12 · 20 kg, Mollets debout 3 × 15 · 0 kg |
-| **Poids du corps** | « Presque sans matériel. Une barre de traction suffit. » | **Poids du corps** : Pompes 3 × 10, Fentes 3 × 10, Dips 3 × 8, Tractions 3 × 5, Relevé de jambes 3 × 10 (toutes à 0 kg) |
-
-Repos de 90 s partout, sauf Squat, Soulevé de terre roumain et Développé couché à 120 s. 20 kg = la barre olympique à vide.
-
-#### Comportement
-- **Écran Séances vide** (aucune séance type, aucune séance faite) :
-  - texte : « Aucune séance pour l'instant. Commence avec un programme ou crée la tienne. » ;
-  - action principale (accent, 56 px) : « Choisir un programme » ;
-  - en dessous, en secondaire : « Créer une séance » et « Séance libre ».
-- **Écran « Programmes de départ »** (plein écran, « ‹ Retour » en haut) :
-  - 3 cartes avec nom, texte « Pour qui » et liste des exercices de la première séance ;
-  - pas d'accent sur les cartes ;
-  - un tap sur une carte la sélectionne : contour + coche + libellé « Choisi » ;
-  - action principale en bas : « Ajouter ce programme » (désactivée tant que rien n'est choisi).
-- Après « Ajouter ce programme » :
-  - les séances types sont créées, dans l'ordre du tableau ;
-  - retour sur Séances avec un toast « Programme ajouté : Full body (2 séances). » ;
-  - la première séance du programme porte « Suggérée » et le bouton accent « Démarrer la séance » ;
-  - règle à adapter dans `suggestedTemplateId` : si aucune séance n'a été faite, la suggérée est la première séance type, ce qui est déjà le cas.
-- Si les séances types existent déjà sous le même nom, elles sont ajoutées quand même, avec le suffixe « (2) ». On ne fusionne jamais.
-- **Première fois sur un exercice** (aucune dernière performance) : à la place de « Objectif : 20 kg × 8 », la série en cours affiche « Première fois : prends une charge que tu soulèves 10 fois sans forcer. » La ligne « Objectif : … » reste sur les séries suivantes.
-- **Plus tard** : en bas de la liste Séances, un lien secondaire « Ajouter un programme de départ » ouvre le même écran.
-
-#### Critères d'acceptation
-1. Stockage vide → Séances affiche le texte ci-dessus et une seule action accent, « Choisir un programme ».
-2. Parcours chronométré par un script Playwright à 390 × 844 : lancement → « Choisir un programme » → carte « Full body » → « Ajouter ce programme » → « Démarrer la séance » → « Valider la série ». Cela fait **5 taps**, sans aucune saisie au clavier, et la série 1 de Squat est validée à 20 kg × 8.
-3. Les 5 séances types créées par les 3 programmes ont exactement le contenu du tableau. Le test unitaire compare les objets.
-4. Ajouter « Full body » deux fois crée « Full body A (2) » et « Full body B (2) ».
-5. « Première fois : prends une charge que tu soulèves 10 fois sans forcer. » s'affiche uniquement sur la série en cours d'un exercice sans historique.
-6. Les ids d'exercice utilisés existent dans `DEFAULT_EXERCISES` (test).
-7. Mêmes contrôles de revue design que le lot 1, en clair et en sombre.
+#### En bref
+- 3 programmes (Full body, Haut / Bas, Poids du corps) qui créent 5 séances types ordinaires, modifiables, sans rien de verrouillé.
+- **Changement par rapport à la version du 28 octobre** : les programmes ne contiennent plus que des exercices à la barre (20 kg, barre seule) ou au poids du corps (0). Tirage vertical, curl haltères, extension triceps poulie, presse à cuisses et leg curl sont retirés, parce que leurs charges de départ (25, 8, 15, 40, 20 kg) étaient arbitraires d'une salle à l'autre. Ils sont remplacés par tractions, dips et hip thrust.
+- État vide de Séances : « Choisir un programme » en accent. Liste non vide : « Ajouter un programme de départ » en secondaire.
+- Ajout annulable 5 s par le toast. Si un nom existe déjà, l'ajout porte le suffixe « (2) », et on ne fusionne jamais.
+- Première fois sur un exercice : « Première fois : vise 20 kg × 8, ajuste si besoin. » remplace « prends une charge que tu soulèves 10 fois sans forcer », qui contredisait la valeur pré-remplie.
 
 ---
 
