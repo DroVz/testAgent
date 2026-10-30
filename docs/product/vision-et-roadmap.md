@@ -6,6 +6,7 @@
 > - Le **lot 4** (`lot4-app-store.md`) est **suspendu**, pas supprimé. Le code Capacitor reste sur sa branche, non fusionné. Sont suspendus avec lui : les notifications locales, dont les rappels de séance, l'haptique native, HealthKit et Android.
 > - Le lot « **PWA au maximum** » a été livré (commit ac0ca60). Il reprend du lot 4 ce que le web permet : export par la feuille de partage, écran allumé en séance, `storage.persist`, bip de fin de repos, aide à l'installation iPhone.
 > - Le **lot 5** est spécifié dans [`lot5-sauvegarde-et-records.md`](lot5-sauvegarde-et-records.md) : rappel de sauvegarde, record annoncé en séance, finitions.
+> - Le lot 5 a été livré (commit 2b2e5ea). Le **lot 6** est spécifié dans [`lot6-en-salle.md`](lot6-en-salle.md) : retour aux exercices sautés, note par exercice. Il liste aussi les idées écartées. Après lui, aucun lot n'est prévu sans retour du propriétaire.
 > - Ce qui suit, ligne 3 de la vision comprise (« prête pour l'App Store »), est conservé tel quel pour l'historique. En cas d'écart, cette note fait foi.
 
 Sources lues : `README.md`, `docs/SPEC.md`, `docs/identity.md`, `docs/brand/README.md`, les 4 rapports `docs/review-2026-10-28*.md`, `src/lib/` (stats, session, templates, format, storage, types) et `src/pages/`. Je n'ai pas regardé `src/styles.css`, qui est en cours de migration vers Améthyste.
