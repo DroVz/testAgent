@@ -9,6 +9,7 @@ import {
   exerciseVolume,
   lastPerformance,
   personalRecords,
+  recordGainedBy,
   sessionDurationMs,
   sessionVolume,
   suggestedTemplateId,
@@ -300,5 +301,85 @@ describe('séance type : dernier passage et suggestion', () => {
   it('séance en cours (non terminée) ignorée', () => {
     const sessions = [done('1', 'c', '2026-10-01T10:00:00.000Z', false), done('2', 'b', '2026-10-25T10:00:00.000Z')];
     expect(suggestedTemplateId(templates, sessions)).toBe('b');
+  });
+});
+
+describe('recordGainedBy (lot 5 : record annoncé en séance)', () => {
+  /** Valide les séries une à une et renvoie le record annoncé à chaque validation. */
+  function announcements(history: WorkoutSession[], exerciseId: string, sets: SetEntry[]) {
+    const pending = sets.map((s) => ({ ...s, done: false }));
+    let current = session('live', local(2026, 10, 30, 18), { [exerciseId]: pending }, null);
+    const result = [];
+    for (let i = 0; i < sets.length; i++) {
+      const next: WorkoutSession = {
+        ...current,
+        exercises: current.exercises.map((e) => ({
+          ...e,
+          sets: e.sets.map((s, j) => (j === i ? { ...s, done: true } : s)),
+        })),
+      };
+      result.push(recordGainedBy(current, next, history, exerciseId));
+      current = next;
+    }
+    return { result, final: current };
+  }
+
+  it('poids max : annoncé à 85 kg, pas à la même charge, de nouveau à 87,5 kg', () => {
+    const history = [session('h', local(2026, 10, 20), { squat: [set(82.5, 5), set(82.5, 5)] })];
+    const { result } = announcements(history, 'squat', [set(85, 1), set(85, 1), set(87.5, 1)]);
+    expect(result.map((r) => r && [r.type, r.value])).toEqual([['maxWeight', 85], undefined, ['maxWeight', 87.5]]);
+  });
+
+  it('volume : annoncé une seule fois, quand il dépasse l’ancien meilleur (série 3)', () => {
+    // Ancien meilleur : 1 200 kg, 100 kg max, 1RM ≈ 113 kg. Séance : 85 kg × 5, sans record de poids ni de 1RM.
+    const history = [session('h', local(2026, 10, 20), { squat: [set(100, 4), set(100, 4), set(100, 4)] })];
+    const { result } = announcements(history, 'squat', [set(85, 5), set(85, 5), set(85, 5), set(85, 5), set(85, 5)]);
+    expect(result.map((r) => r && [r.type, r.value])).toEqual([undefined, undefined, ['bestVolume', 1275], undefined, undefined]);
+  });
+
+  it('type plus fort : on passe d’un record de volume à un record de poids max', () => {
+    const history = [session('h', local(2026, 10, 20), { squat: [set(100, 3)] })];
+    // Série 1 : 60 × 6 = 360 > 300 (volume) ; série 2 : 102,5 kg (poids max).
+    const { result } = announcements(history, 'squat', [set(60, 6), set(102.5, 1)]);
+    expect(result.map((r) => r?.type)).toEqual(['bestVolume', 'maxWeight']);
+  });
+
+  it('1RM estimé qui remonte : annoncé de nouveau', () => {
+    const history = [session('h', local(2026, 10, 20), { 'developpe-couche': [set(80, 5)] })];
+    // 1RM historique ≈ 93,3 ; 70 × 10 ≈ 93,3 (=) ; 70 × 12 = 98 ; 70 × 14 ≈ 102,7.
+    const { result } = announcements(history, 'developpe-couche', [set(70, 12), set(70, 14)]);
+    expect(result.map((r) => r?.type)).toEqual(['bestOneRepMax', 'bestOneRepMax']);
+    expect(result[1]!.value).toBeGreaterThan(result[0]!.value);
+  });
+
+  it('série 1 corrigée à 90 kg, puis série 2 validée à 85 kg : rien n’est annoncé', () => {
+    const history = [session('h', local(2026, 10, 20), { squat: [set(82.5, 5), set(82.5, 5)] })];
+    // Série 1 déjà validée puis corrigée à 90 kg (la correction n'annonce rien) ; série 2 à valider.
+    const before = session('live', local(2026, 10, 30, 18), { squat: [set(90, 5), set(85, 5, false)] }, null);
+    const after = session('live', local(2026, 10, 30, 18), { squat: [set(90, 5), set(85, 5)] }, null);
+    expect(recordGainedBy(before, after, history, 'squat')).toBeUndefined();
+  });
+
+  it('exercice sans historique : aucune annonce', () => {
+    const { result } = announcements([], 'squat', [set(100, 5), set(120, 5)]);
+    expect(result).toEqual([undefined, undefined]);
+  });
+
+  it('sur la séance entière, le dernier record annoncé a le type de celui du récap', () => {
+    const history = [
+      session('h', local(2026, 10, 20), { squat: [set(100, 4), set(100, 4), set(100, 4)], 'developpe-couche': [set(80, 5)] }),
+    ];
+    for (const sets of [
+      [set(85, 5), set(85, 5), set(85, 5), set(102.5, 1)],
+      [set(85, 5), set(85, 5), set(85, 5), set(85, 5)],
+      [set(102.5, 1), set(85, 5), set(85, 5), set(85, 5), set(85, 5)],
+    ]) {
+      const { result, final } = announcements(history, 'squat', sets);
+      const lastAnnounced = result.filter((r) => r !== undefined).pop();
+      const recap = strongestRecords(detectNewRecords({ ...final, endedAt: final.startedAt }, history)).find(
+        (r) => r.exerciseId === 'squat',
+      );
+      expect(lastAnnounced?.type).toBe(recap?.type);
+    }
   });
 });

@@ -201,6 +201,32 @@ export function strongestRecords(records: NewRecord[]): NewRecord[] {
   return [...best.values()];
 }
 
+/** Record le plus fort d'un exercice pour la séance (même définition que le récap). */
+function strongestRecordOf(session: WorkoutSession, history: WorkoutSession[], exerciseId: string): NewRecord | undefined {
+  return strongestRecords(detectNewRecords(session, history)).find((r) => r.exerciseId === exerciseId);
+}
+
+/**
+ * Record à annoncer en séance quand une série de `exerciseId` vient d'être validée (`before` → `after`) :
+ * le record le plus fort de l'exercice après la validation, s'il est nouveau (aucun avant), d'un type
+ * plus fort, ou du même type avec une valeur plus haute pour le poids max et le 1RM estimé. Le volume
+ * n'est annoncé qu'au moment où il dépasse l'ancien meilleur : chaque série suivante le referait monter.
+ */
+export function recordGainedBy(
+  before: WorkoutSession,
+  after: WorkoutSession,
+  history: WorkoutSession[],
+  exerciseId: string,
+): NewRecord | undefined {
+  const gained = strongestRecordOf(after, history, exerciseId);
+  if (!gained) return undefined;
+  const previous = strongestRecordOf(before, history, exerciseId);
+  if (!previous) return gained;
+  if (RECORD_PRIORITY.indexOf(gained.type) < RECORD_PRIORITY.indexOf(previous.type)) return gained;
+  if (gained.type === previous.type && gained.type !== 'bestVolume' && gained.value > previous.value) return gained;
+  return undefined;
+}
+
 /** Début de semaine (lundi 00:00, heure locale). */
 export function startOfWeek(date: Date): Date {
   const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());

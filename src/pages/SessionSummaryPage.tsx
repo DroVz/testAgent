@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import BackupReminder from '../components/BackupReminder';
 import {
   exerciseName,
   formatDuration,
+  formatNewRecord,
   formatNumber,
   formatOneRepMax,
-  formatRecordSentence,
   formatSessionSummary,
   formatSetsSummary,
   formatMilestone,
@@ -19,16 +20,8 @@ import {
   sessionDurationMs,
   sessionVolume,
   strongestRecords,
-  type RecordType,
 } from '../lib/stats';
 import { useAppStore } from '../state/AppStore';
-
-/** Précision du record dans la phrase (le poids max est le record « par défaut »). */
-const RECORD_KINDS: Record<RecordType, string | undefined> = {
-  maxWeight: undefined,
-  bestOneRepMax: '1RM estimé',
-  bestVolume: 'volume',
-};
 
 /** Résumé d'une séance terminée (/resume/:id). */
 export default function SessionSummaryPage() {
@@ -101,7 +94,7 @@ export default function SessionSummaryPage() {
               const format = r.type === 'bestOneRepMax' ? formatOneRepMax : formatWeight;
               return (
                 <li key={`${r.exerciseId}-${r.type}`} className="records__item">
-                  {formatRecordSentence(exerciseName(state.exercises, r.exerciseId), format(r.value), RECORD_KINDS[r.type])}{' '}
+                  {formatNewRecord(exerciseName(state.exercises, r.exerciseId), r)}{' '}
                   <span className="muted">(avant {format(r.previous)})</span>
                 </li>
               );
@@ -137,6 +130,9 @@ export default function SessionSummaryPage() {
             Mettre à jour la séance type
           </button>
         ))}
+
+      {/* Rappel de sauvegarde (lot 5) : en fin de contenu, discret, après les records. */}
+      <BackupReminder key={session.id} state={state} sessionId={session.id} />
 
       {/* Action principale collée en bas, au-dessus de la barre d'onglets (comme en séance). */}
       <div className="summary-dock">

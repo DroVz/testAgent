@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BACKUP_REMINDER_DETAIL,
   DELETED_EXERCISE_NAME,
+  NBSP,
+  formatBackupReminder,
+  formatLastExport,
+  formatNewRecord,
+  formatSinceExport,
   exerciseName,
   formatClock,
   formatCount,
@@ -366,29 +372,29 @@ describe('rythme (lot 3)', () => {
 
   it('formatPeriodSummary : les 4 exemples du §3.2, segments à 0 omis', () => {
     expect(formatPeriodSummary('Semaine dernière', { count: 3, volume: 14520, records: 1 })).toBe(
-      t('Semaine dernière~: 3~séances, 14_520~kg, 1~record.'),
+      t('Semaine dernière~: 3~séances, 14_520~kg,~1~record.'),
     );
     expect(formatPeriodSummary('Octobre', { count: 4, volume: 14760, records: 0 })).toBe(
-      t('Octobre~: 4~séances, 14_760~kg.'),
+      t('Octobre~: 4~séances,~14_760~kg.'),
     );
     expect(formatPeriodSummary('Semaine dernière', { count: 1, volume: 3200, records: 0 })).toBe(
-      t('Semaine dernière~: 1~séance, 3_200~kg.'),
+      t('Semaine dernière~: 1~séance,~3_200~kg.'),
     );
     expect(formatPeriodSummary('Semaine dernière', { count: 2, volume: 0, records: 0 })).toBe(
       t('Semaine dernière~: 2~séances.'),
     );
     // Volume arrondi comme formatWeight (pas de décimale inutile).
     expect(formatPeriodSummary('Novembre', { count: 1, volume: 1012.5, records: 0 })).toBe(
-      t('Novembre~: 1~séance, 1_012,5~kg.'),
+      t('Novembre~: 1~séance,~1_012,5~kg.'),
     );
   });
 
   it('formatPeriodSummary sans le compte (mois en cours) : volume puis records, undefined si les deux valent 0', () => {
     expect(formatPeriodSummary('Octobre', { count: 13, volume: 49755, records: 10 }, { count: false })).toBe(
-      t('Octobre~: 49_755~kg, 10~records.'),
+      t('Octobre~: 49_755~kg,~10~records.'),
     );
     expect(formatPeriodSummary('Octobre', { count: 11, volume: 52300, records: 4 }, { count: false })).toBe(
-      t('Octobre~: 52_300~kg, 4~records.'),
+      t('Octobre~: 52_300~kg,~4~records.'),
     );
     expect(formatPeriodSummary('Octobre', { count: 1, volume: 480, records: 0 }, { count: false })).toBe(t('Octobre~: 480~kg.'));
     expect(formatPeriodSummary('Octobre', { count: 2, volume: 0, records: 2 }, { count: false })).toBe(t('Octobre~: 2~records.'));
@@ -444,5 +450,59 @@ describe('rythme (lot 3)', () => {
     for (const text of texts) {
       expect(text).not.toMatch(/!|%|raté|manqué|perdu|en retard|streak|série/i);
     }
+  });
+});
+
+describe('sauvegarde (lot 5)', () => {
+  const t = (text: string) => text.replace(/~/g, NBSP);
+  const now = new Date(2026, 9, 30, 12);
+  const daysAgo = (n: number) => new Date(2026, 9, 30 - n, 9).toISOString();
+
+  it('formatLastExport : les 7 textes du §2.4, insécables avant « : » et avant l’unité', () => {
+    expect(formatLastExport(undefined, now)).toBe('Aucun export pour l’instant.');
+    expect(formatLastExport(daysAgo(0), now)).toBe(t('Dernier export~: aujourd’hui.'));
+    expect(formatLastExport(daysAgo(1), now)).toBe(t('Dernier export~: hier.'));
+    expect(formatLastExport(daysAgo(5), now)).toBe(t('Dernier export~: il y a 5~jours.'));
+    expect(formatLastExport(daysAgo(13), now)).toBe(t('Dernier export~: il y a 13~jours.'));
+    expect(formatLastExport(daysAgo(21), now)).toBe(t('Dernier export~: il y a 3~semaines.'));
+    expect(formatLastExport(daysAgo(125), now)).toBe(t('Dernier export~: il y a 4~mois.'));
+    // Horloge reculée : export « demain », borné à aujourd'hui.
+    expect(formatLastExport(new Date(2026, 9, 31, 9), now)).toBe(t('Dernier export~: aujourd’hui.'));
+  });
+
+  it('formatSinceExport : 1, 4, rien à 0', () => {
+    expect(formatSinceExport(1)).toBe(t('1~séance enregistrée depuis.'));
+    expect(formatSinceExport(4)).toBe(t('4~séances enregistrées depuis.'));
+    expect(formatSinceExport(0)).toBeUndefined();
+  });
+
+  it('formatBackupReminder : sans et avec date de référence', () => {
+    expect(formatBackupReminder(8, false)).toBe(t('Tes 8~séances n’existent que sur ce téléphone.'));
+    expect(formatBackupReminder(6, true)).toBe(t('Tes 6~dernières séances n’existent que sur ce téléphone.'));
+  });
+
+  it('textes du rappel : ni « ! », ni durée, ni reproche (n = 6 à 60)', () => {
+    const texts = [BACKUP_REMINDER_DETAIL];
+    for (let n = 6; n <= 60; n++) texts.push(formatBackupReminder(n, false), formatBackupReminder(n, true));
+    for (const text of texts) {
+      expect(text).not.toMatch(/!|%|jour|semaine|perdu|risque|toujours pas|oublié/i);
+    }
+  });
+
+  it('formatPeriodSummary : seule l’espace après la dernière virgule devient insécable', () => {
+    expect(formatPeriodSummary('Semaine dernière', { count: 3, volume: 7050, records: 3 })).toBe(
+      t('Semaine dernière~: 3~séances, 7 050~kg,~3~records.'),
+    );
+    expect(formatPeriodSummary('Semaine dernière', { count: 2, volume: 0, records: 0 })).toBe(t('Semaine dernière~: 2~séances.'));
+  });
+
+  it('formatNewRecord : même phrase que le récap (1RM arrondi comme formatOneRepMax)', () => {
+    expect(formatNewRecord('Squat', { type: 'maxWeight', value: 85 })).toBe(t('Nouveau record en squat~: 85~kg !'));
+    expect(formatNewRecord('Développé couché', { type: 'bestOneRepMax', value: 92.4 })).toBe(
+      t('Nouveau record de 1RM estimé en développé couché~: 92,5~kg !'),
+    );
+    expect(formatNewRecord('Rowing barre', { type: 'bestVolume', value: 2480 })).toBe(
+      t('Nouveau record de volume en rowing barre~: 2 480~kg !'),
+    );
   });
 });

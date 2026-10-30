@@ -93,6 +93,8 @@ export interface AppSettings {
   weeklyGoalAsked?: boolean;
   /** « Son en fin de repos » ; absent = activé. */
   restSound?: boolean;
+  /** « Rappel de sauvegarde » (lot 5) ; absent = activé (jamais `true` stocké). */
+  backupReminder?: boolean;
 }
 
 export interface AppState {

@@ -1407,11 +1407,39 @@ svg {
   background: var(--bg);
 }
 
+.session-dock__status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
 .session-dock__feedback {
   margin: 0;
   font-size: var(--fs-caption);
   font-weight: 600;
   text-align: center;
+}
+
+/* Record en séance (lot 5) : texte vert seulement, sans aplat, bordure ni icône ; un « pulse » unique. */
+.session-dock__record {
+  margin: 0;
+  color: var(--success);
+  background: transparent;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 1.375;
+  text-align: center;
+  animation: record-pulse 180ms ease-out;
+}
+
+@keyframes record-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
 }
 
 /* Minuteur de repos discret : ni aplat d'accent ni plein écran. */
@@ -1473,6 +1501,48 @@ svg {
 
 .summary__secondary {
   margin-top: var(--space-3);
+}
+
+/*
+ * Dernier élément du contenu (carte de rappel, mise à jour de la séance type ou liste) : 16 px
+ * au-dessus du dock, même quand le contenu dépasse l'écran (la marge auto du dock tombe alors à 0).
+ */
+.summary > :nth-last-child(2) {
+  margin-bottom: var(--space-3);
+}
+
+/* Rappel de sauvegarde (lot 5) : carte ordinaire en fin de contenu, sans accent ni icône d'alerte. */
+.backup-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.backup-card__text,
+.backup-card__detail {
+  margin: 0;
+  font-size: var(--fs-body);
+}
+
+.backup-card__text {
+  font-weight: 500;
+}
+
+.backup-card__detail {
+  font-weight: 400;
+}
+
+/* « Copie exportée. » : coche en encre devant le texte (comme « Faite » ; le vert reste au record). */
+.backup-card__done {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* « Plus tard » : contour, largeur au contenu, aligné à gauche (comme « Non merci »). */
+.backup-card__later {
+  align-self: flex-start;
 }
 
 .summary-dock {
@@ -1938,6 +2008,12 @@ svg {
   font-weight: 500;
 }
 
+/* Ligne d'état de la sauvegarde (lot 5) : texte secondaire à 16 px. */
+.settings-section__status {
+  font-size: var(--fs-body);
+  font-weight: 400;
+}
+
 /* Libellé d'un groupe de réglage (même style que celui d'un interrupteur). */
 .settings-section__label,
 .settings-section__switch {
@@ -2053,6 +2129,10 @@ svg {
 /* ---------- Mouvement réduit ---------- */
 
 @media (prefers-reduced-motion: reduce) {
+  .session-dock__record {
+    animation: none;
+  }
+
   *,
   *::before,
   *::after {

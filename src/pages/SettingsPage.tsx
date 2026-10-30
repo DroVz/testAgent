@@ -1,15 +1,25 @@
-import { ChevronLeft, Trash } from 'lucide-react';
+import { ChevronLeft, Share, Trash } from 'lucide-react';
 import { useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { version } from '../../package.json';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
-import { COLON, formatGoalOption } from '../lib/format';
+import {
+  BACKUP_REMINDER_THRESHOLD,
+  clearBackupInfo,
+  countedSessionsSince,
+  isBackupReminderEnabled,
+  loadBackupInfo,
+  markExported,
+  markImported,
+} from '../lib/backup';
+import { startExport } from '../lib/exportData';
+import { COLON, formatCount, formatGoalOption, formatLastExport, formatSinceExport } from '../lib/format';
 import { isSuggestLoadEnabled } from '../lib/progression';
 import { WEEKLY_GOALS, weeklyGoalOf } from '../lib/rhythm';
 import { isRestSoundEnabled, saveRestEndsAt } from '../lib/restTimer';
-import { exportFileName, exportState, validateImport } from '../lib/storage';
-import { shareTextFile, shouldShowIosInstallHint } from '../lib/webPlatform';
+import { validateImport } from '../lib/storage';
+import { shouldShowIosInstallHint } from '../lib/webPlatform';
 import { MUSCLE_GROUPS, type AppState, type Exercise, type MuscleGroup, type WeeklyGoal } from '../lib/types';
 import { useAppStore } from '../state/AppStore';
 import { clearStoredExercise } from './ProgressPage';
@@ -22,22 +32,14 @@ const SAVE_FAILED =
 const SHARE_DONE = 'Fichier partagé. Tu peux aussi copier le texte ci-dessous.';
 const INSTALL_HINT = `Pour l’utiliser comme une app${COLON} Partager, puis Sur l’écran d’accueil.`;
 
-/** Déclenche le téléchargement d'un fichier texte ; renvoie false si le navigateur ne le permet pas. */
-function downloadText(text: string, filename: string): boolean {
-  try {
-    if (typeof URL.createObjectURL !== 'function') return false;
-    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
-    return true;
-  } catch {
-    return false;
-  }
+const BACKUP_REMINDER_HELP = `Après ${formatCount(BACKUP_REMINDER_THRESHOLD, 'séance')} sans export, le récap te propose d’en faire un. Jamais de notification.`;
+
+/** Ligne d'état de la sauvegarde : « Dernier export : il y a 12 jours. 4 séances enregistrées depuis. » */
+function backupStatusLine(sessions: AppState['sessions'], now: Date): string {
+  const { lastExportAt } = loadBackupInfo();
+  const line = formatLastExport(lastExportAt, now);
+  const since = lastExportAt === undefined ? undefined : formatSinceExport(countedSessionsSince(sessions, lastExportAt));
+  return since ? `${line} ${since}` : line;
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`;
@@ -70,6 +72,9 @@ export default function SettingsPage() {
   const customExercises = state.exercises.filter((e) => e.isCustom);
   const suggestLoad = isSuggestLoadEnabled(state);
   const restSound = isRestSoundEnabled(state);
+  const backupReminder = isBackupReminderEnabled(state);
+  // Relu à chaque rendu : un export réussi (ici ou depuis le récap) met la ligne à jour tout de suite.
+  const backupStatus = backupStatusLine(state.sessions, new Date());
   const [installHint] = useState(() => shouldShowIosInstallHint());
   const weeklyGoal = weeklyGoalOf(state);
   const goalOptions: (WeeklyGoal | undefined)[] = [undefined, ...WEEKLY_GOALS];
@@ -86,41 +91,27 @@ export default function SettingsPage() {
     goalGroupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus();
   };
 
-  const download = (text: string, fileName: string) => {
-    setExported(text);
-    setExportMsg(
-      downloadText(text, fileName)
-        ? 'Fichier téléchargé. Tu peux aussi copier le texte ci-dessous.'
-        : `Téléchargement indisponible sur ce navigateur${COLON} copie le texte ci-dessous.`,
-    );
-  };
-
-  const doExport = () => {
-    const text = exportState(state);
-    const fileName = exportFileName();
-    // Feuille de partage (iPhone, Android) si elle accepte un fichier ; sinon téléchargement, comme avant.
-    const sharing = shareTextFile(text, fileName);
-    if (!sharing) {
-      download(text, fileName);
-      return;
-    }
-    void sharing.then((outcome) => {
+  // Feuille de partage (iPhone, Android) si elle accepte un fichier ; sinon téléchargement, comme avant.
+  const doExport = () =>
+    startExport(state, ({ outcome, text }) => {
       // Feuille fermée sans choisir : rien ne change, rien ne s'affiche.
       if (outcome === 'cancelled') return;
-      if (outcome === 'failed') {
-        download(text, fileName);
-        return;
-      }
       setExported(text);
-      setExportMsg(SHARE_DONE);
+      setExportMsg(
+        outcome === 'shared'
+          ? SHARE_DONE
+          : outcome === 'downloaded'
+            ? 'Fichier téléchargé. Tu peux aussi copier le texte ci-dessous.'
+            : `Téléchargement indisponible sur ce navigateur${COLON} copie le texte ci-dessous.`,
+      );
     });
-  };
 
   const copy = async () => {
     if (exported === null) return;
     try {
       if (!navigator.clipboard) throw new Error('Presse-papiers indisponible');
       await navigator.clipboard.writeText(exported);
+      markExported();
       setExportMsg('Données copiées dans le presse-papiers.');
     } catch {
       exportRef.current?.focus();
@@ -252,8 +243,11 @@ export default function SettingsPage() {
           Tes données sont stockées uniquement sur cet appareil, dans ce navigateur. Exporte-les régulièrement pour
           ne rien perdre (changement de téléphone, nettoyage du navigateur…).
         </p>
+        <p className="muted settings-section__text settings-section__status">{backupStatus}</p>
         {installHint && <p className="muted settings-section__text">{INSTALL_HINT}</p>}
         <button type="button" className="btn btn--primary btn--block" onClick={doExport}>
+          {/* Même icône que sur le récap ; currentColor = --accent-contrast sur l'aplat. */}
+          <Share size={20} aria-hidden="true" />
           Exporter mes données
         </button>
         {exported !== null && (
@@ -272,6 +266,22 @@ export default function SettingsPage() {
             </button>
           </>
         )}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={backupReminder}
+          aria-describedby="backup-reminder-help"
+          className="switch-row settings-section__switch"
+          onClick={() => actions.setBackupReminder(!backupReminder)}
+        >
+          <span className="switch-row__label">Rappel de sauvegarde</span>
+          <span className="switch" aria-hidden="true">
+            <span className="switch__thumb" />
+          </span>
+        </button>
+        <p id="backup-reminder-help" className="muted settings-section__text">
+          {BACKUP_REMINDER_HELP}
+        </p>
       </div>
 
       <div className="card settings-section">
@@ -373,6 +383,7 @@ export default function SettingsPage() {
           if (dialog?.kind === 'import') {
             dismissToast();
             if (actions.replaceState(dialog.state)) {
+              markImported();
               setImportError(null);
               setImportDone(`Import réussi${COLON} ${describeState(dialog.state)}.`);
             } else {
@@ -410,6 +421,8 @@ export default function SettingsPage() {
           dismissToast();
           const ok = actions.resetState();
           clearStoredExercise();
+          // Réinitialisation non enregistrée : les données restent, la date du dernier export aussi.
+          if (ok) clearBackupInfo();
           saveRestEndsAt(undefined, null);
           setExported(null);
           setImportDone(null);

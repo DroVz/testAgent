@@ -11,6 +11,7 @@ import {
   exerciseName,
   formatClock,
   formatCount,
+  formatNewRecord,
   formatSeconds,
   formatSetValues,
   inSentence,
@@ -23,12 +24,13 @@ import {
   currentSetIndex,
   nextExerciseIndex,
   pendingSetCount,
+  validateSet as withSetValidated,
 } from '../lib/session';
 import { firstTimeText } from '../lib/programs';
 import { keepLabel, keepToast, suggestionDetail, suggestionTitle } from '../lib/progression';
 import { unlockRestChime } from '../lib/restChime';
 import { isRestSoundEnabled, loadRestEndsAt, saveRestEndsAt } from '../lib/restTimer';
-import { countDoneSets, lastPerformance, sessionDurationMs, type LastPerformance } from '../lib/stats';
+import { countDoneSets, lastPerformance, recordGainedBy, sessionDurationMs, type LastPerformance } from '../lib/stats';
 import type { SessionExercise } from '../lib/types';
 import { useWakeLock } from '../lib/wakeLock';
 import { useAppStore } from '../state/AppStore';
@@ -61,8 +63,20 @@ export default function ActiveSessionPage() {
    * pas le repos et ne change pas d'exercice. La série reste validée pendant la correction.
    */
   const [editing, setEditing] = useState<{ exIdx: number; setIdx: number } | null>(null);
-  /** Retour affiché dans le bas d'écran, et série dont la coche s'anime. */
-  const [feedback, setFeedback] = useState<{ text: string; exIdx?: number; setIdx?: number } | null>(null);
+  /**
+   * Retour affiché dans le bas d'écran, et série dont la coche s'anime. `record` : phrase de record
+   * annoncée au-dessus du retour (lot 5), jusqu'au retour suivant ; `seq` rejoue son « pulse ».
+   */
+  const [feedback, setFeedback] = useState<{
+    text: string;
+    exIdx?: number;
+    setIdx?: number;
+    record?: string;
+    seq?: number;
+  } | null>(null);
+  const feedbackSeq = useRef(0);
+  const heroRef = useRef<HTMLLIElement>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
@@ -150,6 +164,19 @@ export default function ActiveSessionPage() {
     };
   }, [menuOpen]);
 
+  // Après chaque validation, le dock grandit (repos, annonce de record) : la carte de la série en cours
+  // défile pour rester entière au-dessus de lui, « Dernière fois » comprise (iPhone SE). Sans
+  // animation sous mouvement réduit, comme le défilement après ajout du lot 2.
+  const validatedSeq = feedback?.seq;
+  useEffect(() => {
+    const card = heroRef.current;
+    const dock = dockRef.current;
+    if (validatedSeq === undefined || !card || !dock) return;
+    card.style.scrollMarginBottom = `${dock.offsetHeight + 8}px`;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    card.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+  }, [validatedSeq]);
+
   if (!session) return <Navigate to="/seances" replace />;
 
   const total = session.exercises.length;
@@ -194,6 +221,8 @@ export default function ActiveSessionPage() {
     // Plus rien à faire après cette série : pas de repos.
     const rest = pending > 1 ? restSecondsFor(session, state.templates, exercise.exerciseId) : 0;
     const exerciseFinished = exercise.sets.filter((s) => !s.done).length === 1;
+    // Record (même définition que le récap) : calculé avant / après cette validation.
+    const gained = recordGainedBy(session, withSetValidated(session, exIdx, setIdx), state.sessions, exercise.exerciseId);
     actions.validateSet(exIdx, setIdx);
     // iOS n'autorise le son qu'après un geste : on prépare le bip de fin de repos pendant ce tap.
     if (rest > 0 && restSound) unlockRestChime();
@@ -203,7 +232,14 @@ export default function ActiveSessionPage() {
     const text = exerciseFinished
       ? `Exercice terminé${COLON} ${inSentence(name)}.${restText}`
       : `Série ${n} validée.${restText}`;
-    setFeedback({ text, exIdx, setIdx });
+    feedbackSeq.current += 1;
+    setFeedback({
+      text,
+      exIdx,
+      setIdx,
+      record: gained ? formatNewRecord(name, gained) : undefined,
+      seq: feedbackSeq.current,
+    });
   };
 
   /** Fin de correction : rien d'autre ne change (ni repos ni exercice affiché). */
@@ -418,7 +454,7 @@ export default function ActiveSessionPage() {
                   // En cours (ou en correction) : carte bordée d'accent, chiffres en 40 px, −/+ et clavier en repli.
                   const reference = referenceFor(i);
                   return (
-                    <li key={i} className="set-current" aria-current="step">
+                    <li key={i} ref={heroRef} className="set-current" aria-current="step">
                       <p className="set-current__title">
                         <span>
                           Série {n} sur {exercise.sets.length}
@@ -516,13 +552,21 @@ export default function ActiveSessionPage() {
       )}
 
       {/* Bas d'écran : retour d'action, minuteur de repos discret, action principale. */}
-      <div className="session-dock">
+      <div ref={dockRef} className="session-dock">
         {/* Toast « Annuler » : au-dessus du bouton principal, jamais par-dessus. */}
         <ToastHost placement="inline" />
         {/* Zone annoncée toujours présente dans l'arbre (masquée visuellement quand elle est vide). */}
-        <p className={feedback ? 'session-dock__feedback' : 'visually-hidden'} role="status">
-          {feedback?.text}
-        </p>
+        {/* Record et retour dans le même élément : « Nouveau record en squat : 85 kg ! Série 2 validée. … » */}
+        <div className={feedback ? 'session-dock__status' : 'visually-hidden'} role="status">
+          {feedback?.record && (
+            <>
+              <p key={feedback.seq} className="session-dock__record">
+                {feedback.record}
+              </p>{' '}
+            </>
+          )}
+          {feedback && <p className="session-dock__feedback">{feedback.text}</p>}
+        </div>
         {restEndsAt !== null && (
           <RestTimer
             endsAt={restEndsAt}

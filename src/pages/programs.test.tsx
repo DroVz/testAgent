@@ -151,11 +151,17 @@ describe('lot 2 — écran Séances', () => {
     }
   });
 
-  it('état vide avec un historique : même écran', () => {
+  it('état vide avec un historique : « Ta liste de séances est vide. », mêmes actions (lot 5)', () => {
     const s = createDefaultState();
     s.sessions.push(pastSession('gone', 'Ancienne'));
     renderApp(s);
-    expect(screen.getByText('Commence avec un programme ou crée la tienne.')).toBeInTheDocument();
+    expect(screen.getByText('Ta liste de séances est vide.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Tes séances passées restent dans l’Historique. Reprends un programme ou crée une séance.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Aucune séance pour l’instant.')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Créer une séance' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Séance libre' })).toBeInTheDocument();
     expect(accents().map((a) => a.textContent)).toEqual(['Choisir un programme']);
   });
 

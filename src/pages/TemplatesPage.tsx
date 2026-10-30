@@ -86,8 +86,18 @@ export default function TemplatesPage() {
 
       {empty ? (
         <div className="empty-state">
-          <p className="empty-state__title">Aucune séance pour l’instant.</p>
-          <p className="muted">Commence avec un programme ou crée la tienne.</p>
+          {/* Séances types supprimées mais historique conservé : on ne dit pas « rien fait ». */}
+          {state.sessions.length > 0 ? (
+            <>
+              <p className="empty-state__title">Ta liste de séances est vide.</p>
+              <p className="muted">Tes séances passées restent dans l’Historique. Reprends un programme ou crée une séance.</p>
+            </>
+          ) : (
+            <>
+              <p className="empty-state__title">Aucune séance pour l’instant.</p>
+              <p className="muted">Commence avec un programme ou crée la tienne.</p>
+            </>
+          )}
           <Link to="/seances/programmes" className="btn btn--primary btn--lg btn--block">
             Choisir un programme
           </Link>

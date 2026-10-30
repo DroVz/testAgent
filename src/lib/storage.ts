@@ -191,6 +191,8 @@ function parseSettings(v: unknown, path: string): AppSettings {
   if (o.weeklyGoalAsked !== undefined) settings.weeklyGoalAsked = bool(o.weeklyGoalAsked, `${path}.weeklyGoalAsked`);
   // « Son en fin de repos » : optionnel, absent = activé.
   if (o.restSound !== undefined) settings.restSound = bool(o.restSound, `${path}.restSound`);
+  // « Rappel de sauvegarde » (lot 5) : optionnel, absent = activé.
+  if (o.backupReminder !== undefined) settings.backupReminder = bool(o.backupReminder, `${path}.backupReminder`);
   return settings;
 }
 

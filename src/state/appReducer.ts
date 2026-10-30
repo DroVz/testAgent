@@ -83,6 +83,7 @@ export type AppAction =
   /** « Non merci » sur la carte de proposition : elle ne revient plus. */
   | { type: 'settings/dismissWeeklyGoalPrompt' }
   | { type: 'settings/setRestSound'; enabled: boolean }
+  | { type: 'settings/setBackupReminder'; enabled: boolean }
   // Données
   | { type: 'data/replace'; state: AppState }
   | { type: 'data/reset' };
@@ -224,6 +225,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, settings: { ...state.settings, weeklyGoalAsked: true } };
     case 'settings/setRestSound':
       return { ...state, settings: { ...state.settings, restSound: action.enabled } };
+    case 'settings/setBackupReminder': {
+      // Réactiver retire le champ (absent = activé).
+      const settings: AppSettings = { ...state.settings };
+      if (action.enabled) delete settings.backupReminder;
+      else settings.backupReminder = false;
+      return { ...state, settings };
+    }
 
     case 'data/replace':
       return action.state;

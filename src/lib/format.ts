@@ -1,4 +1,5 @@
 import { isMilestone, type PeriodSummary } from './rhythm';
+import type { RecordType } from './stats';
 import { DEFAULT_REST_SECONDS, type Exercise, type SetEntry, type Template, type WorkoutSession } from './types';
 
 export const DELETED_EXERCISE_NAME = 'Exercice supprimé';
@@ -125,6 +126,22 @@ export function inSentence(name: string): string {
 export function formatRecordSentence(exercise: string, value: number | string, kind?: string): string {
   const text = typeof value === 'string' ? value : formatWeight(value);
   return `Nouveau record${kind ? ` de ${kind}` : ''} en ${inSentence(exercise)}${COLON} ${text}${BANG}`;
+}
+
+/** Précision du record dans la phrase (le poids max est le record « par défaut ») : récap et séance. */
+export const RECORD_KINDS: Record<RecordType, string | undefined> = {
+  maxWeight: undefined,
+  bestOneRepMax: '1RM estimé',
+  bestVolume: 'volume',
+};
+
+/**
+ * Phrase d'un nouveau record, identique au récap et en séance : « Nouveau record de 1RM estimé en
+ * développé couché : 92,5 kg ! » (1RM arrondi comme `formatOneRepMax`).
+ */
+export function formatNewRecord(exercise: string, record: { type: RecordType; value: number }): string {
+  const format = record.type === 'bestOneRepMax' ? formatOneRepMax : formatWeight;
+  return formatRecordSentence(exercise, format(record.value), RECORD_KINDS[record.type]);
 }
 
 /**
@@ -340,7 +357,10 @@ export function formatPeriodSummary(
   if (summary.volume > 0) parts.push(formatWeight(summary.volume));
   if (summary.records > 0) parts.push(formatCount(summary.records, 'record'));
   if (parts.length === 0) return undefined;
-  return `${label}${COLON} ${parts.join(', ')}.`;
+  // Le dernier segment ne part jamais seul à la ligne (« 3 records. ») : insécable après la dernière virgule.
+  const last = parts.pop()!;
+  const head = parts.join(', ');
+  return `${label}${COLON} ${head ? `${head},${NBSP}` : ''}${last}.`;
 }
 
 /** Jalon du récap : « Première séance enregistrée. Bienvenue. », « 10ᵉ séance enregistrée. » ; undefined hors seuil. */
@@ -359,3 +379,42 @@ export function formatGoalOption(goal: number | undefined): string {
 export function formatGoalSaved(goal: number): string {
   return `Objectif enregistré${COLON} ${formatGoalOption(goal)}.`;
 }
+
+// ---------- Sauvegarde (lot 5) : un fait, jamais de durée dans le rappel ----------
+
+/**
+ * Ligne d'état de Réglages : « Aucun export pour l’instant. », « Dernier export : aujourd’hui. »,
+ * « … hier. », « … il y a 5 jours. », « … il y a 3 semaines. », « … il y a 4 mois. »
+ * (mêmes paliers que `formatLastDone`).
+ */
+export function formatLastExport(lastExportAt: string | Date | undefined, now: Date = new Date()): string {
+  const d = lastExportAt === undefined ? undefined : typeof lastExportAt === 'string' ? new Date(lastExportAt) : lastExportAt;
+  if (d === undefined || Number.isNaN(d.getTime())) return 'Aucun export pour l’instant.';
+  const days = calendarDaysBetween(d, now);
+  const prefix = `Dernier export${COLON}`;
+  if (days === 0) return `${prefix} aujourd’hui.`;
+  if (days === 1) return `${prefix} hier.`;
+  if (days < 14) return `${prefix} il y a ${formatCount(days, 'jour')}.`;
+  if (days < 60) return `${prefix} il y a ${formatCount(Math.floor(days / 7), 'semaine')}.`;
+  return `${prefix} il y a ${formatNumber(Math.floor(days / 30))}${NBSP}mois.`;
+}
+
+/** « 1 séance enregistrée depuis. », « 4 séances enregistrées depuis. » ; undefined à 0. */
+export function formatSinceExport(count: number): string | undefined {
+  if (count <= 0) return undefined;
+  return `${formatCount(count, 'séance')} ${count >= 2 ? 'enregistrées' : 'enregistrée'} depuis.`;
+}
+
+/**
+ * Carte de rappel du récap, ligne 1 : « Tes 8 séances n’existent que sur ce téléphone. » sans date
+ * de référence, « Tes 6 dernières séances n’existent que sur ce téléphone. » sinon.
+ */
+export function formatBackupReminder(unsavedCount: number, hasReference: boolean): string {
+  const sessions = hasReference
+    ? `${formatNumber(unsavedCount)}${NBSP}dernières séances`
+    : formatCount(unsavedCount, 'séance');
+  return `Tes ${sessions} n’existent que sur ce téléphone.`;
+}
+
+/** Carte de rappel du récap, ligne 2. */
+export const BACKUP_REMINDER_DETAIL = 'Exporte une copie pour les garder en cas de perte ou de changement de téléphone.';
