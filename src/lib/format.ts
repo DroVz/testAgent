@@ -118,6 +118,26 @@ export function inSentence(name: string): string {
 }
 
 /**
+ * Confirmation de fin avec des séries en attente (lot 6, §2.4) : « Il reste 3 séries non validées,
+ * en développé incliné. Terminer quand même ? » ; deux exercices : « … en développé incliné et curl
+ * haltères. … » ; trois ou plus : « … sur 3 exercices. … ». `names` : noms des exercices en attente,
+ * un par exercice (doublons déjà retirés par l'appelant, par identifiant), dans l'ordre de la séance
+ * (mis en minuscule par `inSentence`).
+ */
+export function formatRemainingSets(count: number, names: string[]): string {
+  const unique = names.map(inSentence);
+  const where =
+    unique.length === 0
+      ? ''
+      : unique.length === 1
+        ? `, en ${unique[0]}`
+        : unique.length === 2
+          ? `, en ${unique[0]} et ${unique[1]}`
+          : `, sur ${formatCount(unique.length, 'exercice')}`;
+  return `Il reste ${formatCount(count, 'série non validée', 'séries non validées')}${where}. Terminer quand même ?`;
+}
+
+/**
  * Phrase de record (seul endroit où le point d'exclamation est permis) :
  * « Nouveau record en développé couché : 82,5 kg ! ». `kind` précise le record s'il ne s'agit pas
  * du poids max (« Nouveau record de volume en squat : 1 650 kg ! »). La valeur peut être déjà

@@ -195,3 +195,14 @@ Elles précisent des règles existantes et n'en assouplissent aucune, sauf le po
 
 1. **80 caractères pour la note, c'est assez ?** Par défaut : oui. C'est la place d'un réglage et d'une consigne, sur 2 lignes.
 2. **Après ce lot, qu'est-ce qui te freine encore en salle ?** Par défaut : on s'arrête là. Les deux candidats suivants sont le pas de 1 ou 2 kg pour les haltères et le calcul des disques, à lancer seulement si tu les demandes.
+
+---
+
+## Révisé le 30/10 après revue (code + design, docs/review-2026-10-30-lot6.md)
+
+Ces points remplacent le texte ci-dessus quand ils le contredisent :
+- **Note** : `<textarea rows=2>` (au lieu d'un `<input>` d'une ligne). Entrée et Maj+Entrée enregistrent, sans saut de ligne. La note affichée n'est plus coupée à 2 lignes : elle s'affiche en entier (80 caractères au plus).
+- **Dialogue de note** : ancré en haut de l'écran, pour que ses boutons restent visibles au-dessus du clavier.
+- **Crans de progression** : chaque cran dit ce qui est fait. Encre = plus aucune série en attente, gris = en attente. L'exercice affiché a un cran plus haut, cerné d'encre (jamais l'accent). `aria-valuenow` = nombre d'exercices terminés.
+- **Message de fin** : doublons retirés par exercice (`exerciseId`), plus par nom.
+- **Focus** : après un enregistrement, il va sur la note affichée.

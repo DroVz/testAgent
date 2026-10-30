@@ -892,6 +892,16 @@ svg {
   background: var(--backdrop);
 }
 
+/*
+ * Dialogue avec saisie au clavier (note d'exercice) : ancré en haut. Sur iOS, le clavier recouvre le
+ * bas de la page sans la réduire ; un dialogue centré y perdrait ses boutons.
+ */
+.dialog-backdrop--top {
+  align-items: flex-start;
+  padding-top: max(var(--space-3), env(safe-area-inset-top));
+  overflow-y: auto;
+}
+
 .dialog {
   width: 100%;
   max-width: 420px;
@@ -1100,37 +1110,33 @@ svg {
 }
 
 /*
- * Signature « pente de 12° » : crans biseautés, un par exercice (--steps posé sur la piste et son parent),
- * en encre (l'accent reste réservé à l'action principale). Le libellé « Exercice N sur M » reste affiché.
- * Piste élargie de 2 px de chaque côté : les écarts de 4 px du masque tombent entre les crans.
+ * Signature « pente de 12° » : crans biseautés, un par exercice (--steps posé sur la piste et son
+ * parent), séparés de 4 px. Chaque cran dit un état (lot 6) : rempli à l'encre = l'exercice n'a plus
+ * de série en attente ; --border = il en reste. Le cran de l'exercice affiché passe de 8 à 12 px et
+ * est cerné de 2 px d'encre. Jamais l'accent (réservé à l'action principale). Le libellé
+ * « Exercice N sur M » reste affiché au-dessus.
  */
 .session-progress__track {
-  width: calc(100% + 4px);
-  height: 8px;
-  margin-inline: -2px;
-  overflow: hidden;
-  border-radius: 0;
-  background: var(--border);
+  display: grid;
+  grid-template-columns: repeat(var(--steps, 1), minmax(0, 1fr));
+  column-gap: 4px;
+  align-items: center;
+  height: 12px;
   transform: skewX(-12deg);
-  -webkit-mask-image: repeating-linear-gradient(
-    90deg,
-    transparent 0 2px,
-    #000 2px calc(100% / var(--steps, 1) - 2px),
-    transparent calc(100% / var(--steps, 1) - 2px) calc(100% / var(--steps, 1))
-  );
-  mask-image: repeating-linear-gradient(
-    90deg,
-    transparent 0 2px,
-    #000 2px calc(100% / var(--steps, 1) - 2px),
-    transparent calc(100% / var(--steps, 1) - 2px) calc(100% / var(--steps, 1))
-  );
 }
 
-.session-progress__bar {
-  height: 100%;
-  border-radius: 0;
+.session-progress__step {
+  height: 8px;
+  background: var(--border);
+}
+
+.session-progress__step--done {
   background: var(--text);
-  /* Pas de transition de width : quand --steps change, le remplissage saute net au bon cran. */
+}
+
+.session-progress__step--current {
+  height: 12px;
+  box-shadow: inset 0 0 0 2px var(--text);
 }
 
 .session-exercise {
@@ -1198,6 +1204,67 @@ svg {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
+}
+
+/*
+ * Note d'exercice (lot 6) : texte secondaire 16 px / 400, affichée en entier (80 caractères, 3 lignes
+ * au plus à 375 px), précédée de l'icône StickyNote ; ni accent, ni vert, ni fond, ni bordure.
+ * Focusable par script après un enregistrement, sans contour : ce n'est pas une commande.
+ */
+.exercise-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-body);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.exercise-note:focus {
+  outline: none;
+}
+
+.exercise-note svg {
+  flex: none;
+  /* Centrée sur la première ligne (24 px de haut). */
+  margin-top: 2px;
+}
+
+.exercise-note__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Zone de texte de 2 lignes, sans poignée : la note entière (80 caractères) se relit sans défiler. */
+.note-field__input {
+  display: block;
+  resize: none;
+  line-height: 1.5;
+}
+
+/* Dialogue de note : aide à gauche, compteur « 72 / 80 » à droite, sous le champ. */
+.note-field__below {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.note-field__help,
+.note-field__counter {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+}
+
+.note-field__counter {
+  flex: none;
+}
+
+.note-field__clear {
+  margin-top: var(--space-2);
 }
 
 /* Charge proposée : note de coach en encre (ligne 1) et texte secondaire (ligne 2), sans accent ni vert. */

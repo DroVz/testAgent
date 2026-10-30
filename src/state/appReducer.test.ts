@@ -90,6 +90,48 @@ describe('appReducer — exercices personnalisés', () => {
   });
 });
 
+describe('appReducer — note d’exercice (lot 6)', () => {
+  const noteOf = (s: AppState, id: string) => s.exercises.find((e) => e.id === id);
+
+  it('critère 14 : s’applique à un exercice de la bibliothèque comme à un personnalisé', () => {
+    let s = createDefaultState();
+    expect(noteOf(s, 'squat')?.isCustom).toBe(false);
+    s = appReducer(s, { type: 'exercise/setNote', id: 'squat', note: 'Barre au cran 6' });
+    expect(noteOf(s, 'squat')?.note).toBe('Barre au cran 6');
+    s = appReducer(s, { type: 'exercise/addCustom', id: 'c1', name: 'Pull-over', muscleGroup: 'Dos' });
+    s = appReducer(s, { type: 'exercise/setNote', id: 'c1', note: 'Poulie : trou 3' });
+    expect(noteOf(s, 'c1')?.note).toBe('Poulie : trou 3');
+  });
+
+  it('critères 11 et 12 : trim à l’enregistrement ; vide = champ retiré (jamais "")', () => {
+    let s = appReducer(createDefaultState(), { type: 'exercise/setNote', id: 'squat', note: '  Siège au cran 4  ' });
+    expect(noteOf(s, 'squat')?.note).toBe('Siège au cran 4');
+    s = appReducer(s, { type: 'exercise/setNote', id: 'squat', note: '   ' });
+    expect(noteOf(s, 'squat')).not.toHaveProperty('note');
+    s = appReducer(s, { type: 'exercise/setNote', id: 'squat', note: 'x' });
+    s = appReducer(s, { type: 'exercise/setNote', id: 'squat', note: undefined });
+    expect(noteOf(s, 'squat')).not.toHaveProperty('note');
+  });
+
+  it('sans changement ou exercice inconnu : état inchangé ; coupée à 80 caractères', () => {
+    const s = createDefaultState();
+    expect(appReducer(s, { type: 'exercise/setNote', id: 'squat', note: '' })).toBe(s);
+    expect(appReducer(s, { type: 'exercise/setNote', id: 'inconnu', note: 'x' })).toBe(s);
+    const long = appReducer(s, { type: 'exercise/setNote', id: 'squat', note: 'b'.repeat(81) });
+    expect(noteOf(long, 'squat')?.note).toHaveLength(80);
+  });
+
+  it('effacée par « Tout effacer » ; un exercice personnalisé supprimé emporte sa note', () => {
+    let s = appReducer(createDefaultState(), { type: 'exercise/setNote', id: 'squat', note: 'Barre au cran 6' });
+    s = appReducer(s, { type: 'exercise/addCustom', id: 'c1', name: 'Pull-over', muscleGroup: 'Dos' });
+    s = appReducer(s, { type: 'exercise/setNote', id: 'c1', note: 'Poulie' });
+    s = appReducer(s, { type: 'exercise/deleteCustom', id: 'c1' });
+    expect(noteOf(s, 'c1')).toBeUndefined();
+    s = appReducer(s, { type: 'data/reset' });
+    expect(s.exercises.some((e) => 'note' in e)).toBe(false);
+  });
+});
+
 describe('appReducer — séance en cours', () => {
   it('cycle complet : démarrer, saisir, valider, terminer', () => {
     const s = run(

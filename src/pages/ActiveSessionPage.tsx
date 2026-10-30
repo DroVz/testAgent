@@ -1,8 +1,9 @@
-import { Check, ChevronLeft, ChevronRight, Ellipsis, Pencil, TrendingUp, Undo2 } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Ellipsis, Pencil, StickyNote, TrendingUp, Undo2 } from 'lucide-react';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExercisePicker from '../components/ExercisePicker';
+import NoteDialog from '../components/NoteDialog';
 import NumberField from '../components/NumberField';
 import RestTimer from '../components/RestTimer';
 import { ToastHost, useToast } from '../components/Toast';
@@ -12,6 +13,7 @@ import {
   formatClock,
   formatCount,
   formatNewRecord,
+  formatRemainingSets,
   formatSeconds,
   formatSetValues,
   inSentence,
@@ -22,7 +24,7 @@ import {
   MAX_WEIGHT,
   currentExerciseIndex,
   currentSetIndex,
-  nextExerciseIndex,
+  nextPendingIndex,
   pendingSetCount,
   validateSet as withSetValidated,
 } from '../lib/session';
@@ -30,12 +32,13 @@ import { firstTimeText } from '../lib/programs';
 import { keepLabel, keepToast, suggestionDetail, suggestionTitle } from '../lib/progression';
 import { unlockRestChime } from '../lib/restChime';
 import { isRestSoundEnabled, loadRestEndsAt, saveRestEndsAt } from '../lib/restTimer';
+import { normalizeExerciseNote } from '../lib/storage';
 import { countDoneSets, lastPerformance, recordGainedBy, sessionDurationMs, type LastPerformance } from '../lib/stats';
 import type { SessionExercise } from '../lib/types';
 import { useWakeLock } from '../lib/wakeLock';
 import { useAppStore } from '../state/AppStore';
 
-type Dialog = { kind: 'finish'; remaining: number } | { kind: 'empty' } | { kind: 'abandon' };
+type Dialog = { kind: 'finish'; message: string } | { kind: 'empty' } | { kind: 'abandon' };
 
 /** Pas des boutons −/+ de la série en cours (identity.md §4.6). */
 const WEIGHT_STEP = 2.5;
@@ -55,9 +58,17 @@ export default function ActiveSessionPage() {
   useWakeLock(session !== undefined);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [picking, setPicking] = useState(false);
+  /** Exercice (id) dont la note est en cours d'écriture (lot 6). */
+  const [noteFor, setNoteFor] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  /** Note affichée : reçoit le focus après un enregistrement (lot 6). */
+  const noteRef = useRef<HTMLParagraphElement>(null);
+  /** Où rendre le focus à la fermeture du dialogue de note : la note enregistrée, sinon le bouton ⋯. */
+  const focusNoteOnClose = useRef(false);
+  /** Toast « Note effacée. » encore ouvert, et l'exercice qu'il vise. */
+  const noteToast = useRef<{ toastId: number; exerciseId: string } | null>(null);
   /**
    * Série faite rouverte pour correction. Une correction n'est pas une validation : elle ne relance
    * pas le repos et ne change pas d'exercice. La série reste validée pendant la correction.
@@ -141,6 +152,20 @@ export default function ActiveSessionPage() {
     setMenuOpen(false);
   }, [exIdx]);
 
+  // Note fermée : l'entrée du menu qui l'a ouverte n'existe plus. Après un enregistrement, le focus
+  // va à la note affichée (le lecteur d'écran lit « Note : … ») ; sinon (Annuler, Échap, note
+  // effacée), il revient au bouton ⋯.
+  const noteWasOpen = useRef(false);
+  useEffect(() => {
+    if (noteFor !== null) noteWasOpen.current = true;
+    else if (noteWasOpen.current) {
+      noteWasOpen.current = false;
+      const toNote = focusNoteOnClose.current;
+      focusNoteOnClose.current = false;
+      (toNote && noteRef.current ? noteRef.current : menuButtonRef.current)?.focus();
+    }
+  }, [noteFor]);
+
   // Menu ⋯ : fermeture au tap hors du menu et sur Échap (le focus revient au bouton ⋯).
   useEffect(() => {
     if (!menuOpen) return;
@@ -187,9 +212,15 @@ export default function ActiveSessionPage() {
   // Série en cours = première série non validée de l'exercice affiché.
   const setIdx = currentSetIndex(exercise);
   const isLastExercise = exIdx === total - 1;
-  // Au moins une série de l'exercice affiché est validée : la note est masquée.
+  // Note de l'exercice (lot 6) : propre à l'exercice, la même à chaque séance.
+  const note = exercise ? state.exercises.find((e) => e.id === exercise.exerciseId)?.note : undefined;
+  // Au moins une série de l'exercice affiché est validée : la charge proposée est masquée.
   const started = exercise?.sets.some((s) => s.done) ?? false;
   const pending = pendingSetCount(session);
+  // Crans de progression (lot 6) : un exercice est fait quand il n'a plus de série en attente
+  // (un exercice sans série n'est pas en attente).
+  const exerciseDone = session.exercises.map((e) => currentSetIndex(e) === -1);
+  const doneExercises = exerciseDone.filter(Boolean).length;
   // Correction valide seulement si la série existe toujours, est faite et appartient à l'exercice affiché.
   const correcting =
     editing && editing.exIdx === exIdx && exercise?.sets[editing.setIdx]?.done ? editing.setIdx : -1;
@@ -228,7 +259,9 @@ export default function ActiveSessionPage() {
     if (rest > 0 && restSound) unlockRestChime();
     setRestEndsAt(rest > 0 ? Date.now() + rest * 1000 : null);
     const restText = rest > 0 ? ` Repos${COLON} ${formatSeconds(rest)}.` : '';
-    // Exercice fini : l'écran passe au suivant, on ne cite donc pas un numéro de série.
+    // Exercice fini : l'écran passe au prochain exercice en attente plus loin, ou reste là (le bouton
+    // principal propose alors « Reprendre l’exercice N » ou « Terminer la séance ») ; on cite donc
+    // l'exercice plutôt qu'un numéro de série.
     const text = exerciseFinished
       ? `Exercice terminé${COLON} ${inSentence(name)}.${restText}`
       : `Série ${n} validée.${restText}`;
@@ -288,7 +321,13 @@ export default function ActiveSessionPage() {
   /** Confirmation légère seulement s'il reste des séries ; la garde « séance vide » est inchangée. */
   const askFinish = () => {
     if (countDoneSets(session) === 0) setDialog({ kind: 'empty' });
-    else if (pending > 0) setDialog({ kind: 'finish', remaining: pending });
+    else if (pending > 0) {
+      // Exercices en attente, dans l'ordre de la séance (lot 6) : on dit lesquels. Le même exercice
+      // présent deux fois n'est nommé qu'une fois (par identifiant : deux exercices au même nom restent deux).
+      const ids = [...new Set(session.exercises.filter((e) => currentSetIndex(e) !== -1).map((e) => e.exerciseId))];
+      const names = ids.map((id) => exerciseName(state.exercises, id));
+      setDialog({ kind: 'finish', message: formatRemainingSets(pending, names) });
+    }
     else finish();
   };
 
@@ -305,23 +344,59 @@ export default function ActiveSessionPage() {
     fn();
   };
 
+  /** Note enregistrée : visible tout de suite, sans toast ; vide = effacée (toast « Annuler »). */
+  const saveNote = (exerciseId: string, text: string) => {
+    setNoteFor(null);
+    const previous = state.exercises.find((e) => e.id === exerciseId)?.note;
+    const next = normalizeExerciseNote(text);
+    focusNoteOnClose.current = next !== undefined;
+    if (next === previous) return;
+    // Nouvelle note sur cet exercice : le « Annuler » d'un effacement précédent remettrait l'ancienne
+    // note par-dessus. On ferme ce toast.
+    if (noteToast.current?.exerciseId === exerciseId) {
+      dismissToast(noteToast.current.toastId);
+      noteToast.current = null;
+    }
+    actions.setExerciseNote(exerciseId, next);
+    // Le retour du dock et le repos ne changent pas : seul le toast d'annulation s'affiche.
+    if (next === undefined && previous !== undefined) {
+      const id = toast.show({
+        message: 'Note effacée.',
+        onUndo: () => actions.setExerciseNote(exerciseId, previous),
+        undoLabel: 'Annuler : remettre la note',
+      });
+      toastId.current = id;
+      noteToast.current = { toastId: id, exerciseId };
+    }
+  };
+
+  const neighbourName = (i: number) => {
+    const ex = session.exercises[i];
+    return ex ? exerciseName(state.exercises, ex.exerciseId) : '';
+  };
+
+  // Exercice affiché fini (lot 6) : le prochain en attente plus loin, sinon le premier plus haut
+  // (« Reprendre l’exercice N »), sinon -1 (tout est validé : « Terminer la séance »).
+  const pendingTarget = total > 0 && setIdx === -1 ? nextPendingIndex(session, exIdx) : -1;
+
   // Une seule action principale, fixée en bas de l'écran.
-  const primary =
+  const primary: { label: string; ariaLabel?: string; onClick: () => void } =
     total === 0
       ? { label: 'Ajouter un exercice', onClick: () => setPicking(true) }
       : correcting >= 0
         ? { label: 'Enregistrer la correction', onClick: saveCorrection }
         : setIdx >= 0
           ? { label: 'Valider la série', onClick: validate }
-          : isLastExercise
-            ? { label: 'Terminer la séance', onClick: askFinish }
-            : // Comme le passage automatique : le prochain exercice qui a encore des séries à faire.
-              { label: 'Exercice suivant', onClick: () => goTo(nextExerciseIndex(session, exIdx)) };
-
-  const neighbourName = (i: number) => {
-    const ex = session.exercises[i];
-    return ex ? exerciseName(state.exercises, ex.exerciseId) : '';
-  };
+          : pendingTarget > exIdx
+            ? // Comme le passage automatique : le prochain exercice qui a encore des séries à faire.
+              { label: 'Exercice suivant', onClick: () => goTo(pendingTarget) }
+            : pendingTarget !== -1
+              ? {
+                  label: `Reprendre l’exercice ${pendingTarget + 1}`,
+                  ariaLabel: `Reprendre l’exercice ${pendingTarget + 1}${COLON} ${inSentence(neighbourName(pendingTarget))}`,
+                  onClick: () => goTo(pendingTarget),
+                }
+              : { label: 'Terminer la séance', onClick: askFinish };
   const prevName = neighbourName(exIdx - 1);
   const nextName = neighbourName(exIdx + 1);
 
@@ -362,12 +437,25 @@ export default function ActiveSessionPage() {
               style={stepsStyle}
               role="progressbar"
               aria-label="Progression dans la séance"
-              aria-valuemin={1}
+              aria-valuemin={0}
               aria-valuemax={total}
-              aria-valuenow={exIdx + 1}
-              aria-valuetext={`Exercice ${exIdx + 1} sur ${total}`}
+              aria-valuenow={doneExercises}
+              aria-valuetext={`Exercice ${exIdx + 1} sur ${total}, ${
+                doneExercises === 0
+                  ? 'aucun exercice terminé'
+                  : formatCount(doneExercises, 'exercice terminé', 'exercices terminés')
+              }`}
             >
-              <div className="session-progress__bar" style={{ width: `${((exIdx + 1) / total) * 100}%` }} />
+              {/* Un cran par exercice : rempli = plus de série en attente ; le cran de l'exercice
+                  affiché est plus haut et cerné d'encre (jamais l'accent). */}
+              {exerciseDone.map((isDone, i) => (
+                <span
+                  key={i}
+                  className={`session-progress__step${isDone ? ' session-progress__step--done' : ''}${
+                    i === exIdx ? ' session-progress__step--current' : ''
+                  }`}
+                />
+              ))}
             </div>
           </div>
 
@@ -405,6 +493,16 @@ export default function ActiveSessionPage() {
                 <button type="button" className="btn btn--block" onClick={menuAction(() => setPicking(true))}>
                   Ajouter un exercice
                 </button>
+                {/* Exercice supprimé de la bibliothèque pendant la séance : pas de note à écrire. */}
+                {state.exercises.some((e) => e.id === exercise.exerciseId) && (
+                  <button
+                    type="button"
+                    className="btn btn--block"
+                    onClick={menuAction(() => setNoteFor(exercise.exerciseId))}
+                  >
+                    {note ? 'Modifier la note' : 'Ajouter une note'}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn btn--block btn--danger-outline"
@@ -423,6 +521,19 @@ export default function ActiveSessionPage() {
                   Abandonner la séance
                 </button>
               </div>
+            )}
+
+            {/* Note d'exercice (lot 6) : texte secondaire, affichée en entier (80 caractères au plus),
+                sans accent ; elle reste affichée pendant tout l'exercice. Elle reçoit le focus après un
+                enregistrement. */}
+            {note && (
+              <p ref={noteRef} className="exercise-note" tabIndex={-1}>
+                <StickyNote size={20} aria-hidden="true" />
+                <span className="exercise-note__text">
+                  <span className="visually-hidden">Note{COLON} </span>
+                  {note}
+                </span>
+              </p>
             )}
 
             {/* Charge proposée : note de coach en encre, lue avant la liste des séries ; sans accent ni vert. */}
@@ -579,7 +690,12 @@ export default function ActiveSessionPage() {
             onDismiss={() => setRestEndsAt(null)}
           />
         )}
-        <button type="button" className="btn btn--primary btn--lg btn--block" onClick={primary.onClick}>
+        <button
+          type="button"
+          className="btn btn--primary btn--lg btn--block"
+          aria-label={primary.ariaLabel}
+          onClick={primary.onClick}
+        >
           {primary.label}
         </button>
       </div>
@@ -595,13 +711,20 @@ export default function ActiveSessionPage() {
         />
       )}
 
+      {noteFor !== null && (
+        <NoteDialog
+          exerciseName={exerciseName(state.exercises, noteFor)}
+          note={state.exercises.find((e) => e.id === noteFor)?.note}
+          onSave={(text) => saveNote(noteFor, text)}
+          onClear={() => saveNote(noteFor, '')}
+          onCancel={() => setNoteFor(null)}
+        />
+      )}
+
       <ConfirmDialog
         open={dialog?.kind === 'finish'}
         title="Terminer la séance ?"
-        message={
-          dialog?.kind === 'finish' &&
-          `Il reste ${formatCount(dialog.remaining, 'série non validée', 'séries non validées')}. Terminer quand même ?`
-        }
+        message={dialog?.kind === 'finish' && dialog.message}
         confirmLabel="Terminer la séance"
         cancelLabel="Continuer"
         onCancel={() => setDialog(null)}

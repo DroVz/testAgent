@@ -15,7 +15,7 @@ import {
   validateSet,
 } from '../lib/session';
 import { isSuggestLoadEnabled } from '../lib/progression';
-import { createDefaultState } from '../lib/storage';
+import { createDefaultState, normalizeExerciseNote } from '../lib/storage';
 import {
   deleteTemplate,
   duplicateTemplate,
@@ -56,6 +56,11 @@ export type AppAction =
   | { type: 'exercise/addCustom'; id: string; name: string; muscleGroup: MuscleGroup }
   | { type: 'exercise/updateCustom'; id: string; name: string; muscleGroup: MuscleGroup }
   | { type: 'exercise/deleteCustom'; id: string }
+  /**
+   * Note d'exercice (lot 6), sur tout exercice (bibliothèque ou personnalisé). Nettoyée par `trim()` ;
+   * vide ou absente = champ retiré.
+   */
+  | { type: 'exercise/setNote'; id: string; note: string | undefined }
   // Séance en cours
   | { type: 'session/startFromTemplate'; templateId: string; sessionId: string; now: Date }
   | { type: 'session/startFree'; sessionId: string; now: Date }
@@ -148,6 +153,19 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const name = action.name.trim();
       if (name === '') return state;
       return updateCustomExercise(state, action.id, (e) => ({ ...e, name, muscleGroup: action.muscleGroup }));
+    }
+    case 'exercise/setNote': {
+      const note = normalizeExerciseNote(action.note);
+      const target = state.exercises.find((e) => e.id === action.id);
+      if (!target || target.note === note) return state;
+      return {
+        ...state,
+        exercises: state.exercises.map((e) => {
+          if (e !== target) return e;
+          const { note: _previous, ...rest } = e;
+          return note === undefined ? rest : { ...rest, note };
+        }),
+      };
     }
     case 'exercise/deleteCustom':
       return { ...state, exercises: state.exercises.filter((e) => !(e.id === action.id && e.isCustom)) };

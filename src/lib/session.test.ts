@@ -14,7 +14,7 @@ import {
   finishSession,
   goToExercise,
   keepLastLoad,
-  nextExerciseIndex,
+  nextPendingIndex,
   pendingSetCount,
   reapplySuggestion,
   removeExercise,
@@ -457,17 +457,55 @@ describe('mode séance — cas limites', () => {
     expect(validateSet(s, 1, 0)).toBe(s);
   });
 
-  it('nextExerciseIndex : prochain exercice avec des séries en attente, sinon le suivant', () => {
-    expect(nextExerciseIndex(three(0), 0)).toBe(2);
-    const allDone: WorkoutSession = {
-      ...three(0),
-      exercises: three(0).exercises.map((e) => ({ ...e, sets: e.sets.map((x) => ({ ...x, done: true })) })),
-    };
-    expect(nextExerciseIndex(allDone, 0)).toBe(1);
-    expect(nextExerciseIndex(three(2), 2)).toBe(-1);
-  });
-
   it('validateSet : passage auto au prochain exercice en attente (saute un exercice fini)', () => {
     expect(validateSet(three(0), 0, 0).currentExerciseIndex).toBe(2);
+  });
+});
+
+describe('lot 6 : revenir aux exercices sautés', () => {
+  /** 5 exercices ; `pending` : index des exercices qui ont encore une série non validée. */
+  const five = (pending: number[], current = 0, empty: number[] = []): WorkoutSession => ({
+    id: 'c',
+    name: 'Cinq',
+    startedAt: NOW.toISOString(),
+    currentExerciseIndex: current,
+    exercises: [0, 1, 2, 3, 4].map((i) => ({
+      exerciseId: `e${i}`,
+      sets: empty.includes(i) ? [] : [set(10, 10, true), set(10, 10, !pending.includes(i))],
+    })),
+  });
+
+  it('critère 1 : nextPendingIndex cherche après, puis depuis le début ; jamais fromIndex ni un exercice sans série', () => {
+    expect(nextPendingIndex(five([1]), 4)).toBe(1);
+    expect(nextPendingIndex(five([1]), 1)).toBe(-1);
+    expect(nextPendingIndex(five([1, 3]), 2)).toBe(3);
+    expect(nextPendingIndex(five([1, 3]), 3)).toBe(1);
+    expect(nextPendingIndex(five([]), 0)).toBe(-1);
+    expect(nextPendingIndex(five([]), 4)).toBe(-1);
+    // Exercices sans série (index 0 et 2) : pas en attente.
+    expect(nextPendingIndex(five([], 0, [0, 2]), 4)).toBe(-1);
+    expect(nextPendingIndex(five([4], 0, [0, 2]), 1)).toBe(4);
+    expect(nextPendingIndex(five([1], 0, [0, 2]), 3)).toBe(1);
+  });
+
+  it('critère 2 : dernière série de l’exercice affiché → exercice en attente plus loin', () => {
+    const s = five([1, 2, 4], 2);
+    const after = validateSet(s, 2, 1);
+    expect(after.currentExerciseIndex).toBe(4);
+  });
+
+  it('critère 2 : aucun exercice en attente plus loin → l’exercice affiché ne change pas, même si un plus haut attend', () => {
+    const s = five([1, 4], 4);
+    const after = validateSet(s, 4, 1);
+    expect(after.exercises[4].sets[1].done).toBe(true);
+    expect(after.currentExerciseIndex).toBe(4);
+    // Ni recul vers 1, ni avance vers un exercice déjà fait.
+    const middle = validateSet(five([1, 2], 2), 2, 1);
+    expect(middle.currentExerciseIndex).toBe(2);
+  });
+
+  it('exercice en attente retiré : il disparaît de nextPendingIndex', () => {
+    const s = removeExercise(five([1], 4), 1);
+    expect(nextPendingIndex(s, currentExerciseIndex(s))).toBe(-1);
   });
 });

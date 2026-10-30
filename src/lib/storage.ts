@@ -3,6 +3,7 @@ import { DEFAULT_EXERCISES } from './defaultExercises';
 import { isWeeklyGoal } from './rhythm';
 import { MAX_REPS, MAX_WEIGHT, clampExerciseIndex } from './session';
 import {
+  EXERCISE_NOTE_MAX,
   MUSCLE_GROUPS,
   type AppSettings,
   type AppState,
@@ -35,6 +36,15 @@ export function createDefaultState(): AppState {
     templates: [],
     sessions: [],
   };
+}
+
+/**
+ * Note d'exercice normalisée (lot 6) : `trim()`, coupée à `EXERCISE_NOTE_MAX` caractères ;
+ * undefined si elle est vide (le champ est alors retiré, jamais `""`).
+ */
+export function normalizeExerciseNote(note: string | undefined): string | undefined {
+  const text = (note ?? '').trim().slice(0, EXERCISE_NOTE_MAX).trimEnd();
+  return text === '' ? undefined : text;
 }
 
 // ---------- Validation ----------
@@ -108,12 +118,16 @@ function parseExercise(v: unknown, path: string): Exercise {
   const muscleGroup = o.muscleGroup as Exercise['muscleGroup'];
   if (!MUSCLE_GROUPS.includes(muscleGroup)) fail(`${path}.muscleGroup`, 'groupe musculaire connu');
   if (typeof o.isCustom !== 'boolean') fail(`${path}.isCustom`, 'booléen');
-  return {
+  const exercise: Exercise = {
     id: nonEmptyStr(o.id, `${path}.id`),
     name: nonEmptyStr(o.name, `${path}.name`),
     muscleGroup,
     isCustom: o.isCustom,
   };
+  // Note (lot 6) : facultative ; nettoyée, coupée à 80 caractères sans échec (fichier retouché à la main).
+  const note = normalizeExerciseNote(optStr(o.note, `${path}.note`));
+  if (note !== undefined) exercise.note = note;
+  return exercise;
 }
 
 function parseTemplateExercise(v: unknown, path: string): TemplateExercise {

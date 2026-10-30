@@ -16,6 +16,11 @@ export interface Exercise {
   name: string;
   muscleGroup: MuscleGroup;
   isCustom: boolean;
+  /**
+   * Pense-bête de l'exercice (lot 6) : réglage, prise, consigne, relu à chaque séance. Toujours
+   * stocké après `trim()`, au plus `EXERCISE_NOTE_MAX` caractères ; absent si vide (jamais `""`).
+   */
+  note?: string;
 }
 
 export interface TemplateExercise {
@@ -108,3 +113,6 @@ export interface AppState {
 }
 
 export const DEFAULT_REST_SECONDS = 90;
+
+/** Longueur maximale d'une note d'exercice (2 lignes à 16 px sur 375 px). */
+export const EXERCISE_NOTE_MAX = 80;

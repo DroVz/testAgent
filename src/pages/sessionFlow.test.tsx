@@ -133,7 +133,7 @@ describe('parcours séance', () => {
     expect(screen.getByRole('heading', { name: 'Push' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
     expect(screen.getByText('Exercice 1 sur 1')).toBeInTheDocument();
-    expect(screen.getByRole('progressbar', { name: 'Progression dans la séance' })).toHaveAttribute('aria-valuenow', '1');
+    expect(screen.getByRole('progressbar', { name: 'Progression dans la séance' })).toHaveAttribute('aria-valuenow', '0');
     expect(seriesOf('Développé couché')).toHaveLength(2);
     expect(currentSet()).toHaveTextContent('Série 1 sur 2');
     expect(currentSet()).toHaveTextContent('En cours');
@@ -152,7 +152,7 @@ describe('parcours séance', () => {
 
     // Terminer (secondaire) avec une série restante → confirmation légère → résumé
     fireEvent.click(screen.getByRole('button', { name: 'Terminer la séance' }));
-    expect(dialog().getByText('Il reste 1 série non validée. Terminer quand même ?')).toBeInTheDocument();
+    expect(dialog().getByText('Il reste 1 série non validée, en développé couché. Terminer quand même ?')).toBeInTheDocument();
     fireEvent.click(dialog().getByRole('button', { name: 'Terminer la séance' }));
     // Récap : titre = nom de la séance, la phrase dit « Séance terminée » (plus de doublon)
     expect(screen.getByRole('heading', { level: 1, name: 'Push' })).toBeInTheDocument();
@@ -405,7 +405,7 @@ describe('parcours séance', () => {
     expect(screen.getByText('Exercice 2 sur 2')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Exercice suivant/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Terminer la séance' }));
-    expect(dialog().getByText('Il reste 3 séries non validées. Terminer quand même ?')).toBeInTheDocument();
+    expect(dialog().getByText('Il reste 3 séries non validées, en développé couché et tractions. Terminer quand même ?')).toBeInTheDocument();
     fireEvent.click(dialog().getByRole('button', { name: 'Continuer' }));
     expect(screen.getByText('Exercice 2 sur 2')).toBeInTheDocument();
   });

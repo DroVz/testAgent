@@ -44,7 +44,7 @@ Exemples :
 3. **Le chiffre est le héros** : poids, reps et temps s'affichent en grand, en chiffres tabulaires (alignés).
 4. **On montre toujours la référence** : à côté de chaque champ à remplir, « Dernière fois : 80 kg × 8 ».
 5. **Cibles tactiles ≥ 48 px**, boutons principaux 56 px : on s'entraîne d'une main, avec les doigts moites.
-6. **Pas de saisie au clavier si on peut l'éviter** : boutons − / + (pas de 2,5 kg configurable), valeurs pré-remplies depuis la dernière séance.
+6. **Pas de saisie au clavier si on peut l'éviter** : boutons − / + (pas de 2,5 kg configurable), valeurs pré-remplies depuis la dernière séance. Exception : la note d'exercice, facultative, se tape au clavier.
 7. **Un état, un seul signal** : à faire = contour, en cours = accent, fait = rempli. Jamais la couleur seule : toujours aussi une icône ou un libellé.
 8. **Rien ne se perd** : toute action destructive est annulable (toast « Annuler » pendant 5 s), la séance en cours survit à un rechargement. Un toast ne recouvre jamais un bouton.
 
@@ -56,13 +56,15 @@ Exemples :
 - Action secondaire : « Dupliquer » une séance existante.
 
 ### Réaliser (mode séance)
-- **Un exercice à la fois.** En haut : « Exercice 2 sur 5 » + barre de progression fine.
+- **Un exercice à la fois.** En haut : « Exercice 2 sur 5 » + barre de progression fine, un cran par exercice. Un cran dit un état, pas une position : rempli à l'encre quand l'exercice n'a plus de série en attente, gris (`--border`) sinon. Le cran de l'exercice affiché est plus haut et cerné d'encre, jamais en accent.
 - Au centre : nom de l'exercice, puis la liste des séries. La série **en cours** est mise en avant (accent, grande), les séries faites sont compactes avec une coche, les suivantes sont grisées.
 - Dans la série en cours : charge et reps avec −/+ ; valeurs pré-remplies ; rappel « Dernière fois : … ».
 - Si la dernière fois toutes les séries ont atteint l'objectif, la charge est montée de 2,5 kg (1 rep au poids du corps) et l'écran l'explique : « Charge proposée : 82,5 kg », « La dernière fois : 80 kg × 8 à chaque série. », avec « Rester à 80 kg » en secondaire. La note disparaît dès la première série validée.
 - **Bouton principal fixe en bas : « Valider la série »** (56 px, accent). Après validation, un minuteur de repos discret apparaît avec « Passer ».
 - Dernière série d'un exercice validée → l'écran passe à l'exercice suivant, avec un bouton « Exercice précédent » en secondaire.
 - « Terminer la séance » est toujours accessible mais secondaire, avec confirmation légère s'il reste des séries.
+- Un exercice sauté n'est pas perdu : quand l'exercice affiché est fini et qu'un exercice plus haut attend encore, le bouton principal devient « Reprendre l'exercice 2 ». « Terminer la séance » devient le bouton principal dès que toutes les séries sont validées.
+- Une note courte par exercice (80 caractères au plus), en texte secondaire sous le nom, la même à chaque séance.
 - Récap de fin : volume, durée, records battus, et un bouton « Voir mes progrès ».
 
 ### Suivre (Historique + Progrès)

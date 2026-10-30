@@ -263,20 +263,22 @@ export function pendingSetCount(session: WorkoutSession): number {
 }
 
 /**
- * Exercice à afficher après `fromIndex` : le prochain qui a encore une série non validée,
- * sinon simplement le suivant. -1 s'il n'y a pas d'exercice après `fromIndex`.
+ * Exercice en attente (au moins une série non validée) après `fromIndex` ; sinon le premier en
+ * attente depuis le début (0 à `fromIndex − 1`) ; sinon -1. `fromIndex` n'est jamais renvoyé.
+ * Un exercice sans série n'est pas en attente (lot 6, « Reprendre l’exercice N »).
  */
-export function nextExerciseIndex(session: WorkoutSession, fromIndex: number): number {
-  if (fromIndex + 1 >= session.exercises.length) return -1;
-  for (let i = fromIndex + 1; i < session.exercises.length; i++) {
-    if (currentSetIndex(session.exercises[i]) !== -1) return i;
-  }
-  return fromIndex + 1;
+export function nextPendingIndex(session: WorkoutSession, fromIndex: number): number {
+  const isPending = (i: number) => currentSetIndex(session.exercises[i]) !== -1;
+  for (let i = fromIndex + 1; i < session.exercises.length; i++) if (isPending(i)) return i;
+  for (let i = 0; i < Math.min(fromIndex, session.exercises.length); i++) if (isPending(i)) return i;
+  return -1;
 }
 
 /**
  * Valide une série **non encore validée**. Si c'était la dernière série en attente de l'exercice
- * affiché, on passe au prochain exercice qui a des séries en attente (sinon au suivant).
+ * affiché, on passe au premier exercice en attente **plus loin** ; s'il n'y en a pas, l'écran reste
+ * sur l'exercice affiché (jamais de recul automatique, ni d'avance vers un exercice fini : le bouton
+ * principal propose alors « Reprendre l’exercice N » ou « Terminer la séance »).
  *
  * Une série déjà validée renvoie la séance inchangée : corriger une série faite n'est pas une
  * validation (pas de navigation) ; la correction passe par `updateSet`.
@@ -287,8 +289,8 @@ export function validateSet(session: WorkoutSession, exerciseIndex: number, setI
   const next = setSetDone(session, exerciseIndex, setIndex, true);
   const exerciseDone = currentSetIndex(next.exercises[exerciseIndex]) === -1;
   const isDisplayed = exerciseIndex === currentExerciseIndex(session);
-  const target = exerciseDone && isDisplayed ? nextExerciseIndex(next, exerciseIndex) : -1;
-  return target === -1 ? next : { ...next, currentExerciseIndex: target };
+  const target = exerciseDone && isDisplayed ? nextPendingIndex(next, exerciseIndex) : -1;
+  return target > exerciseIndex ? { ...next, currentExerciseIndex: target } : next;
 }
 
 /**

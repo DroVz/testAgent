@@ -26,6 +26,7 @@ import {
   formatOneRepMax,
   formatProgressSentence,
   formatRecordSentence,
+  formatRemainingSets,
   formatSeconds,
   formatSessionSummary,
   formatSetValues,
@@ -503,6 +504,31 @@ describe('sauvegarde (lot 5)', () => {
     );
     expect(formatNewRecord('Rowing barre', { type: 'bestVolume', value: 2480 })).toBe(
       t('Nouveau record de volume en rowing barre~: 2 480~kg !'),
+    );
+  });
+});
+
+describe('formatRemainingSets (lot 6)', () => {
+  it('critère 3 : 1, 2 et 3 exercices, et le singulier ; NBSP entre le nombre et « séries »', () => {
+    expect(formatRemainingSets(3, ['Développé incliné'])).toBe(
+      u('Il reste 3~séries non validées, en développé incliné. Terminer quand même ?'),
+    );
+    expect(formatRemainingSets(5, ['Développé incliné', 'Curl haltères'])).toBe(
+      u('Il reste 5~séries non validées, en développé incliné et curl haltères. Terminer quand même ?'),
+    );
+    expect(formatRemainingSets(7, ['Développé incliné', 'Curl haltères', 'Squat'])).toBe(
+      u('Il reste 7~séries non validées, sur 3~exercices. Terminer quand même ?'),
+    );
+    expect(formatRemainingSets(1, ['Squat'])).toBe(u('Il reste 1~série non validée, en squat. Terminer quand même ?'));
+  });
+
+  it('sigle conservé ; pas de dédoublonnage par nom (fait par l’appelant, par identifiant)', () => {
+    expect(formatRemainingSets(4, ['RDL', 'Squat'])).toBe(
+      u('Il reste 4~séries non validées, en RDL et squat. Terminer quand même ?'),
+    );
+    // Deux exercices distincts au même nom (bibliothèque et personnalisé) : deux exercices.
+    expect(formatRemainingSets(2, ['Squat', 'Squat'])).toBe(
+      u('Il reste 2~séries non validées, en squat et squat. Terminer quand même ?'),
     );
   });
 });

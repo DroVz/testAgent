@@ -21,6 +21,8 @@ export interface AppActions {
   addCustomExercise(name: string, muscleGroup: MuscleGroup): string;
   updateCustomExercise(id: string, name: string, muscleGroup: MuscleGroup): void;
   deleteCustomExercise(id: string): void;
+  /** Note d'un exercice (bibliothèque ou personnalisé) ; vide = note retirée. */
+  setExerciseNote(id: string, note: string | undefined): void;
 
   startSessionFromTemplate(templateId: string): void;
   startFreeSession(): void;
@@ -149,6 +151,7 @@ export function AppStoreProvider({ children, storage }: { children: ReactNode; s
       updateCustomExercise: (id, name, muscleGroup) =>
         dispatch({ type: 'exercise/updateCustom', id, name, muscleGroup }),
       deleteCustomExercise: (id) => dispatch({ type: 'exercise/deleteCustom', id }),
+      setExerciseNote: (id, note) => dispatch({ type: 'exercise/setNote', id, note }),
 
       startSessionFromTemplate: (templateId) =>
         dispatch({ type: 'session/startFromTemplate', templateId, sessionId: createId(), now: now() }),

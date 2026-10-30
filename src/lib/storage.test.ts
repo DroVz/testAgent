@@ -379,3 +379,50 @@ describe('exportFileName', () => {
     expect(exportFileName(new Date(2026, 11, 31))).toBe('muscutrack-2026-12-31.json');
   });
 });
+
+describe('note d’exercice (lot 6)', () => {
+  const withNote = (note: unknown, index = 3): Record<string, unknown> => {
+    const raw = JSON.parse(JSON.stringify(createDefaultState()));
+    raw.exercises[index].note = note;
+    return raw;
+  };
+
+  it('critère 13 : note absente acceptée ; un export d’avant ce lot s’importe sans erreur', () => {
+    const r = validateImport(exportState(createDefaultState()));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.state.exercises.every((e) => !('note' in e))).toBe(true);
+  });
+
+  it('critère 13 : note non textuelle → échec avec un message qui cite exercises[i].note', () => {
+    const r = parseAppState(withNote(12));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain('exercises[3].note');
+  });
+
+  it('critère 13 : 120 caractères → acceptée et coupée à 80 ; espaces retirées ; vide retirée', () => {
+    const long = 'a'.repeat(120);
+    const r = parseAppState(withNote(long));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.state.exercises[3].note).toBe('a'.repeat(80));
+    const trimmed = parseAppState(withNote('  Siège au cran 4  '));
+    expect(trimmed.ok).toBe(true);
+    if (trimmed.ok) expect(trimmed.state.exercises[3].note).toBe('Siège au cran 4');
+    const empty = parseAppState(withNote('   '));
+    expect(empty.ok).toBe(true);
+    if (empty.ok) expect(empty.state.exercises[3]).not.toHaveProperty('note');
+  });
+
+  it('critères 10 et 14 : note d’un exercice de la bibliothèque et d’un personnalisé, export puis import', () => {
+    const state = [
+      { type: 'exercise/addCustom', id: 'custom-1', name: 'Pull-over', muscleGroup: 'Dos' },
+      { type: 'exercise/setNote', id: 'squat', note: 'Barre au cran 6' },
+      { type: 'exercise/setNote', id: 'custom-1', note: 'Poulie : trou 3' },
+    ].reduce((s, a) => appReducer(s, a as AppAction), createDefaultState());
+    const r = validateImport(exportState(state));
+    expect(r).toEqual({ ok: true, state });
+    if (r.ok) {
+      expect(r.state.exercises.find((e) => e.id === 'squat')?.note).toBe('Barre au cran 6');
+      expect(r.state.exercises.find((e) => e.id === 'custom-1')?.note).toBe('Poulie : trou 3');
+    }
+  });
+});
