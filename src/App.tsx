@@ -5,6 +5,7 @@ import BrandHeader from './components/BrandHeader';
 import ResumeBanner from './components/ResumeBanner';
 import { ToastHost, ToastProvider, useToast } from './components/Toast';
 import ActiveSessionPage from './pages/ActiveSessionPage';
+import ConfidentialitePage from './pages/ConfidentialitePage';
 import HistoryPage from './pages/HistoryPage';
 import ProgramsPage from './pages/ProgramsPage';
 import ProgressPage from './pages/ProgressPage';
@@ -41,8 +42,9 @@ function Shell() {
   // Constructeur (/seances/nouvelle, /seances/:id) et programmes de départ (/seances/programmes) :
   // plein écran avec leur barre d'action fixe.
   const isEditor = /^\/seances\/[^/]+$/.test(pathname);
-  // Réglages : page plein écran ouverte depuis Séances, avec retour « ‹ Séances ».
-  const fullscreen = isSession || isEditor || pathname === '/reglages';
+  // Réglages : page plein écran ouverte depuis Séances, avec retour « ‹ Séances » ; Confidentialité,
+  // ouverte depuis Réglages, avec retour « ‹ Réglages ».
+  const fullscreen = isSession || isEditor || pathname === '/reglages' || pathname === '/confidentialite';
   // Séance et constructeur affichent le toast dans leur propre bas d'écran, au-dessus du bouton principal.
   const ownToastHost = isSession || isEditor;
   // Logotype en tête des 3 onglets uniquement (pas en séance, récap, détail, constructeur ni réglages).
@@ -96,6 +98,7 @@ function Shell() {
           <Route path="/historique/:id" element={<SessionDetailPage />} />
           <Route path="/progres" element={<ProgressPage />} />
           <Route path="/reglages" element={<SettingsPage />} />
+          <Route path="/confidentialite" element={<ConfidentialitePage />} />
           <Route path="*" element={<Navigate to="/seances" replace />} />
         </Routes>
       </main>

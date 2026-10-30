@@ -170,15 +170,26 @@ svg {
 }
 
 .app__content {
+  /*
+   * Zone sûre du haut (app iOS, lot 4 : la WebView passe sous la barre d'état). Sur le web elle vaut 0.
+   * Un bandeau affiché au-dessus la prend déjà en charge : 0 dans ce cas.
+   */
+  --content-top-inset: env(safe-area-inset-top, 0px);
   flex: 1;
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
   padding: var(--space-3);
+  padding-top: calc(var(--space-3) + var(--content-top-inset));
   /* --toast-reserve : hauteur du toast flottant affiché + 8 px (Toast.tsx), 0 sans toast. */
   padding-bottom: calc(
     var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--space-3) + var(--toast-reserve, 0px)
   );
+}
+
+.banner ~ .app__content,
+.resume-banner ~ .app__content {
+  --content-top-inset: 0px;
 }
 
 /* En-tête de marque : logotype monochrome (encre), en tête des 3 onglets uniquement. */
@@ -232,6 +243,15 @@ svg {
   color: var(--text);
   font-size: var(--fs-caption);
   font-weight: 500;
+}
+
+/* Bandeaux empilés : seul le premier, en haut de l'écran, prend la zone sûre du haut (0 sur le web). */
+.banner ~ .banner {
+  padding-top: var(--space-2);
+}
+
+.app > .resume-banner:first-child {
+  padding-top: calc(var(--space-2) + env(safe-area-inset-top, 0px));
 }
 
 .banner--warning {
@@ -692,7 +712,9 @@ svg {
 .editor {
   display: flex;
   flex-direction: column;
-  min-height: calc(100dvh - var(--space-3) - var(--space-3) - env(safe-area-inset-bottom, 0px));
+  min-height: calc(
+    100dvh - var(--space-3) - var(--space-3) - env(safe-area-inset-bottom, 0px) - var(--content-top-inset, 0px)
+  );
 }
 
 .editor__cancel {
@@ -1041,7 +1063,9 @@ svg {
 .session {
   display: flex;
   flex-direction: column;
-  min-height: calc(100dvh - var(--space-3) - var(--space-3) - env(safe-area-inset-bottom, 0px));
+  min-height: calc(
+    100dvh - var(--space-3) - var(--space-3) - env(safe-area-inset-bottom, 0px) - var(--content-top-inset, 0px)
+  );
 }
 
 .session__header {
@@ -1052,7 +1076,7 @@ svg {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) var(--space-2);
+  margin: calc(-1 * (var(--space-3) + var(--content-top-inset, 0px))) calc(-1 * var(--space-3)) var(--space-2);
   padding: var(--space-2) var(--space-3);
   padding-top: calc(var(--space-2) + env(safe-area-inset-top, 0px));
   border-bottom: 1px solid var(--border);
@@ -1467,7 +1491,8 @@ svg {
   display: flex;
   flex-direction: column;
   min-height: calc(
-    100dvh - var(--tabbar-height) - env(safe-area-inset-bottom, 0px) - var(--space-3) - var(--space-3)
+    100dvh - var(--tabbar-height) - env(safe-area-inset-bottom, 0px) - var(--space-3) - var(--space-3) -
+      var(--content-top-inset, 0px)
   );
 }
 
@@ -2040,6 +2065,20 @@ svg {
 .custom-list__group {
   font-size: var(--fs-caption);
   font-weight: 500;
+}
+
+.privacy-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.privacy-text p {
+  margin: 0;
+}
+
+.privacy-text em {
+  color: var(--text-muted);
 }
 
 .settings-footer {

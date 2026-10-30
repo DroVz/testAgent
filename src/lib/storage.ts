@@ -28,6 +28,17 @@ export interface LoadResult {
 /** Sous-ensemble de l'API Storage utilisé (facilite les tests). */
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 
+/**
+ * Stockage à écriture différée (miroir en mémoire du fichier de données, app iOS, lot 4) :
+ * `setItem` réussit tout de suite, l'écriture réelle a lieu après coup.
+ */
+export interface DeferredStorageLike extends StorageLike {
+  /** Écrit sans attendre ce qui est en attente. */
+  flush(): Promise<void>;
+  /** Appelé quand une écriture différée échoue (bandeau d'échec de sauvegarde). */
+  setWriteErrorHandler(handler: (() => void) | null): void;
+}
+
 export function createDefaultState(): AppState {
   return {
     version: 1,

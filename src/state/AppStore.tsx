@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
 import { createId } from '../lib/id';
-import { createDefaultState, loadState, saveState, type StorageLike } from '../lib/storage';
+import { createDefaultState, loadState, saveState, type DeferredStorageLike, type StorageLike } from '../lib/storage';
 import { createTemplate, type TemplateInput } from '../lib/templates';
 import type { AppState, LoadSuggestion, MuscleGroup, SessionExercise, Template, WeeklyGoal } from '../lib/types';
 import { captureUndo, type DeletionTarget, type UndoSnapshot } from '../lib/undo';
@@ -78,11 +78,32 @@ export interface AppStoreValue {
 
 const AppStoreContext = createContext<AppStoreValue | null>(null);
 
-export function AppStoreProvider({ children, storage }: { children: ReactNode; storage?: StorageLike }) {
+function isDeferred(storage: StorageLike | DeferredStorageLike | undefined): storage is DeferredStorageLike {
+  return storage !== undefined && 'flush' in storage && 'setWriteErrorHandler' in storage;
+}
+
+export function AppStoreProvider({
+  children,
+  storage,
+  loadWarning,
+}: {
+  children: ReactNode;
+  /** Stockage synchrone (localStorage) ou à écriture différée (fichier de données de l'app iOS). */
+  storage?: StorageLike | DeferredStorageLike;
+  /** Avertissement de chargement venu du stockage (sauvegarde précédente restaurée). */
+  loadWarning?: string;
+}) {
   const [initial] = useState(() => loadState(storage));
   const [state, dispatch] = useReducer(appReducer, initial.state);
   const [saveFailed, setSaveFailed] = useState(false);
-  const [loadError, setLoadError] = useState(initial.error);
+  const [loadError, setLoadError] = useState(initial.error ?? loadWarning);
+
+  // Écriture différée (app iOS) : un échec arrive après coup et affiche le même bandeau.
+  useEffect(() => {
+    if (!isDeferred(storage)) return;
+    storage.setWriteErrorHandler(() => setSaveFailed(true));
+    return () => storage.setWriteErrorHandler(null);
+  }, [storage]);
   // État courant pour capturer l'instantané d'une suppression (les actions sont stables).
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -114,6 +135,8 @@ export function AppStoreProvider({ children, storage }: { children: ReactNode; s
     const replaceAndSave = (next: AppState): boolean => {
       generation.current += 1;
       const ok = saveState(next, storage);
+      // Import et réinitialisation : écrits tout de suite, sans attendre le regroupement.
+      if (ok && isDeferred(storage)) void storage.flush();
       setSaveFailed(!ok);
       if (ok) setLoadError(undefined);
       dispatch({ type: 'data/replace', state: next });

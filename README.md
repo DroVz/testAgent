@@ -36,7 +36,10 @@ npm run preview    # sert dist/ en local pour vérification
 npm test           # lance les tests (Vitest)
 npm run e2e        # build, puis test de bout en bout Playwright (première séance en 5 taps, clair et sombre)
 npm run typecheck  # vérification TypeScript seule
+npm run build:native  # app iOS : build sans service worker (--mode native), puis cap sync ios
 ```
+
+L’app iPhone (Capacitor, dossier `ios/`) part du même code : voir `docs/product/lot4-app-store.md`. Compiler et signer le projet Xcode demande un Mac ou une CI macOS.
 
 `npm run e2e` sert le build avec `vite preview` sur un port libre (jamais 5199), joue le parcours de `e2e/premiere-seance.spec.ts` à 390 × 844, puis arrête le serveur. Il faut Chromium pour Playwright : `npx playwright install chromium` la première fois.
 

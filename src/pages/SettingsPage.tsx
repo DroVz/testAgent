@@ -10,6 +10,8 @@ import { WEEKLY_GOALS, weeklyGoalOf } from '../lib/rhythm';
 import { saveRestEndsAt } from '../lib/restTimer';
 import { exportFileName, exportState, validateImport } from '../lib/storage';
 import { MUSCLE_GROUPS, type AppState, type Exercise, type MuscleGroup, type WeeklyGoal } from '../lib/types';
+import { isNative } from '../platform';
+import { shareExportFile } from '../platform/share';
 import { useAppStore } from '../state/AppStore';
 import { clearStoredExercise } from './ProgressPage';
 
@@ -18,6 +20,9 @@ export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 const TOO_LARGE = `Import impossible${COLON} les données dépassent la taille maximale de 5 Mo.`;
 const SAVE_FAILED =
   `Échec de l’import${COLON} les données n’ont pas pu être enregistrées sur l’appareil (stockage plein ou indisponible).`;
+/** App iOS (lot 4, §4.6) : export par la feuille de partage. */
+const SHARE_DONE = 'Sauvegarde prête. Garde-la dans Fichiers ou envoie-la où tu veux.';
+const SHARE_FAILED = 'Partage impossible. Tu peux copier le texte ci-dessous.';
 
 /** Déclenche le téléchargement d'un fichier texte ; renvoie false si le navigateur ne le permet pas. */
 function downloadText(text: string, filename: string): boolean {
@@ -64,6 +69,7 @@ export default function SettingsPage() {
   const [resetError, setResetError] = useState<string | null>(null);
   const exportRef = useRef<HTMLTextAreaElement>(null);
 
+  const native = isNative();
   const customExercises = state.exercises.filter((e) => e.isCustom);
   const suggestLoad = isSuggestLoadEnabled(state);
   const weeklyGoal = weeklyGoalOf(state);
@@ -81,9 +87,16 @@ export default function SettingsPage() {
     goalGroupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus();
   };
 
-  const doExport = () => {
+  const doExport = async () => {
     const text = exportState(state);
     setExported(text);
+    if (native) {
+      // Partage annulé par l'utilisateur : aucun message, ce n'est pas une erreur.
+      setExportMsg(null);
+      const outcome = await shareExportFile(text, exportFileName());
+      setExportMsg(outcome === 'shared' ? SHARE_DONE : outcome === 'failed' ? SHARE_FAILED : null);
+      return;
+    }
     setExportMsg(
       downloadText(text, exportFileName())
         ? 'Fichier téléchargé. Tu peux aussi copier le texte ci-dessous.'
@@ -207,10 +220,18 @@ export default function SettingsPage() {
 
       <div className="card settings-section">
         <h2 className="section-title">Sauvegarde</h2>
-        <p className="muted settings-section__text">
-          Tes données sont stockées uniquement sur cet appareil, dans ce navigateur. Exporte-les régulièrement pour
-          ne rien perdre (changement de téléphone, nettoyage du navigateur…).
-        </p>
+        {native ? (
+          // App iOS : aucun texte qui parle du navigateur (lot 4, §4.1).
+          <p className="muted settings-section__text">
+            Tes données sont stockées uniquement sur cet appareil. Exporte-les régulièrement pour ne rien perdre
+            (changement de téléphone, suppression de l’app…).
+          </p>
+        ) : (
+          <p className="muted settings-section__text">
+            Tes données sont stockées uniquement sur cet appareil, dans ce navigateur. Exporte-les régulièrement pour
+            ne rien perdre (changement de téléphone, nettoyage du navigateur…).
+          </p>
+        )}
         <button type="button" className="btn btn--primary btn--block" onClick={doExport}>
           Exporter mes données
         </button>
@@ -303,6 +324,14 @@ export default function SettingsPage() {
             {resetError}
           </p>
         )}
+      </div>
+
+      <div className="card settings-section">
+        <h2 className="section-title">À propos</h2>
+        <p className="muted settings-section__text">Version {version}</p>
+        <Link to="/confidentialite" className="btn btn--block">
+          Confidentialité
+        </Link>
       </div>
 
       <p className="muted settings-footer">MuscuTrack v{version} — données stockées localement sur cet appareil.</p>
