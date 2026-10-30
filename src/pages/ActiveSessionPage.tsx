@@ -26,9 +26,11 @@ import {
 } from '../lib/session';
 import { firstTimeText } from '../lib/programs';
 import { keepLabel, keepToast, suggestionDetail, suggestionTitle } from '../lib/progression';
-import { loadRestEndsAt, saveRestEndsAt } from '../lib/restTimer';
+import { unlockRestChime } from '../lib/restChime';
+import { isRestSoundEnabled, loadRestEndsAt, saveRestEndsAt } from '../lib/restTimer';
 import { countDoneSets, lastPerformance, sessionDurationMs, type LastPerformance } from '../lib/stats';
 import type { SessionExercise } from '../lib/types';
+import { useWakeLock } from '../lib/wakeLock';
 import { useAppStore } from '../state/AppStore';
 
 type Dialog = { kind: 'finish'; remaining: number } | { kind: 'empty' } | { kind: 'abandon' };
@@ -46,6 +48,9 @@ export default function ActiveSessionPage() {
   const [now, setNow] = useState(() => Date.now());
   // Le repos en cours est persisté (stockage de session) : il survit à un rechargement ou à un détour.
   const [restEndsAt, setRestEndsAt] = useState<number | null>(() => loadRestEndsAt(session?.id));
+  const restSound = isRestSoundEnabled(state);
+  // Écran allumé tant que la séance en cours est affichée ; relâché en la quittant (fin, abandon, détour).
+  useWakeLock(session !== undefined);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [picking, setPicking] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -190,6 +195,8 @@ export default function ActiveSessionPage() {
     const rest = pending > 1 ? restSecondsFor(session, state.templates, exercise.exerciseId) : 0;
     const exerciseFinished = exercise.sets.filter((s) => !s.done).length === 1;
     actions.validateSet(exIdx, setIdx);
+    // iOS n'autorise le son qu'après un geste : on prépare le bip de fin de repos pendant ce tap.
+    if (rest > 0 && restSound) unlockRestChime();
     setRestEndsAt(rest > 0 ? Date.now() + rest * 1000 : null);
     const restText = rest > 0 ? ` Repos${COLON} ${formatSeconds(rest)}.` : '';
     // Exercice fini : l'écran passe au suivant, on ne cite donc pas un numéro de série.
@@ -519,7 +526,12 @@ export default function ActiveSessionPage() {
         {restEndsAt !== null && (
           <RestTimer
             endsAt={restEndsAt}
-            onAdjust={(sec) => setRestEndsAt((end) => (end === null ? end : Math.max(Date.now(), end + sec * 1000)))}
+            sound={restSound}
+            onAdjust={(sec) => {
+              // Repos repris après un rechargement : ce tap débloque aussi le son.
+              if (restSound) unlockRestChime();
+              setRestEndsAt((end) => (end === null ? end : Math.max(Date.now(), end + sec * 1000)));
+            }}
             onDismiss={() => setRestEndsAt(null)}
           />
         )}

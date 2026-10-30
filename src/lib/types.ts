@@ -91,6 +91,8 @@ export interface AppSettings {
   weeklyGoal?: WeeklyGoal;
   /** Vrai dès qu'un objectif a été choisi (même « Aucun ») ou la proposition écartée ; absent = faux. */
   weeklyGoalAsked?: boolean;
+  /** « Son en fin de repos » ; absent = activé. */
+  restSound?: boolean;
 }
 
 export interface AppState {

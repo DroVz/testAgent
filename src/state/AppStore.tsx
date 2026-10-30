@@ -58,6 +58,8 @@ export interface AppActions {
   setWeeklyGoal(goal: WeeklyGoal | undefined): void;
   /** « Non merci » sur la carte de proposition d'objectif. */
   dismissWeeklyGoalPrompt(): void;
+  /** Réglage « Son en fin de repos ». */
+  setRestSound(enabled: boolean): void;
 
   /** Remplace toutes les données et les sauvegarde immédiatement ; renvoie false si la sauvegarde a échoué. */
   replaceState(state: AppState): boolean;
@@ -177,6 +179,7 @@ export function AppStoreProvider({ children, storage }: { children: ReactNode; s
       setSuggestLoad: (enabled) => dispatch({ type: 'settings/setSuggestLoad', enabled }),
       setWeeklyGoal: (goal) => dispatch({ type: 'settings/setWeeklyGoal', goal }),
       dismissWeeklyGoalPrompt: () => dispatch({ type: 'settings/dismissWeeklyGoalPrompt' }),
+      setRestSound: (enabled) => dispatch({ type: 'settings/setRestSound', enabled }),
       replaceState: (next) => replaceAndSave(next),
       resetState: () => replaceAndSave(createDefaultState()),
       dismissLoadError: () => setLoadError(undefined),

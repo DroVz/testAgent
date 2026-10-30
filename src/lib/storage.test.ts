@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isRestSoundEnabled } from './restTimer';
 import {
   STORAGE_KEY,
   createDefaultState,
@@ -322,6 +323,17 @@ describe('charge proposée et réglages (lot 1)', () => {
     const bad2 = withSuggestion() as unknown as { activeSession: { exercises: { suggestion: Record<string, unknown> }[] } };
     bad2.activeSession.exercises[0].suggestion.toWeight = -1;
     expect(parseAppState(bad2)).toMatchObject({ ok: false, error: expect.stringContaining('suggestion.toWeight') });
+  });
+});
+
+describe('son en fin de repos', () => {
+  it('restSound restitué à l’export puis à l’import ; absent = activé ; type vérifié', () => {
+    const off = validateImport(exportState({ ...sampleState(), settings: { restSound: false } }));
+    expect(off.ok && off.state.settings).toEqual({ restSound: false });
+    const old = validateImport(exportState({ ...sampleState(), settings: { suggestLoad: true } }));
+    expect(old.ok && isRestSoundEnabled(old.state)).toBe(true);
+    const bad = { ...JSON.parse(exportState(sampleState())), settings: { restSound: 'oui' } };
+    expect(parseAppState(bad)).toEqual({ ok: false, error: 'settings.restSound\u00a0: booléen attendu' });
   });
 });
 

@@ -199,6 +199,14 @@ describe('appReducer — historique et données', () => {
   });
 });
 
+describe('appReducer — son en fin de repos', () => {
+  it('setRestSound enregistre le réglage sans toucher aux autres', () => {
+    const s = run(createDefaultState(), { type: 'settings/setWeeklyGoal', goal: 3 }, { type: 'settings/setRestSound', enabled: false });
+    expect(s.settings).toEqual({ weeklyGoal: 3, weeklyGoalAsked: true, restSound: false });
+    expect(appReducer(s, { type: 'settings/setRestSound', enabled: true }).settings?.restSound).toBe(true);
+  });
+});
+
 describe('appReducer — objectif par semaine (lot 3)', () => {
   it('setWeeklyGoal enregistre l’objectif et marque la question comme posée, sans toucher aux autres réglages', () => {
     const s = run(createDefaultState(), { type: 'settings/setSuggestLoad', enabled: false }, { type: 'settings/setWeeklyGoal', goal: 3 });

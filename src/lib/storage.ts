@@ -189,6 +189,8 @@ function parseSettings(v: unknown, path: string): AppSettings {
     settings.weeklyGoal = o.weeklyGoal;
   }
   if (o.weeklyGoalAsked !== undefined) settings.weeklyGoalAsked = bool(o.weeklyGoalAsked, `${path}.weeklyGoalAsked`);
+  // « Son en fin de repos » : optionnel, absent = activé.
+  if (o.restSound !== undefined) settings.restSound = bool(o.restSound, `${path}.restSound`);
   return settings;
 }
 

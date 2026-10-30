@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { STORAGE_KEY, createDefaultState, exportState, type StorageLike } from '../lib/storage';
@@ -512,4 +512,106 @@ describe('réglages', () => {
     fireEvent.click(dialog().getByRole('button', { name: 'Tout effacer' }));
     expect(screen.queryByText(/illisibles/)).not.toBeInTheDocument();
   });
+
+describe('réglages — PWA', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const IPHONE_SAFARI =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+  const INSTALL_HINT = 'Pour l’utiliser comme une app\u00a0: Partager, puis Sur l’écran d’accueil.';
+
+  it('export par la feuille de partage : fichier JSON, pas de téléchargement', async () => {
+    const createObjectURL = vi.fn(() => 'blob:muscutrack');
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }));
+    const share = vi.fn((_data: ShareData) => Promise.resolve());
+    vi.stubGlobal('navigator', { ...navigator, canShare: () => true, share });
+    const initial = stateWithHistory();
+    renderAt('#/reglages', initial);
+    fireEvent.click(screen.getByRole('button', { name: 'Exporter mes données' }));
+    expect(await screen.findByText('Fichier partagé. Tu peux aussi copier le texte ci-dessous.')).toBeInTheDocument();
+    expect(createObjectURL).not.toHaveBeenCalled();
+    const file = share.mock.calls[0][0].files![0];
+    expect(file.name).toMatch(/^muscutrack-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(JSON.parse(await file.text())).toEqual(initial);
+    expect(JSON.parse((screen.getByLabelText('Données exportées (JSON)') as HTMLTextAreaElement).value)).toEqual(initial);
+  });
+
+  it('feuille de partage fermée (AbortError) : rien affiché, pas de téléchargement', async () => {
+    const createObjectURL = vi.fn(() => 'blob:muscutrack');
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }));
+    const share = vi.fn(() => Promise.reject(Object.assign(new Error('cancel'), { name: 'AbortError' })));
+    vi.stubGlobal('navigator', { ...navigator, canShare: () => true, share });
+    renderAt('#/reglages');
+    fireEvent.click(screen.getByRole('button', { name: 'Exporter mes données' }));
+    await act(async () => {});
+    expect(share).toHaveBeenCalledTimes(1);
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Données exportées (JSON)')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('partage refusé pour une autre raison, ou fichiers non partageables : téléchargement comme avant', async () => {
+    const createObjectURL = vi.fn(() => 'blob:muscutrack');
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }));
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const share = vi.fn(() => Promise.reject(Object.assign(new Error('no'), { name: 'NotAllowedError' })));
+    vi.stubGlobal('navigator', { ...navigator, canShare: () => true, share });
+    const { unmount } = renderAt('#/reglages');
+    fireEvent.click(screen.getByRole('button', { name: 'Exporter mes données' }));
+    expect(await screen.findByText('Fichier téléchargé. Tu peux aussi copier le texte ci-dessous.')).toBeInTheDocument();
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    unmount();
+
+    vi.stubGlobal('navigator', { ...navigator, canShare: () => false, share });
+    share.mockClear();
+    renderAt('#/reglages');
+    fireEvent.click(screen.getByRole('button', { name: 'Exporter mes données' }));
+    // Synchrone : même geste, même résultat qu'avant le lot.
+    expect(createObjectURL).toHaveBeenCalledTimes(2);
+    expect(share).not.toHaveBeenCalled();
+  });
+
+  it('import : le sélecteur accepte .json et le texte (iOS, app Fichiers)', () => {
+    renderAt('#/reglages');
+    const input = document.getElementById('import-file') as HTMLInputElement;
+    expect(input.type).toBe('file');
+    expect(input.accept.split(',')).toEqual(expect.arrayContaining(['.json', 'application/json', 'text/plain']));
+  });
+
+  it('aide à l’installation : seulement sur iPhone dans Safari, hors écran d’accueil', () => {
+    vi.stubGlobal('navigator', { ...navigator, userAgent: IPHONE_SAFARI, maxTouchPoints: 5, standalone: false });
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    const first = renderAt('#/reglages');
+    const hint = screen.getByText(/^Pour l’utiliser comme une app/);
+    expect(hint.textContent).toBe(INSTALL_HINT);
+    expect(hint).toHaveClass('muted');
+    first.unmount();
+
+    vi.stubGlobal('navigator', { ...navigator, userAgent: IPHONE_SAFARI, maxTouchPoints: 5, standalone: true });
+    const second = renderAt('#/reglages');
+    expect(screen.queryByText(/^Pour l’utiliser comme une app/)).not.toBeInTheDocument();
+    second.unmount();
+
+    vi.unstubAllGlobals();
+    renderAt('#/reglages');
+    expect(screen.queryByText(/Sur l’écran d’accueil/)).not.toBeInTheDocument();
+  });
+
+  it('« Son en fin de repos » : activé par défaut, coupé puis conservé', () => {
+    const { saved, unmount } = renderAt('#/reglages', stateWithHistory());
+    const toggle = screen.getByRole('switch', { name: 'Son en fin de repos' });
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(toggle).toHaveAccessibleDescription('Un bip court quand le minuteur de repos arrive à zéro.');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(saved().settings?.restSound).toBe(false);
+    const state = saved();
+    unmount();
+    renderAt('#/reglages', state);
+    expect(screen.getByRole('switch', { name: 'Son en fin de repos' })).toHaveAttribute('aria-checked', 'false');
+  });
+});
 });

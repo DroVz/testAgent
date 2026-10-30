@@ -1,6 +1,7 @@
 import { BellRing } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { NBSP, formatClock } from '../lib/format';
+import { playRestChime } from '../lib/restChime';
 
 export interface RestTimerProps {
   /** Timestamp (ms) de fin du repos : le décompte reste juste même si l'écran s'est mis en veille. */
@@ -9,12 +10,14 @@ export interface RestTimerProps {
   onAdjust(seconds: number): void;
   /** Ferme le minuteur (Passer / Fermer). */
   onDismiss(): void;
+  /** Bip à la fin du repos (réglage « Son en fin de repos »). */
+  sound?: boolean;
   /** Horloge injectable pour les tests. */
   now?: () => number;
 }
 
-/** Minuteur de repos : compte à rebours, ±15 s, Passer ; vibration à la fin si disponible. */
-export default function RestTimer({ endsAt, onAdjust, onDismiss, now = Date.now }: RestTimerProps) {
+/** Minuteur de repos : compte à rebours, ±15 s, Passer ; vibration (et bip si activé) à la fin si disponible. */
+export default function RestTimer({ endsAt, onAdjust, onDismiss, sound = false, now = Date.now }: RestTimerProps) {
   const [current, setCurrent] = useState(now);
   const vibratedFor = useRef<number | null>(null);
 
@@ -48,8 +51,10 @@ export default function RestTimer({ endsAt, onAdjust, onDismiss, now = Date.now 
       vibratedFor.current = endsAt;
       // Sans geste de l'utilisateur depuis le chargement, le navigateur refuse la vibration (et le signale en console).
       if (navigator.userActivation?.hasBeenActive !== false) navigator.vibrate?.([200, 100, 200]);
+      // iOS ignore la vibration : bip court (le contexte audio a été débloqué au tap qui a lancé le repos).
+      if (sound) playRestChime();
     }
-  }, [finished, endsAt]);
+  }, [finished, endsAt, sound]);
 
   return (
     <div className={`rest-timer${finished ? ' rest-timer--done' : ''}`} role="region" aria-label="Minuteur de repos">

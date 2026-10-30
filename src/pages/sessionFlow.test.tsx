@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TOAST_DURATION_MS } from '../components/Toast';
 import App from '../App';
+import { resetRestChimeForTests } from '../lib/restChime';
 import { MAX_WEIGHT } from '../lib/session';
 import { STORAGE_KEY, createDefaultState, type StorageLike } from '../lib/storage';
 import { createTemplate, createTemplateExercise } from '../lib/templates';
@@ -1305,5 +1306,73 @@ describe('charge proposée (lot 1)', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Suggérer la charge suivante' }));
     expect(second.saved().activeSession?.exercises[0].suggestion?.toWeight).toBe(82.5);
     expect(second.saved().activeSession?.exercises[0].sets[0].weight).toBe(82.5);
+  });
+});
+
+describe('PWA : écran allumé et son de fin de repos', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    resetRestChimeForTests();
+  });
+
+  function stubWakeLock() {
+    const release = vi.fn(() => Promise.resolve());
+    const request = vi.fn(() => Promise.resolve({ released: false, release }));
+    vi.stubGlobal('navigator', { ...navigator, wakeLock: { request } });
+    return { request, release };
+  }
+
+  it('écran maintenu allumé pendant la séance, relâché en la quittant', async () => {
+    const { request, release } = stubWakeLock();
+    renderApp(stateWithTemplate());
+    expect(request).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Jambes' }));
+    await act(async () => {});
+    expect(request).toHaveBeenCalledWith('screen');
+    fireEvent.click(screen.getByRole('button', { name: 'Options de Squat' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Abandonner la séance' }));
+    fireEvent.click(dialog().getByRole('button', { name: 'Abandonner' }));
+    expect(screen.getByRole('heading', { name: 'Séances' })).toBeInTheDocument();
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it('le tap « Valider la série » débloque le son (réglage activé par défaut) ; coupé : rien', () => {
+    const created = vi.fn();
+    class FakeContext {
+      state = 'running';
+      sampleRate = 44100;
+      destination = {};
+      constructor() {
+        created();
+      }
+      createBuffer = () => ({});
+      createBufferSource = () => ({ buffer: null, connect: () => {}, start: () => {} });
+      resume = () => Promise.resolve();
+    }
+    vi.stubGlobal('AudioContext', FakeContext);
+    const first = renderApp(stateWithTemplate());
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Jambes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
+    expect(screen.getByRole('region', { name: 'Minuteur de repos' })).toBeInTheDocument();
+    expect(created).toHaveBeenCalledTimes(1);
+
+    // Réglage coupé : aucun contexte audio créé.
+    resetRestChimeForTests();
+    created.mockClear();
+    const saved = first.saved();
+    first.unmount();
+    sessionStorage.clear();
+    renderApp({ ...saved, settings: { ...saved.settings, restSound: false } });
+    fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
+    expect(screen.getByRole('region', { name: 'Minuteur de repos' })).toBeInTheDocument();
+    expect(created).not.toHaveBeenCalled();
+  });
+
+  it('sans Wake Lock ni Web Audio : la séance fonctionne comme avant', () => {
+    vi.stubGlobal('AudioContext', undefined);
+    renderApp(stateWithTemplate());
+    fireEvent.click(screen.getByRole('button', { name: 'Démarrer la séance Jambes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Valider la série' }));
+    expect(screen.getByRole('region', { name: 'Minuteur de repos' })).toBeInTheDocument();
   });
 });

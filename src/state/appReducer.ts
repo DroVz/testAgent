@@ -82,6 +82,7 @@ export type AppAction =
   | { type: 'settings/setWeeklyGoal'; goal: WeeklyGoal | undefined }
   /** « Non merci » sur la carte de proposition : elle ne revient plus. */
   | { type: 'settings/dismissWeeklyGoalPrompt' }
+  | { type: 'settings/setRestSound'; enabled: boolean }
   // Données
   | { type: 'data/replace'; state: AppState }
   | { type: 'data/reset' };
@@ -221,6 +222,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
     case 'settings/dismissWeeklyGoalPrompt':
       return { ...state, settings: { ...state.settings, weeklyGoalAsked: true } };
+    case 'settings/setRestSound':
+      return { ...state, settings: { ...state.settings, restSound: action.enabled } };
 
     case 'data/replace':
       return action.state;

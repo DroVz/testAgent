@@ -1939,7 +1939,8 @@ svg {
 }
 
 /* Libellé d'un groupe de réglage (même style que celui d'un interrupteur). */
-.settings-section__label {
+.settings-section__label,
+.settings-section__switch {
   margin-top: var(--space-2);
   color: var(--text);
   font-size: var(--fs-body);

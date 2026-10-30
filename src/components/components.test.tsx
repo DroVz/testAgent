@@ -6,6 +6,7 @@ import ConfirmDialog from './ConfirmDialog';
 import ExercisePicker from './ExercisePicker';
 import LineChart, { chartFontSize } from './LineChart';
 import NumberField, { displayLength } from './NumberField';
+import * as chime from '../lib/restChime';
 import RestTimer from './RestTimer';
 import { TOAST_DURATION_MS, ToastHost, ToastProvider, useToast } from './Toast';
 
@@ -184,6 +185,21 @@ describe('RestTimer', () => {
     vi.stubGlobal('navigator', { ...navigator, vibrate, userActivation: { hasBeenActive: true } });
     render(<RestTimer endsAt={5_000} now={() => 10_000} onAdjust={() => {}} onDismiss={() => {}} />);
     expect(vibrate).toHaveBeenCalledTimes(1);
+  });
+
+  it('fin du repos : bip si le son est activé, une seule fois ; jamais sinon', () => {
+    const play = vi.spyOn(chime, 'playRestChime').mockImplementation(() => {});
+    const { rerender, unmount } = render(
+      <RestTimer endsAt={5_000} sound now={() => 10_000} onAdjust={() => {}} onDismiss={() => {}} />,
+    );
+    expect(play).toHaveBeenCalledTimes(1);
+    rerender(<RestTimer endsAt={5_000} sound now={() => 11_000} onAdjust={() => {}} onDismiss={() => {}} />);
+    expect(play).toHaveBeenCalledTimes(1);
+    unmount();
+    render(<RestTimer endsAt={5_000} sound={false} now={() => 10_000} onAdjust={() => {}} onDismiss={() => {}} />);
+    render(<RestTimer endsAt={50_000} sound now={() => 10_000} onAdjust={() => {}} onDismiss={() => {}} />);
+    expect(play).toHaveBeenCalledTimes(1);
+    play.mockRestore();
   });
 
   it('sans API de vibration : pas d’erreur', () => {

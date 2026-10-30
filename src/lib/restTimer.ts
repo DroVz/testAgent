@@ -52,3 +52,8 @@ export function saveRestEndsAt(
     // Stockage indisponible : le minuteur fonctionne quand même, sans persistance.
   }
 }
+
+/** Réglage « Son en fin de repos » ; absent = activé. */
+export function isRestSoundEnabled(state: { settings?: { restSound?: boolean } }): boolean {
+  return state.settings?.restSound !== false;
+}

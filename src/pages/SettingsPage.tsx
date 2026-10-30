@@ -7,8 +7,9 @@ import { useToast } from '../components/Toast';
 import { COLON, formatGoalOption } from '../lib/format';
 import { isSuggestLoadEnabled } from '../lib/progression';
 import { WEEKLY_GOALS, weeklyGoalOf } from '../lib/rhythm';
-import { saveRestEndsAt } from '../lib/restTimer';
+import { isRestSoundEnabled, saveRestEndsAt } from '../lib/restTimer';
 import { exportFileName, exportState, validateImport } from '../lib/storage';
+import { shareTextFile, shouldShowIosInstallHint } from '../lib/webPlatform';
 import { MUSCLE_GROUPS, type AppState, type Exercise, type MuscleGroup, type WeeklyGoal } from '../lib/types';
 import { useAppStore } from '../state/AppStore';
 import { clearStoredExercise } from './ProgressPage';
@@ -18,6 +19,8 @@ export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 const TOO_LARGE = `Import impossible${COLON} les données dépassent la taille maximale de 5 Mo.`;
 const SAVE_FAILED =
   `Échec de l’import${COLON} les données n’ont pas pu être enregistrées sur l’appareil (stockage plein ou indisponible).`;
+const SHARE_DONE = 'Fichier partagé. Tu peux aussi copier le texte ci-dessous.';
+const INSTALL_HINT = `Pour l’utiliser comme une app${COLON} Partager, puis Sur l’écran d’accueil.`;
 
 /** Déclenche le téléchargement d'un fichier texte ; renvoie false si le navigateur ne le permet pas. */
 function downloadText(text: string, filename: string): boolean {
@@ -66,6 +69,8 @@ export default function SettingsPage() {
 
   const customExercises = state.exercises.filter((e) => e.isCustom);
   const suggestLoad = isSuggestLoadEnabled(state);
+  const restSound = isRestSoundEnabled(state);
+  const [installHint] = useState(() => shouldShowIosInstallHint());
   const weeklyGoal = weeklyGoalOf(state);
   const goalOptions: (WeeklyGoal | undefined)[] = [undefined, ...WEEKLY_GOALS];
   const goalGroupRef = useRef<HTMLDivElement>(null);
@@ -81,14 +86,34 @@ export default function SettingsPage() {
     goalGroupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus();
   };
 
-  const doExport = () => {
-    const text = exportState(state);
+  const download = (text: string, fileName: string) => {
     setExported(text);
     setExportMsg(
-      downloadText(text, exportFileName())
+      downloadText(text, fileName)
         ? 'Fichier téléchargé. Tu peux aussi copier le texte ci-dessous.'
         : `Téléchargement indisponible sur ce navigateur${COLON} copie le texte ci-dessous.`,
     );
+  };
+
+  const doExport = () => {
+    const text = exportState(state);
+    const fileName = exportFileName();
+    // Feuille de partage (iPhone, Android) si elle accepte un fichier ; sinon téléchargement, comme avant.
+    const sharing = shareTextFile(text, fileName);
+    if (!sharing) {
+      download(text, fileName);
+      return;
+    }
+    void sharing.then((outcome) => {
+      // Feuille fermée sans choisir : rien ne change, rien ne s'affiche.
+      if (outcome === 'cancelled') return;
+      if (outcome === 'failed') {
+        download(text, fileName);
+        return;
+      }
+      setExported(text);
+      setExportMsg(SHARE_DONE);
+    });
   };
 
   const copy = async () => {
@@ -203,6 +228,22 @@ export default function SettingsPage() {
         <p id="weekly-goal-help" className="muted settings-section__text">
           Un repère pour toi, que tu changes quand tu veux. Une semaine en dessous ne laisse aucune trace.
         </p>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={restSound}
+          aria-describedby="rest-sound-help"
+          className="switch-row settings-section__switch"
+          onClick={() => actions.setRestSound(!restSound)}
+        >
+          <span className="switch-row__label">Son en fin de repos</span>
+          <span className="switch" aria-hidden="true">
+            <span className="switch__thumb" />
+          </span>
+        </button>
+        <p id="rest-sound-help" className="muted settings-section__text">
+          Un bip court quand le minuteur de repos arrive à zéro.
+        </p>
       </div>
 
       <div className="card settings-section">
@@ -211,6 +252,7 @@ export default function SettingsPage() {
           Tes données sont stockées uniquement sur cet appareil, dans ce navigateur. Exporte-les régulièrement pour
           ne rien perdre (changement de téléphone, nettoyage du navigateur…).
         </p>
+        {installHint && <p className="muted settings-section__text">{INSTALL_HINT}</p>}
         <button type="button" className="btn btn--primary btn--block" onClick={doExport}>
           Exporter mes données
         </button>
@@ -240,7 +282,8 @@ export default function SettingsPage() {
         <input
           id="import-file"
           type="file"
-          accept=".json,application/json"
+          // iOS : « text/plain » en plus, pour que le fichier reste sélectionnable dans Fichiers.
+          accept=".json,application/json,text/plain"
           className="visually-hidden file-input"
           onChange={onFile}
         />
