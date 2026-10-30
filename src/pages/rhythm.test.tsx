@@ -165,13 +165,37 @@ describe('Progrès : tuiles, pastilles, bilan (critères 1, 14 à 16, 18)', () =
     expect(within(week).getByText('Objectif atteint')).toBeInTheDocument();
   });
 
-  it('historique vide avec objectif : « 0 sur 3 », 3 pastilles en contour, ni bilan ni proposition', () => {
+  it('historique vide avec objectif : « 0 » et « Objectif : 3 », aucune pastille, ni bilan ni proposition', () => {
     renderAt('#/progres', stateWith([], { weeklyGoal: 3, weeklyGoalAsked: true }));
-    expect(within(tile('Cette semaine')).getByText('0 sur 3')).toBeInTheDocument();
-    expect(dots()).toHaveLength(3);
-    expect(dots().some((d) => d.classList.contains('rhythm-dot--done'))).toBe(false);
+    const week = tile('Cette semaine');
+    expect(week.querySelector('.stat__value')!.textContent).toBe('0');
+    expect(plain(week.querySelector('.stat__caption'))).toBe('Objectif : 3');
+    expect(week.querySelector('.rhythm-dots')).toBeNull();
+    expect(dots()).toHaveLength(0);
     expect(document.querySelector('.progress-review')).toBeNull();
     expect(screen.getByText('Pas encore de progression à afficher')).toBeInTheDocument();
+  });
+
+  it('objectif 3, 0 séance cette semaine (des séances avant) : le repère, pas de pastilles vides ; puis 1 séance', () => {
+    const before = [session('a', 12), session('b', 14)];
+    renderAt('#/progres', stateWith(before, { weeklyGoal: 3, weeklyGoalAsked: true }));
+    let week = tile('Cette semaine');
+    expect(dots()).toHaveLength(0);
+    expect(week.querySelector('.rhythm-dots')).toBeNull();
+    // Insécables avant et après « : ».
+    expect(week.querySelector('.stat__caption')!.textContent).toBe('Objectif\u00a0:\u00a03');
+    expect(week.querySelector('.stat__caption')).toHaveAttribute('aria-hidden', 'true');
+    // Lecture de la tuile : « Cette semaine : 0 séance, objectif 3 séances ».
+    expect(plain(week.querySelector('.visually-hidden'))).toBe('0 séance, objectif 3 séances');
+    expect(within(week).queryByText(/sur 3/)).not.toBeInTheDocument();
+    cleanup();
+
+    renderAt('#/progres', stateWith([...before, session('c', 26)], { weeklyGoal: 3, weeklyGoalAsked: true }));
+    week = tile('Cette semaine');
+    expect(dots()).toHaveLength(3);
+    expect(dots().filter((d) => d.classList.contains('rhythm-dot--done'))).toHaveLength(1);
+    expect(within(week).getByText('1 sur 3')).toBeInTheDocument();
+    expect(week.querySelector('.stat__caption')).toBeNull();
   });
 
   it('bilan : semaine dernière puis mois, avec volume et records ; jamais l’objectif', () => {
@@ -190,8 +214,37 @@ describe('Progrès : tuiles, pastilles, bilan (critères 1, 14 à 16, 18)', () =
     ];
     renderAt('#/progres', stateWith(sessions, { weeklyGoal: 3, weeklyGoalAsked: true }));
     const lines = [...document.querySelectorAll('.progress-review p')].map(plain);
-    expect(lines).toEqual(['Semaine dernière : 3 séances, 14 520 kg, 1 record.', 'Octobre : 4 séances, 21 720 kg, 1 record.']);
+    // Mois en cours : sans le compte, déjà donné par la tuile « Ce mois ».
+    expect(lines).toEqual(['Semaine dernière : 3 séances, 14 520 kg, 1 record.', 'Octobre : 21 720 kg, 1 record.']);
+    expect(lines[1]).not.toMatch(/séance/);
     expect(lines.join(' ')).not.toMatch(/objectif|sur 3/i);
+  });
+
+  it('bilan du mois en cours : 13 séances en octobre, pas de compte dans la ligne', () => {
+    const days = [1, 2, 5, 6, 8, 9, 12, 13, 15, 16, 20, 21, 27];
+    renderAt('#/progres', stateWith(days.map((d) => session(`s${d}`, d)), { weeklyGoalAsked: true }));
+    expect(tile('Ce mois')).toHaveTextContent('13');
+    const month = [...document.querySelectorAll('.progress-review p')].map(plain).find((l) => l.startsWith('Octobre'));
+    expect(month).toBe('Octobre : 6 500 kg.');
+  });
+
+  it('nouvel utilisateur après 1 séance de 480 kg : « Octobre : 480 kg. »', () => {
+    const one: WorkoutSession = {
+      ...session('a', 27),
+      exercises: [{ exerciseId: 'squat', sets: [{ weight: 60, reps: 8, done: true }] }],
+    };
+    renderAt('#/progres', stateWith([one]));
+    expect([...document.querySelectorAll('.progress-review p')].map(plain)).toEqual(['Octobre : 480 kg.']);
+  });
+
+  it('mois en cours au poids du corps, sans record : pas de ligne de mois, pas de conteneur vide', () => {
+    const bodyweight = (id: string, hour: number): WorkoutSession => ({
+      ...session(id, 27, { hour }),
+      exercises: [{ exerciseId: 'squat', sets: [{ weight: 0, reps: 10, done: true }] }],
+    });
+    renderAt('#/progres', stateWith([bodyweight('a', 8), bodyweight('b', 18)], { weeklyGoalAsked: true }));
+    expect(tile('Ce mois')).toHaveTextContent('2');
+    expect(document.querySelector('.progress-review')).toBeNull();
   });
 
   it('bilan : semaine dernière omise si vide ; le 1er novembre sans séance, le mois affiché est octobre', () => {
@@ -199,6 +252,22 @@ describe('Progrès : tuiles, pastilles, bilan (critères 1, 14 à 16, 18)', () =
     renderAt('#/progres', stateWith([session('a', 5), session('b', 12)], { weeklyGoalAsked: true }));
     const lines = [...document.querySelectorAll('.progress-review p')].map(plain);
     expect(lines).toEqual(['Octobre : 2 séances, 1 000 kg.']);
+  });
+
+  it('bilan : le 2 novembre (jeu c2, absence depuis le 9 octobre), octobre en repli avec son compte', () => {
+    vi.setSystemTime(new Date(2026, 10, 2, 9, 0));
+    const c2 = [2, 5, 7, 9].map((day) => ({
+      ...session(`c${day}`, day),
+      exercises: [{ exerciseId: 'squat', sets: Array.from({ length: 6 }, () => ({ weight: 102.5, reps: 6, done: true })) }],
+    }));
+    renderAt('#/progres', stateWith(c2, { weeklyGoal: 3, weeklyGoalAsked: true }));
+    expect([...document.querySelectorAll('.progress-review p')].map(plain)).toEqual(['Octobre : 4 séances, 14 760 kg.']);
+  });
+
+  it('bilan : le 29 octobre sans séance en octobre, aucune ligne de mois', () => {
+    vi.setSystemTime(new Date(2026, 9, 29, 20, 0));
+    renderAt('#/progres', stateWith([session('a', 16, { month: 9 }), session('b', 23, { month: 9 })], { weeklyGoalAsked: true }));
+    expect(document.querySelector('.progress-review')).toBeNull();
   });
 
   it('aucun élément de Progrès en accent (hors état vide existant)', () => {
@@ -219,7 +288,7 @@ describe('Progrès : proposition d’objectif (critère 17)', () => {
     cleanup();
     renderAt('#/progres', stateWith([session('a', 26), session('b', 12)]));
     expect(card()).toBeInTheDocument();
-    expect(screen.getByText('Un repère pour toi. Tu pourras le changer dans Réglages.')).toBeInTheDocument();
+    expect(screen.getByText('Un repère pour toi. Tu pourras le régler à tout moment dans Réglages.')).toBeInTheDocument();
     expect(['2', '3', '4'].map((n) => screen.getByRole('button', { name: `${n} séances par semaine` }))).toHaveLength(3);
   });
 
@@ -233,9 +302,13 @@ describe('Progrès : proposition d’objectif (critère 17)', () => {
     expect(saved().settings).toEqual({ weeklyGoal: 3, weeklyGoalAsked: true });
   });
 
-  it('« Plus tard » : carte retirée, sans toast, toujours absente après rechargement', () => {
+  it('« Non merci » : bouton à contour, carte retirée, sans toast, toujours absente après rechargement', () => {
     const { saved } = renderAt('#/progres', stateWith([session('a', 26), session('b', 12)]));
-    fireEvent.click(screen.getByRole('button', { name: 'Plus tard' }));
+    const refuse = screen.getByRole('button', { name: 'Non merci' });
+    expect(refuse).toHaveClass('btn');
+    expect(refuse).not.toHaveClass('btn--ghost');
+    expect(document.body.textContent).not.toMatch(/Plus tard|Tu pourras le changer/);
+    fireEvent.click(refuse);
     expect(card()).toBeNull();
     expect(document.querySelector('.toast')).toBeNull();
     const after = saved();

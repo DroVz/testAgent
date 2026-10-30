@@ -15,6 +15,7 @@ import {
   formatPeriodSummary,
   formatWeekLine,
   formatWeekTile,
+  formatWeekTileCaption,
   formatWeekTileLabel,
   formatOneRepMax,
   formatProgressSentence,
@@ -259,9 +260,9 @@ describe('formatProgressSentence', () => {
   const weeks = (n: number) => new Date(2026, 8, 1 + 7 * n, 18);
   const now = new Date(2026, 9, 28, 20);
 
-  it('aucun point → null ; un point → « Première séance enregistrée »', () => {
+  it('aucun point → null ; un point → « Première séance sur cet exercice » (pas la phrase du jalon)', () => {
     expect(formatProgressSentence([])).toBeNull();
-    expect(formatProgressSentence([p(start, 80)])).toEqual({ headline: 'Première séance enregistrée' });
+    expect(formatProgressSentence([p(start, 80)])).toEqual({ headline: 'Première séance sur cet exercice' });
   });
 
   it('hausse : « +7,5 kg en 8 semaines » (première vs dernière valeur)', () => {
@@ -317,7 +318,7 @@ describe('rythme (lot 3)', () => {
   /** « ~ » = espace insécable (U+00A0), « _ » = espace fine insécable (U+202F, milliers). */
   const t = (text: string) => text.replace(/~/g, ' ').replace(/_/g, ' ');
 
-  it('formatWeekLine : les 10 textes du §3.1, insécables avant « : » et « séance(s) »', () => {
+  it('formatWeekLine : les 10 textes du §3.1, insécables avant « : », « séance(s) » et dans la phrase finale', () => {
     const cases: [number | undefined, number, string | undefined][] = [
       [undefined, 0, undefined],
       [undefined, 1, 'Cette semaine~: 1~séance.'],
@@ -326,9 +327,9 @@ describe('rythme (lot 3)', () => {
       [1, 0, 'Objectif de la semaine~: 1~séance.'],
       [3, 1, 'Cette semaine~: 1~séance sur 3.'],
       [3, 2, 'Cette semaine~: 2~séances sur 3.'],
-      [3, 3, 'Cette semaine~: 3~séances sur 3. Objectif atteint.'],
-      [1, 1, 'Cette semaine~: 1~séance sur 1. Objectif atteint.'],
-      [3, 4, 'Cette semaine~: 4~séances. Objectif de 3 atteint.'],
+      [3, 3, 'Cette semaine~: 3~séances sur 3. Objectif~atteint.'],
+      [1, 1, 'Cette semaine~: 1~séance sur 1. Objectif~atteint.'],
+      [3, 4, 'Cette semaine~: 4~séances. Objectif~de~3~atteint.'],
     ];
     for (const [goal, count, expected] of cases) {
       expect(formatWeekLine(count, goal), `${goal}/${count}`).toBe(expected === undefined ? undefined : t(expected));
@@ -336,26 +337,39 @@ describe('rythme (lot 3)', () => {
   });
 
   it('changement d’objectif en cours de semaine : effet immédiat (§7)', () => {
-    expect(formatWeekLine(2, 2)).toBe(t('Cette semaine~: 2~séances sur 2. Objectif atteint.'));
+    expect(formatWeekLine(2, 2)).toBe(t('Cette semaine~: 2~séances sur 2. Objectif~atteint.'));
     expect(formatWeekLine(2, 4)).toBe(t('Cette semaine~: 2~séances sur 4.'));
     expect(formatWeekLine(2, undefined)).toBe(t('Cette semaine~: 2~séances.'));
   });
 
-  it('tuile « Cette semaine » : « 2 sur 3 », nombre seul sans objectif ou au-delà', () => {
+  it('tuile « Cette semaine » : « 2 sur 3 », nombre seul sans objectif, au-delà ou à 0', () => {
     expect(formatWeekTile(2)).toBe('2');
     expect(formatWeekTile(2, 3)).toBe('2 sur 3');
-    expect(formatWeekTile(0, 3)).toBe('0 sur 3');
+    expect(formatWeekTile(0, 3)).toBe('0');
     expect(formatWeekTile(4, 3)).toBe('4');
     expect(formatWeekTileLabel(2, 3)).toBe(t('2~séances sur 3'));
     expect(formatWeekTileLabel(4, 3)).toBe(t('4~séances'));
+    expect(formatWeekTileLabel(0, 3)).toBe(t('0~séance, objectif 3~séances'));
+    expect(formatWeekTileLabel(0, 1)).toBe(t('0~séance, objectif 1~séance'));
+    expect(formatWeekTileLabel(0)).toBe(t('0~séance'));
+  });
+
+  it('légende de tuile : « Objectif : 3 » à 0, « Objectif atteint » dès l’objectif, rien sinon', () => {
+    expect(formatWeekTileCaption(0, 3)).toBe(t('Objectif~:~3'));
+    expect(formatWeekTileCaption(1, 3)).toBeUndefined();
+    expect(formatWeekTileCaption(2, 3)).toBeUndefined();
+    expect(formatWeekTileCaption(3, 3)).toBe(t('Objectif~atteint'));
+    expect(formatWeekTileCaption(4, 3)).toBe(t('Objectif~atteint'));
+    expect(formatWeekTileCaption(1, undefined)).toBeUndefined();
+    expect(formatWeekTileCaption(0, undefined)).toBeUndefined();
   });
 
   it('formatPeriodSummary : les 4 exemples du §3.2, segments à 0 omis', () => {
     expect(formatPeriodSummary('Semaine dernière', { count: 3, volume: 14520, records: 1 })).toBe(
       t('Semaine dernière~: 3~séances, 14_520~kg, 1~record.'),
     );
-    expect(formatPeriodSummary('Octobre', { count: 11, volume: 52300, records: 4 })).toBe(
-      t('Octobre~: 11~séances, 52_300~kg, 4~records.'),
+    expect(formatPeriodSummary('Octobre', { count: 4, volume: 14760, records: 0 })).toBe(
+      t('Octobre~: 4~séances, 14_760~kg.'),
     );
     expect(formatPeriodSummary('Semaine dernière', { count: 1, volume: 3200, records: 0 })).toBe(
       t('Semaine dernière~: 1~séance, 3_200~kg.'),
@@ -367,6 +381,18 @@ describe('rythme (lot 3)', () => {
     expect(formatPeriodSummary('Novembre', { count: 1, volume: 1012.5, records: 0 })).toBe(
       t('Novembre~: 1~séance, 1_012,5~kg.'),
     );
+  });
+
+  it('formatPeriodSummary sans le compte (mois en cours) : volume puis records, undefined si les deux valent 0', () => {
+    expect(formatPeriodSummary('Octobre', { count: 13, volume: 49755, records: 10 }, { count: false })).toBe(
+      t('Octobre~: 49_755~kg, 10~records.'),
+    );
+    expect(formatPeriodSummary('Octobre', { count: 11, volume: 52300, records: 4 }, { count: false })).toBe(
+      t('Octobre~: 52_300~kg, 4~records.'),
+    );
+    expect(formatPeriodSummary('Octobre', { count: 1, volume: 480, records: 0 }, { count: false })).toBe(t('Octobre~: 480~kg.'));
+    expect(formatPeriodSummary('Octobre', { count: 2, volume: 0, records: 2 }, { count: false })).toBe(t('Octobre~: 2~records.'));
+    expect(formatPeriodSummary('Octobre', { count: 2, volume: 0, records: 0 }, { count: false })).toBeUndefined();
   });
 
   it('formatMonthName : en toutes lettres, majuscule initiale, sans année', () => {
@@ -398,7 +424,15 @@ describe('rythme (lot 3)', () => {
         const line = formatWeekLine(count, goal);
         if (line) texts.push(line);
         texts.push(formatWeekTile(count, goal), formatWeekTileLabel(count, goal));
-        texts.push(formatPeriodSummary('Semaine dernière', { count, volume: count * 1000, records: count % 3 }));
+        const caption = formatWeekTileCaption(count, goal);
+        if (caption) texts.push(caption);
+        const summary = { count, volume: count * 1000, records: count % 3 };
+        for (const line of [
+          formatPeriodSummary('Semaine dernière', summary),
+          formatPeriodSummary('Octobre', summary, { count: false }),
+        ]) {
+          if (line) texts.push(line);
+        }
       }
       texts.push(formatGoalOption(goal));
       if (goal) texts.push(formatGoalSaved(goal));

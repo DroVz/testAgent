@@ -215,7 +215,7 @@ describe('appReducer — objectif par semaine (lot 3)', () => {
     });
   });
 
-  it('« Plus tard » : objectif inchangé (« Aucun »), proposition écartée', () => {
+  it('« Non merci » : objectif inchangé (« Aucun »), proposition écartée', () => {
     const s = appReducer(createDefaultState(), { type: 'settings/dismissWeeklyGoalPrompt' });
     expect(s.settings).toEqual({ weeklyGoalAsked: true });
   });

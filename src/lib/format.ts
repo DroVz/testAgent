@@ -245,7 +245,8 @@ export const DECLINE_NOTE = 'Ça arrive, la prochaine séance compte.';
  * - égalité : « Stable depuis 4 semaines » ;
  * - baisse, sans culpabiliser : « −5 kg en 3 semaines » + note « Ça arrive, la prochaine séance compte. » ;
  * - deux points le même jour : « +5 kg aujourd’hui » / « +5 kg le même jour » ;
- * - un seul point : « Première séance enregistrée » ; aucun point : null.
+ * - un seul point : « Première séance sur cet exercice » (le jalon du récap garde « Première séance
+ *   enregistrée. ») ; aucun point : null.
  */
 export function formatProgressSentence(
   points: ProgressPoint[],
@@ -254,7 +255,7 @@ export function formatProgressSentence(
   now: Date = new Date(),
 ): ProgressSummary | null {
   if (points.length === 0) return null;
-  if (points.length === 1) return { headline: 'Première séance enregistrée' };
+  if (points.length === 1) return { headline: 'Première séance sur cet exercice' };
   const first = points[0];
   const last = points[points.length - 1];
   const delta = round(last.value) - round(first.value);
@@ -270,30 +271,51 @@ export function formatProgressSentence(
 
 // ---------- Rythme (lot 3) : on montre ce qui est fait, jamais ce qui manque ----------
 
+/** « Objectif atteint », insécable (ligne de semaine et légende de tuile). */
+const GOAL_REACHED = `Objectif${NBSP}atteint`;
+
 /**
  * Ligne de semaine (Séances, récap) ; `goal` undefined = « Aucun ».
  * « Cette semaine : 2 séances sur 3. », « … 3 séances sur 3. Objectif atteint. »,
  * « Cette semaine : 4 séances. Objectif de 3 atteint. ». À 0 séance : le repère
  * (« Objectif de la semaine : 3 séances. »), ou rien (undefined) sans objectif.
+ * La phrase finale ne se coupe jamais : insécables entre tous ses mots.
  */
 export function formatWeekLine(count: number, goal?: number): string | undefined {
   const done = formatCount(count, 'séance');
   if (goal === undefined) return count > 0 ? `Cette semaine${COLON} ${done}.` : undefined;
   if (count === 0) return `Objectif de la semaine${COLON} ${formatCount(goal, 'séance')}.`;
   if (count < goal) return `Cette semaine${COLON} ${done} sur ${formatNumber(goal)}.`;
-  if (count === goal) return `Cette semaine${COLON} ${done} sur ${formatNumber(goal)}. Objectif atteint.`;
-  return `Cette semaine${COLON} ${done}. Objectif de ${formatNumber(goal)} atteint.`;
+  if (count === goal) return `Cette semaine${COLON} ${done} sur ${formatNumber(goal)}. ${GOAL_REACHED}.`;
+  return `Cette semaine${COLON} ${done}. Objectif${NBSP}de${NBSP}${formatNumber(goal)}${NBSP}atteint.`;
 }
 
-/** Valeur de la tuile « Cette semaine » : « 2 sur 3 », ou le nombre seul (sans objectif ou au-delà). */
+/**
+ * Valeur de la tuile « Cette semaine » : « 2 sur 3 », ou le nombre seul (sans objectif, au-delà,
+ * ou à 0 : on annonce le repère dans la légende, pas « 0 sur 3 »).
+ */
 export function formatWeekTile(count: number, goal?: number): string {
-  return goal !== undefined && count <= goal ? `${formatNumber(count)} sur ${formatNumber(goal)}` : formatNumber(count);
+  return goal !== undefined && count > 0 && count <= goal
+    ? `${formatNumber(count)} sur ${formatNumber(goal)}`
+    : formatNumber(count);
 }
 
-/** Nom accessible de la tuile : « 2 séances sur 3 », « 4 séances ». */
+/** Nom accessible de la tuile : « 2 séances sur 3 », « 4 séances », « 0 séance, objectif 3 séances ». */
 export function formatWeekTileLabel(count: number, goal?: number): string {
   const done = formatCount(count, 'séance');
-  return goal !== undefined && count <= goal ? `${done} sur ${formatNumber(goal)}` : done;
+  if (goal === undefined) return done;
+  if (count === 0) return `${done}, objectif ${formatCount(goal, 'séance')}`;
+  return count <= goal ? `${done} sur ${formatNumber(goal)}` : done;
+}
+
+/**
+ * Légende sous la tuile « Cette semaine » : « Objectif : 3 » à 0 séance, « Objectif atteint »
+ * dès que compte ≥ objectif ; undefined sans objectif ou entre les deux.
+ */
+export function formatWeekTileCaption(count: number, goal?: number): string | undefined {
+  if (goal === undefined) return undefined;
+  if (count === 0) return `Objectif${COLON}${NBSP}${formatNumber(goal)}`;
+  return count >= goal ? GOAL_REACHED : undefined;
 }
 
 const monthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long' });
@@ -306,12 +328,18 @@ export function formatMonthName(date: Date): string {
 
 /**
  * Bilan : « Semaine dernière : 3 séances, 14 520 kg, 1 record. » Volume et records à 0 omis ;
- * jamais de mention de l'objectif.
+ * jamais de mention de l'objectif. `count: false` (mois en cours, dont la tuile « Ce mois » donne
+ * déjà le compte) : « Octobre : 49 755 kg, 10 records. », undefined si volume et records valent 0.
  */
-export function formatPeriodSummary(label: string, summary: PeriodSummary): string {
-  const parts = [formatCount(summary.count, 'séance')];
+export function formatPeriodSummary(
+  label: string,
+  summary: PeriodSummary,
+  { count = true }: { count?: boolean } = {},
+): string | undefined {
+  const parts = count ? [formatCount(summary.count, 'séance')] : [];
   if (summary.volume > 0) parts.push(formatWeight(summary.volume));
   if (summary.records > 0) parts.push(formatCount(summary.records, 'record'));
+  if (parts.length === 0) return undefined;
   return `${label}${COLON} ${parts.join(', ')}.`;
 }
 

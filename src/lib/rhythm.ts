@@ -105,8 +105,12 @@ export function periodSummary(sessions: WorkoutSession[], from: Date, to: Date):
 export interface ProgressReview {
   /** Semaine dernière, absente si elle compte 0 séance. */
   lastWeek?: PeriodSummary;
-  /** Mois en cours, ou le mois précédent si le mois en cours est vide ; absent si les deux sont vides. */
-  month?: PeriodSummary & { monthStart: Date };
+  /**
+   * Mois en cours (`isCurrent: true`) s'il compte au moins 1 séance ; sinon, du 1er au 7 seulement,
+   * le mois précédent (`isCurrent: false`) s'il compte au moins 1 séance ; sinon absent. On ne met
+   * pas une période passée à côté d'une période en cours vide (identity §9.3).
+   */
+  month?: PeriodSummary & { monthStart: Date; isCurrent: boolean };
 }
 
 /** Bilan affiché sous les tuiles de Progrès (§4.2). Ne mentionne jamais l'objectif. */
@@ -115,12 +119,15 @@ export function progressReview(sessions: WorkoutSession[], now: Date = new Date(
   const week = previousWeekRange(now);
   const lastWeek = periodSummary(sessions, week.from, week.to);
   if (lastWeek.count > 0) review.lastWeek = lastWeek;
-  for (const range of [monthRange(now), previousMonthRange(now)]) {
-    const summary = periodSummary(sessions, range.from, range.to);
-    if (summary.count > 0) {
-      review.month = { ...summary, monthStart: range.from };
-      break;
-    }
+  const current = monthRange(now);
+  const month = periodSummary(sessions, current.from, current.to);
+  if (month.count > 0) {
+    review.month = { ...month, monthStart: current.from, isCurrent: true };
+  } else if (now.getDate() <= 7) {
+    // Début de mois : le mois précédent, pour que le 1er ne soit pas vide.
+    const previous = previousMonthRange(now);
+    const summary = periodSummary(sessions, previous.from, previous.to);
+    if (summary.count > 0) review.month = { ...summary, monthStart: previous.from, isCurrent: false };
   }
   return review;
 }

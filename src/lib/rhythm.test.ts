@@ -184,16 +184,46 @@ describe('bilan de Progrès (§4.2)', () => {
     session('oct-2', at(2026, 10, 28), { squat: [set(100, 5)] }),
   ];
 
-  it('semaine dernière omise si vide ; mois en cours vide → mois précédent, sous son nom', () => {
+  it('semaine dernière omise si vide ; mois en cours vide, du 1er au 7 → mois précédent, sous son nom', () => {
     // Dimanche 1er novembre : semaine en cours 26 oct.–1er nov., semaine dernière 19–25 oct.
     const review = progressReview(sessions, at(2026, 11, 1, 9));
     expect(review.lastWeek).toEqual({ count: 1, volume: 500, records: 0 });
-    expect(review.month).toEqual({ count: 2, volume: 1000, records: 0, monthStart: at(2026, 10, 1, 0) });
+    expect(review.month).toEqual({ count: 2, volume: 1000, records: 0, monthStart: at(2026, 10, 1, 0), isCurrent: false });
 
-    // Lundi 9 novembre : semaine dernière (2–8 nov.) vide, mois en cours vide → octobre.
-    const later = progressReview(sessions, at(2026, 11, 9, 9));
-    expect(later.lastWeek).toBeUndefined();
-    expect(later.month?.monthStart).toEqual(at(2026, 10, 1, 0));
+    // Lundi 2 novembre : repli sur octobre, sans « Semaine dernière » (26 oct.–1er nov. : 1 séance, le 28).
+    const monday = progressReview(sessions, at(2026, 11, 2, 9));
+    expect(monday.month?.monthStart).toEqual(at(2026, 10, 1, 0));
+    expect(monday.month?.isCurrent).toBe(false);
+  });
+
+  it('repli limité au 1er–7 : présent le 7 à 23:59, absent le 8 à 00:00', () => {
+    expect(progressReview(sessions, at(2026, 11, 7, 23, 59)).month?.monthStart).toEqual(at(2026, 10, 1, 0));
+    expect(progressReview(sessions, at(2026, 11, 8, 0, 0)).month).toBeUndefined();
+    // Lundi 9 novembre : semaine dernière (2–8 nov.) vide, mois en cours vide → rien.
+    expect(progressReview(sessions, at(2026, 11, 9, 9))).toEqual({});
+  });
+
+  it('repli au changement d’année : le 3 janvier, décembre de l’année précédente', () => {
+    const december = [session('dec', at(2026, 12, 15)), session('dec-2', at(2026, 12, 21))];
+    const review = progressReview(december, at(2027, 1, 3, 9));
+    expect(review.month?.monthStart).toEqual(at(2026, 12, 1, 0));
+    expect(review.month?.isCurrent).toBe(false);
+    expect(review.month?.count).toBe(2);
+  });
+
+  it('du 1er au 7, mois précédent vide : pas de ligne de mois', () => {
+    const away = [session('sep', at(2026, 9, 23, 18))];
+    expect(progressReview(away, at(2026, 11, 3, 9)).month).toBeUndefined();
+  });
+
+  it('29 octobre, dernière séance le 23 septembre : ni mois ni semaine dernière', () => {
+    const away = [session('sep', at(2026, 9, 23, 18))];
+    expect(progressReview(away, at(2026, 10, 29, 20))).toEqual({});
+  });
+
+  it('mois en cours avec des séances : isCurrent', () => {
+    const review = progressReview(sessions, at(2026, 10, 29, 20));
+    expect(review.month).toEqual({ count: 2, volume: 1000, records: 0, monthStart: at(2026, 10, 1, 0), isCurrent: true });
   });
 
   it('les deux mois vides : pas de ligne de mois ; historique vide : rien', () => {

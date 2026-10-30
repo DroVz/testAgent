@@ -1622,10 +1622,9 @@ svg {
   white-space: nowrap;
 }
 
-/* Bouton discret aligné sur le texte de la carte (son libellé, pas son fond transparent). */
+/* Refus : bouton secondaire à contour, largeur au contenu, comme « Rester à … ». */
 .goal-prompt__later {
   align-self: flex-start;
-  margin-left: calc(-1 * var(--space-3));
 }
 
 /* Récap : ligne de semaine puis jalon, en texte secondaire. */

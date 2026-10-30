@@ -38,7 +38,7 @@ Exemples :
 
 ## 4. Règles de clarté (non négociables)
 
-1. **Une action principale par écran**, visuellement évidente (couleur d'accent, pleine largeur ou grande taille). Les actions secondaires sont discrètes.
+1. **Une action principale par écran**, visuellement évidente (couleur d'accent, pleine largeur ou grande taille). Les actions secondaires sont discrètes. Un refus est un bouton secondaire à contour, avec un libellé qui dit ce qui se passera (« Non merci » si c'est définitif, « Plus tard » seulement si on redemande).
 2. **Une seule couleur d'accent**, réservée à « la prochaine chose à faire ». Si tout est coloré, rien n'est clair. Un bouton principal indisponible ne porte pas l'accent et dit ce qui manque (« Choisis un programme ci-dessus »).
 3. **Le chiffre est le héros** : poids, reps et temps s'affichent en grand, en chiffres tabulaires (alignés).
 4. **On montre toujours la référence** : à côté de chaque champ à remplir, « Dernière fois : 80 kg × 8 ».
@@ -141,8 +141,8 @@ Pose-toi ces cinq questions. Une réponse « non » est un défaut à corriger :
 |---|---|---|
 | Charge proposée | Note de deux lignes, en texte principal et secondaire, icône en encre. Pas de proposition si la dernière fois date de plus de 4 semaines. | « Charge proposée : 82,5 kg » / « La dernière fois : 80 kg × 8 à chaque série. » |
 | Record | Seul endroit où le « ! » et le vert « succès » sont permis ; petit « pulse » de 150 à 200 ms | « Nouveau record en développé couché : 82,5 kg ! » |
-| Rythme de la semaine | Un compte face à un objectif choisi, avec des pastilles en encre. Seule la semaine en cours est comparée à l'objectif. Une séance compte si elle est terminée avec au moins une série validée. | « Cette semaine : 2 séances sur 3. » / « Objectif atteint. » / « Objectif de la semaine : 3 séances. » (aucune séance encore) / « Cette semaine : 4 séances. Objectif de 3 atteint. » |
-| Bilan | Une phrase factuelle, avec des unités. Les segments à 0 sont omis ; le bilan ne mentionne jamais l'objectif. | « Semaine dernière : 3 séances, 14 520 kg, 1 record. » |
+| Rythme de la semaine | Un compte face à un objectif choisi, avec des pastilles en encre. Seule la semaine en cours est comparée à l'objectif. Une séance compte si elle est terminée avec au moins une série validée. À 0 séance, on annonce l'objectif, on ne dessine pas de pastilles vides. | « Cette semaine : 2 séances sur 3. » / « Objectif atteint. » / « Objectif de la semaine : 3 séances. » (aucune séance encore) / « Cette semaine : 4 séances. Objectif de 3 atteint. » |
+| Bilan | Une phrase factuelle, avec des unités. Les segments à 0 sont omis ; le bilan ne mentionne jamais l'objectif. Le bilan ne répète pas un chiffre déjà affiché à l'écran, et ne montre pas une période passée à côté d'une période en cours vide (repli sur le mois précédent du 1er au 7 seulement). | « Semaine dernière : 3 séances, 14 520 kg, 1 record. » |
 | Jalon | Une ligne de texte secondaire dans le récap, sans « ! » ni icône. Seuils : 1, 10, 25, 50, 100, puis tous les 100. | « 10ᵉ séance enregistrée. » |
 | Rappel de séance | Désactivé par défaut ; jours et heure choisis ; texte neutre ; pas de rappel si la séance du jour est déjà faite | « C'est l'heure de ta séance. Suggérée : Jambes. » |
 | Programmes de départ | Choix guidé à la place d'un écran vide, sans questionnaire | « Commence avec un programme ou crée la tienne. » |

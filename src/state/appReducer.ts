@@ -80,7 +80,7 @@ export type AppAction =
   | { type: 'settings/setSuggestLoad'; enabled: boolean }
   /** Objectif par semaine ; undefined = « Aucun » (le champ est retiré). Marque la question comme posée. */
   | { type: 'settings/setWeeklyGoal'; goal: WeeklyGoal | undefined }
-  /** « Plus tard » sur la carte de proposition : elle ne revient plus. */
+  /** « Non merci » sur la carte de proposition : elle ne revient plus. */
   | { type: 'settings/dismissWeeklyGoalPrompt' }
   // Données
   | { type: 'data/replace'; state: AppState }

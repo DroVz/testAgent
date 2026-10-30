@@ -222,7 +222,9 @@ describe('progrès', () => {
     expect(document.querySelector('.progress-sentence')).toHaveTextContent('+10 kg en 3 semaines');
     // Un seul point
     fireEvent.change(screen.getByRole('combobox', { name: 'Exercice' }), { target: { value: 'developpe-couche' } });
-    expect(document.querySelector('.progress-sentence')).toHaveTextContent('Première séance enregistrée');
+    // Un seul point pour cet exercice, plusieurs séances au total : pas la phrase du jalon (critère 29).
+    expect(document.querySelector('.progress-sentence')).toHaveTextContent('Première séance sur cet exercice');
+    expect(document.querySelector('.progress-sentence')).not.toHaveTextContent('séance enregistrée');
   });
 
   it('baisse : le chiffre seul en 24 px, la relativisation dessous en texte secondaire', () => {

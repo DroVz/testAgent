@@ -15,6 +15,7 @@ import {
   formatPeriodSummary,
   formatProgressSentence,
   formatWeekTile,
+  formatWeekTileCaption,
   formatWeekTileLabel,
   formatWeight,
   roundOneRepMax,
@@ -80,6 +81,12 @@ export default function ProgressPage() {
   const goal = weeklyGoalOf(state);
   const week = sessionsThisWeek(state.sessions);
   const proposeGoal = shouldProposeWeeklyGoal(state);
+  const weekCaption = formatWeekTileCaption(week, goal);
+  // Bilan : la ligne du mois en cours omet le compte (déjà dans la tuile « Ce mois »), le repli le garde.
+  const lastWeekLine = review.lastWeek && formatPeriodSummary('Semaine dernière', review.lastWeek);
+  const monthLine =
+    review.month &&
+    formatPeriodSummary(formatMonthName(review.month.monthStart), review.month, { count: !review.month.isCurrent });
 
   // Exercices ayant au moins une série validée, triés par nom. Par défaut : le premier exercice de la
   // dernière séance terminée (l'exercice principal de la séance, pas un exercice secondaire de fin).
@@ -147,12 +154,20 @@ export default function ProgressPage() {
               <span className="stat__value" aria-hidden="true">
                 {formatWeekTile(week, goal)}
               </span>
-              <span className="rhythm-dots" aria-hidden="true">
-                {Array.from({ length: goal }, (_, i) => (
-                  <span key={i} className={`rhythm-dot${i < week ? ' rhythm-dot--done' : ''}`} />
-                ))}
-              </span>
-              {week >= goal && <span className="stat__caption">Objectif atteint</span>}
+              {/* À 0 séance : le repère en légende, pas de pastilles vides. */}
+              {week > 0 && (
+                <span className="rhythm-dots" aria-hidden="true">
+                  {Array.from({ length: goal }, (_, i) => (
+                    <span key={i} className={`rhythm-dot${i < week ? ' rhythm-dot--done' : ''}`} />
+                  ))}
+                </span>
+              )}
+              {/* « Objectif : 3 » redit le nom accessible ; « Objectif atteint » s'y ajoute. */}
+              {weekCaption && (
+                <span className="stat__caption" aria-hidden={week === 0 ? true : undefined}>
+                  {weekCaption}
+                </span>
+              )}
             </dd>
           )}
         </div>
@@ -162,10 +177,10 @@ export default function ProgressPage() {
         </div>
       </dl>
 
-      {(review.lastWeek || review.month) && (
+      {(lastWeekLine || monthLine) && (
         <div className="progress-review">
-          {review.lastWeek && <p className="muted">{formatPeriodSummary('Semaine dernière', review.lastWeek)}</p>}
-          {review.month && <p className="muted">{formatPeriodSummary(formatMonthName(review.month.monthStart), review.month)}</p>}
+          {lastWeekLine && <p className="muted">{lastWeekLine}</p>}
+          {monthLine && <p className="muted">{monthLine}</p>}
         </div>
       )}
 
@@ -174,7 +189,7 @@ export default function ProgressPage() {
           <h2 className="section-title">
             Combien de séances par semaine <span className="goal-prompt__keep">veux-tu</span> viser{NNBSP}?
           </h2>
-          <p className="muted goal-prompt__text">Un repère pour toi. Tu pourras le changer dans Réglages.</p>
+          <p className="muted goal-prompt__text">Un repère pour toi. Tu pourras le régler à tout moment dans Réglages.</p>
           <div className="goal-chips">
             {PROPOSED_GOALS.map((g) => (
               <button
@@ -191,8 +206,8 @@ export default function ProgressPage() {
               </button>
             ))}
           </div>
-          <button type="button" className="btn btn--ghost goal-prompt__later" onClick={actions.dismissWeeklyGoalPrompt}>
-            Plus tard
+          <button type="button" className="btn goal-prompt__later" onClick={actions.dismissWeeklyGoalPrompt}>
+            Non merci
           </button>
         </div>
       )}

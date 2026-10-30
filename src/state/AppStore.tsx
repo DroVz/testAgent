@@ -56,7 +56,7 @@ export interface AppActions {
   setSuggestLoad(enabled: boolean): void;
   /** « Objectif par semaine » ; undefined = « Aucun ». La proposition sur Progrès ne revient plus. */
   setWeeklyGoal(goal: WeeklyGoal | undefined): void;
-  /** « Plus tard » sur la carte de proposition d'objectif. */
+  /** « Non merci » sur la carte de proposition d'objectif. */
   dismissWeeklyGoalPrompt(): void;
 
   /** Remplace toutes les données et les sauvegarde immédiatement ; renvoie false si la sauvegarde a échoué. */
